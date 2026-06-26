@@ -344,9 +344,3 @@ Backend menyediakan beberapa kelompok endpoint:
 | Dashboard | Ringkasan data |
 | Report | Laporan |
 ---
-
-
-```bash
-go vet ./...
-```
-````
