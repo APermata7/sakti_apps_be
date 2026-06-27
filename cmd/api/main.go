@@ -1,40 +1,63 @@
 package main
 
 import (
-    "log"
-    "os"
+	"context"
+	"log"
+	"os"
+	"time"
 
-    "github.com/gofiber/fiber/v2"
-    "github.com/gofiber/fiber/v2/middleware/cors"
-    "github.com/gofiber/fiber/v2/middleware/logger"
-    "github.com/joho/godotenv"
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/joho/godotenv"
+
+	"sakti_apps_be/pkg/db"
 )
 
 func main() {
-    // Load .env
-    if err := godotenv.Load(); err != nil {
-        log.Println("⚠️ .env file not found, using system env")
-    }
+	if err := godotenv.Load(); err != nil {
+		log.Println(".env file not found, using system env")
+	}
 
-    app := fiber.New()
+	log.Println("Menghubungkan ke database...")
 
-    app.Use(logger.New())
-    app.Use(cors.New())
+	dbConn, err := db.NewSupabaseDB()
+	if err != nil {
+		log.Fatalf("Gagal koneksi database: %v", err)
+	}
+	defer dbConn.Close()
 
-    app.Get("/health", func(c *fiber.Ctx) error {
-        return c.JSON(fiber.Map{
-            "status":  "ok",
-            "service": "sakti-api",
-        })
-    })
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-    port := os.Getenv("APP_PORT")
-    if port == "" {
-        port = "8080"
-    }
+	if err := dbConn.Ping(ctx); err != nil {
+		log.Fatalf("Database tidak merespon: %v", err)
+	}
 
-    log.Printf("🚀 Server running on port %s", port)
-    if err := app.Listen(":" + port); err != nil {
-        log.Fatal(err)
-    }
+	log.Println("Database connected successfully!")
+
+	app := fiber.New(fiber.Config{
+		AppName: os.Getenv("APP_NAME"),
+	})
+
+	app.Use(logger.New())
+	app.Use(cors.New())
+
+	app.Get("/health", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{
+			"status":  "ok",
+			"service": os.Getenv("APP_NAME"),
+			"db":      "connected",
+		})
+	})
+
+	port := os.Getenv("APP_PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	log.Printf("Server running on port %s", port)
+	if err := app.Listen(":" + port); err != nil {
+		log.Fatal(err)
+	}
 }

@@ -66,7 +66,7 @@ Role pengguna:
 
 - Data Karyawan
 - Profil Pengguna
-- Departemen
+- Divisi
 - Jabatan
 - Hak Akses
 
