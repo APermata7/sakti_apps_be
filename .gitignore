@@ -38,3 +38,6 @@ tmp/
 
 # Test Coverage
 coverage.out
+
+# Firebase
+*.json
