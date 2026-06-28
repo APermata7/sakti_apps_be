@@ -11,6 +11,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/joho/godotenv"
 
+	"sakti_apps_be/internal/handler"
 	"sakti_apps_be/internal/utils"
 	"sakti_apps_be/pkg/db"
 )
@@ -35,6 +36,12 @@ func main() {
 	}
 	log.Println("Database connected")
 
+	if err := utils.InitCloudinary(); err != nil {
+		log.Printf("Cloudinary init error: %v", err)
+	} else {
+		log.Println("Cloudinary ready")
+	}
+
 	if err := utils.InitFCM(); err != nil {
 		log.Printf("FCM init error: %v", err)
 	} else {
@@ -55,6 +62,10 @@ func main() {
 			"db":      "connected",
 		})
 	})
+
+	app.Post("/upload/file", handler.UploadFile)
+	app.Post("/upload/image", handler.UploadImage)
+	app.Post("/upload/ttd", handler.UploadTTD)
 
 	port := os.Getenv("APP_PORT")
 	if port == "" {
