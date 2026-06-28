@@ -11,16 +11,16 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/joho/godotenv"
 
+	"sakti_apps_be/internal/utils"
 	"sakti_apps_be/pkg/db"
 )
 
 func main() {
 	if err := godotenv.Load(); err != nil {
-		log.Println(".env file not found, using system env")
+		log.Println(".env file not found")
 	}
 
 	log.Println("Menghubungkan ke database...")
-
 	dbConn, err := db.NewSupabaseDB()
 	if err != nil {
 		log.Fatalf("Gagal koneksi database: %v", err)
@@ -33,8 +33,13 @@ func main() {
 	if err := dbConn.Ping(ctx); err != nil {
 		log.Fatalf("Database tidak merespon: %v", err)
 	}
+	log.Println("Database connected")
 
-	log.Println("Database connected successfully!")
+	if err := utils.InitFCM(); err != nil {
+		log.Printf("FCM init error: %v", err)
+	} else {
+		log.Println("FCM ready")
+	}
 
 	app := fiber.New(fiber.Config{
 		AppName: os.Getenv("APP_NAME"),
