@@ -3,8 +3,7 @@ package repository
 import (
 	"context"
 	"log"
-
-	"github.com/jackc/pgx/v5"
+	
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"sakti_apps_be/internal/domain"
