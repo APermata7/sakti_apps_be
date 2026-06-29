@@ -1,0 +1,13 @@
+CREATE TABLE kantor (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    nama VARCHAR(255) NOT NULL,
+    lintang DECIMAL(10, 8) NOT NULL,
+    bujur DECIMAL(11, 8) NOT NULL,
+    radius INT DEFAULT 500,
+    alamat TEXT,
+    dibuat_pada TIMESTAMP DEFAULT NOW(),
+    diperbarui_pada TIMESTAMP DEFAULT NOW()
+);
+
+INSERT INTO kantor (nama, lintang, bujur, radius, alamat) VALUES 
+('KOPEGTEL MALANG', -7.942777, 112.641110, 500, 'Jl. Ahmad Yani No.11, Blimbing, Kec. Blimbing, Kota Malang, Jawa Timur 65125');
