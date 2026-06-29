@@ -1,5 +1,5 @@
 CREATE TABLE karyawan (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT auth.uid(),
     nama_lengkap VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
     nomor_telepon VARCHAR(20),
@@ -10,7 +10,6 @@ CREATE TABLE karyawan (
     divisi VARCHAR(100),
     unit VARCHAR(100),
     status_karyawan VARCHAR(20) DEFAULT 'aktif' CHECK (status_karyawan IN ('aktif', 'nonaktif')),
-    kata_sandi_hash VARCHAR(255) NOT NULL,
     dibuat_pada TIMESTAMP DEFAULT NOW(),
     diperbarui_pada TIMESTAMP DEFAULT NOW()
 );
