@@ -12,6 +12,9 @@ import (
 	"github.com/joho/godotenv"
 
 	"sakti_apps_be/internal/handler"
+	"sakti_apps_be/internal/middleware"
+	"sakti_apps_be/internal/repository"
+	"sakti_apps_be/internal/usecase"
 	"sakti_apps_be/internal/utils"
 	"sakti_apps_be/pkg/db"
 )
@@ -48,6 +51,10 @@ func main() {
 		log.Println("FCM ready")
 	}
 
+	karyawanRepo := repository.NewKaryawanRepo(dbConn.Pool)
+	authUsecase := usecase.NewAuthUsecase(karyawanRepo)
+	authHandler := handler.NewAuthHandler(authUsecase)
+
 	app := fiber.New(fiber.Config{
 		AppName: os.Getenv("APP_NAME"),
 	})
@@ -66,6 +73,13 @@ func main() {
 	app.Post("/upload/file", handler.UploadFile)
 	app.Post("/upload/image", handler.UploadImage)
 	app.Post("/upload/ttd", handler.UploadTTD)
+
+	api := app.Group("/api")
+	api.Post("/auth/login", authHandler.Login)
+
+	protected := api.Group("/", middleware.AuthMiddleware())
+	protected.Get("/auth/me", authHandler.GetProfile)
+	protected.Post("/auth/logout", authHandler.Logout)
 
 	port := os.Getenv("APP_PORT")
 	if port == "" {
