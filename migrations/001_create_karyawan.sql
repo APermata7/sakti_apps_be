@@ -1,5 +1,5 @@
 CREATE TABLE karyawan (
-    id UUID PRIMARY KEY DEFAULT auth.uid(),
+    id UUID PRIMARY KEY,
     nama_lengkap VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
     nomor_telepon VARCHAR(20),
