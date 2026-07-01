@@ -28,7 +28,6 @@ func (r *KaryawanRepo) GetByID(ctx context.Context, id string) (*domain.Karyawan
 	`
 
 	var k domain.Karyawan
-	var atasanID *string
 
 	err := r.DB.QueryRow(ctx, query, id).Scan(
 		&k.ID,
@@ -38,7 +37,7 @@ func (r *KaryawanRepo) GetByID(ctx context.Context, id string) (*domain.Karyawan
 		&k.FotoURL,
 		&k.Peran,
 		&k.LevelJabatan,
-		&atasanID,
+		&k.AtasanLangsungID,
 		&k.Divisi,
 		&k.Unit,
 		&k.StatusKaryawan,
@@ -53,7 +52,6 @@ func (r *KaryawanRepo) GetByID(ctx context.Context, id string) (*domain.Karyawan
 		return nil, err
 	}
 
-	k.AtasanLangsungID = atasanID
 	return &k, nil
 }
 
@@ -67,7 +65,6 @@ func (r *KaryawanRepo) GetByEmail(ctx context.Context, email string) (*domain.Ka
 	`
 
 	var k domain.Karyawan
-	var atasanID *string
 
 	err := r.DB.QueryRow(ctx, query, email).Scan(
 		&k.ID,
@@ -77,7 +74,7 @@ func (r *KaryawanRepo) GetByEmail(ctx context.Context, email string) (*domain.Ka
 		&k.FotoURL,
 		&k.Peran,
 		&k.LevelJabatan,
-		&atasanID,
+		&k.AtasanLangsungID,
 		&k.Divisi,
 		&k.Unit,
 		&k.StatusKaryawan,
@@ -92,7 +89,6 @@ func (r *KaryawanRepo) GetByEmail(ctx context.Context, email string) (*domain.Ka
 		return nil, err
 	}
 
-	k.AtasanLangsungID = atasanID
 	return &k, nil
 }
 

@@ -68,3 +68,132 @@ func (h *AuthHandler) Logout(c *fiber.Ctx) error {
 		"message": "Logout berhasil",
 	})
 }
+
+func (h *AuthHandler) ChangePassword(c *fiber.Ctx) error {
+	userID := c.Locals("user_id").(string)
+
+	var req struct {
+		NewPassword     string `json:"new_password"`
+		ConfirmPassword string `json:"confirm_password"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Request tidak valid",
+		})
+	}
+
+	if req.NewPassword == "" || req.ConfirmPassword == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Password baru dan konfirmasi wajib diisi",
+		})
+	}
+
+	if len(req.NewPassword) < 8 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Password minimal 8 karakter",
+		})
+	}
+
+	if req.NewPassword != req.ConfirmPassword {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Konfirmasi password tidak sesuai",
+		})
+	}
+
+	err := h.AuthUsecase.ChangePassword(c.Context(), userID, req.NewPassword)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": err.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "Password berhasil diubah",
+	})
+}
+
+func (h *AuthHandler) ForgotPassword(c *fiber.Ctx) error {
+	var req struct {
+		Email string `json:"email"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Request tidak valid",
+		})
+	}
+
+	if req.Email == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Email wajib diisi",
+		})
+	}
+
+	err := h.AuthUsecase.ForgotPassword(c.Context(), req.Email)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": err.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "Link reset password telah dikirim ke email Anda",
+	})
+}
+
+func (h *AuthHandler) ResetPassword(c *fiber.Ctx) error {
+	var req struct {
+		Token           string `json:"token"`
+		NewPassword     string `json:"new_password"`
+		ConfirmPassword string `json:"confirm_password"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Request tidak valid",
+		})
+	}
+
+	if req.Token == "" || req.NewPassword == "" || req.ConfirmPassword == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Token, password baru, dan konfirmasi wajib diisi",
+		})
+	}
+
+	if len(req.NewPassword) < 8 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Password minimal 8 karakter",
+		})
+	}
+
+	if req.NewPassword != req.ConfirmPassword {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Konfirmasi password tidak sesuai",
+		})
+	}
+
+	err := h.AuthUsecase.ResetPassword(c.Context(), req.Token, req.NewPassword)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": err.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "Password berhasil direset",
+	})
+}

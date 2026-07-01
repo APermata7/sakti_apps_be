@@ -75,11 +75,15 @@ func main() {
 	app.Post("/upload/ttd", handler.UploadTTD)
 
 	api := app.Group("/api")
+
 	api.Post("/auth/login", authHandler.Login)
+	api.Post("/auth/forgot-password", authHandler.ForgotPassword)
+	api.Post("/auth/reset-password", authHandler.ResetPassword)
 
 	protected := api.Group("/", middleware.AuthMiddleware())
 	protected.Get("/auth/me", authHandler.GetProfile)
 	protected.Post("/auth/logout", authHandler.Logout)
+	protected.Put("/auth/change-password", authHandler.ChangePassword)
 
 	port := os.Getenv("APP_PORT")
 	if port == "" {
