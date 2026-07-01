@@ -5,7 +5,7 @@ CREATE TABLE sisa_cuti (
     jumlah_cuti INT DEFAULT 12,
     telah_dilaksanakan INT DEFAULT 0,
     akan_dilaksanakan INT DEFAULT 0,
-    sisa INT DEFAULT 12,
+    sisa_cuti INT DEFAULT 12,
     dibuat_pada TIMESTAMP DEFAULT NOW(),
     diperbarui_pada TIMESTAMP DEFAULT NOW()
 );
