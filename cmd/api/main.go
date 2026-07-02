@@ -52,8 +52,17 @@ func main() {
 	}
 
 	karyawanRepo := repository.NewKaryawanRepo(dbConn.Pool)
+	presensiRepo := repository.NewPresensiRepo(dbConn.Pool)
+	configRepo := repository.NewKonfigurasiRepo(dbConn.Pool)
+	leaveRepo := repository.NewLeaveRepo(dbConn.Pool)
+
 	authUsecase := usecase.NewAuthUsecase(karyawanRepo)
+	presensiUsecase := usecase.NewPresensiUsecase(presensiRepo, karyawanRepo, configRepo)
+	leaveUsecase := usecase.NewLeaveUsecase(leaveRepo, karyawanRepo)
+
 	authHandler := handler.NewAuthHandler(authUsecase)
+	presensiHandler := handler.NewPresensiHandler(presensiUsecase)
+	leaveHandler := handler.NewLeaveHandler(leaveUsecase)
 
 	app := fiber.New(fiber.Config{
 		AppName: os.Getenv("APP_NAME"),
@@ -84,6 +93,21 @@ func main() {
 	protected.Get("/auth/me", authHandler.GetProfile)
 	protected.Post("/auth/logout", authHandler.Logout)
 	protected.Put("/auth/change-password", authHandler.ChangePassword)
+
+	protected.Post("/attendance/check-in", presensiHandler.CheckIn)
+	protected.Post("/attendance/check-out", presensiHandler.CheckOut)
+	protected.Get("/attendance/today", presensiHandler.GetToday)
+	protected.Get("/attendance/history", presensiHandler.GetHistory)
+	protected.Put("/attendance/check-in/reason", presensiHandler.UpdateAlasanTerlambat)
+
+	protected.Post("/leave/request", leaveHandler.CreateLeave)
+	protected.Get("/leave/status", leaveHandler.GetStatus)
+	protected.Get("/leave/:id/download", leaveHandler.DownloadSuratCuti)
+	protected.Put("/leave/:id/cancel", leaveHandler.CancelLeave)
+
+	protected.Put("/leave/:id/approve", leaveHandler.ApproveLeave)
+	protected.Put("/leave/:id/reject", leaveHandler.RejectLeave)
+	protected.Put("/leave/:id/finalize", leaveHandler.FinalizeLeave)
 
 	port := os.Getenv("APP_PORT")
 	if port == "" {
