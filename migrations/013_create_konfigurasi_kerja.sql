@@ -3,6 +3,7 @@ CREATE TABLE konfigurasi_kerja (
     nama_kantor VARCHAR(255) NOT NULL DEFAULT 'KOPEGTEL MALANG',
     lat_kantor DECIMAL(10, 8) NOT NULL DEFAULT -7.942777,
     long_kantor DECIMAL(11, 8) NOT NULL DEFAULT 112.641110,
+    logo_kantor VARCHAR(255),
     jam_masuk TIME NOT NULL DEFAULT '08:30',
     jam_minimal_masuk TIME NOT NULL DEFAULT '08:00',
     jam_pulang TIME NOT NULL DEFAULT '17:00',
