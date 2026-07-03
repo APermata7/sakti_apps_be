@@ -56,16 +56,20 @@ func main() {
 	configRepo := repository.NewKonfigurasiRepo(dbConn.Pool)
 	leaveRepo := repository.NewLeaveRepo(dbConn.Pool)
 	riwayatRepo := repository.NewRiwayatRepo(dbConn.Pool)
+	notifikasiRepo := repository.NewNotifikasiRepo(dbConn.Pool)
+	fcmTokenRepo := repository.NewFCMTokenRepo(dbConn.Pool)
 
 	authUsecase := usecase.NewAuthUsecase(karyawanRepo)
 	presensiUsecase := usecase.NewPresensiUsecase(presensiRepo, karyawanRepo, configRepo)
 	leaveUsecase := usecase.NewLeaveUsecase(leaveRepo, karyawanRepo)
 	riwayatUsecase := usecase.NewRiwayatUsecase(riwayatRepo)
+	notificationUsecase := usecase.NewNotificationUsecase(fcmTokenRepo, notifikasiRepo, karyawanRepo)
 
 	authHandler := handler.NewAuthHandler(authUsecase)
 	presensiHandler := handler.NewPresensiHandler(presensiUsecase)
 	leaveHandler := handler.NewLeaveHandler(leaveUsecase)
 	riwayatHandler := handler.NewRiwayatHandler(riwayatUsecase)
+	notificationHandler := handler.NewNotificationHandler(notificationUsecase)
 
 	app := fiber.New(fiber.Config{
 		AppName: os.Getenv("APP_NAME"),
@@ -113,6 +117,11 @@ func main() {
 	protected.Put("/leave/:id/finalize", leaveHandler.FinalizeLeave)
 
 	protected.Get("/riwayat", riwayatHandler.GetRiwayat)
+
+	protected.Get("/notifikasi", notificationHandler.GetNotifikasi)
+	protected.Get("/notifikasi/unread", notificationHandler.GetUnreadCount)
+	protected.Put("/notifikasi/:id/read", notificationHandler.MarkAsRead)
+	protected.Put("/notifikasi/read-all", notificationHandler.MarkAllAsRead)
 
 	port := os.Getenv("APP_PORT")
 	if port == "" {

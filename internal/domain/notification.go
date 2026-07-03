@@ -13,15 +13,30 @@ type FCMToken struct {
 	UpdatedAt  time.Time `json:"updated_at"`
 }
 
-type NotificationRequest struct {
-	KaryawanID string            `json:"karyawan_id"`
-	Title      string            `json:"title"`
-	Body       string            `json:"body"`
-	Data       map[string]string `json:"data,omitempty"`
+type Notifikasi struct {
+	ID            string     `json:"id"`
+	KaryawanID    string     `json:"karyawan_id"`
+	Jenis         string     `json:"jenis"`
+	Channel       string     `json:"channel"`
+	Judul         string     `json:"judul"`
+	Pesan         string     `json:"pesan"`
+	Dibaca        bool       `json:"dibaca"`
+	DibacaPada    *time.Time `json:"dibaca_pada"`
+	ReferensiID   string     `json:"referensi_id"`
+	ReferensiTipe string     `json:"referensi_tipe"`
+	DibuatPada    time.Time  `json:"dibuat_pada"`
 }
 
-type NotificationResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-	Count   int    `json:"count,omitempty"`
+type KirimNotifikasiRequest struct {
+	KaryawanID    string `json:"karyawan_id"`
+	Jenis         string `json:"jenis"`
+	Judul         string `json:"judul"`
+	Pesan         string `json:"pesan"`
+	ReferensiID   string `json:"referensi_id"`
+	ReferensiTipe string `json:"referensi_tipe"`
+}
+
+type NotifikasiResponse struct {
+	Items []Notifikasi   `json:"items"`
+	Meta  MetaPagination `json:"meta"`
 }
