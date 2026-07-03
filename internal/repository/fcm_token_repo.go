@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 	"log"
-	
+
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"sakti_apps_be/internal/domain"
@@ -19,10 +19,10 @@ func NewFCMTokenRepo(db *pgxpool.Pool) *FCMTokenRepo {
 
 func (r *FCMTokenRepo) SaveToken(ctx context.Context, token *domain.FCMToken) error {
 	query := `
-		INSERT INTO fcm_tokens (karyawan_id, fcm_token, device_id, device_type, is_active, created_at, updated_at)
+		INSERT INTO token_fcm (karyawan_id, fcm_token, device_id, device_type, is_active, dibuat_pada, diperbarui_pada)
 		VALUES ($1, $2, $3, $4, true, NOW(), NOW())
 		ON CONFLICT (karyawan_id, device_id) 
-		DO UPDATE SET fcm_token = $2, is_active = true, updated_at = NOW()
+		DO UPDATE SET fcm_token = $2, is_active = true, diperbarui_pada = NOW()
 	`
 	_, err := r.DB.Exec(ctx, query,
 		token.KaryawanID,
@@ -34,7 +34,7 @@ func (r *FCMTokenRepo) SaveToken(ctx context.Context, token *domain.FCMToken) er
 }
 
 func (r *FCMTokenRepo) GetTokensByKaryawanID(ctx context.Context, karyawanID string) ([]string, error) {
-	query := `SELECT fcm_token FROM fcm_tokens WHERE karyawan_id = $1 AND is_active = true`
+	query := `SELECT fcm_token FROM token_fcm WHERE karyawan_id = $1 AND is_active = true`
 	rows, err := r.DB.Query(ctx, query, karyawanID)
 	if err != nil {
 		return nil, err
@@ -56,7 +56,7 @@ func (r *FCMTokenRepo) GetTokensByKaryawanID(ctx context.Context, karyawanID str
 func (r *FCMTokenRepo) GetTokensByAtasan(ctx context.Context, karyawanID string) ([]string, error) {
 	query := `
 		SELECT ft.fcm_token 
-		FROM fcm_tokens ft
+		FROM token_fcm ft
 		JOIN karyawan k ON k.id = ft.karyawan_id
 		WHERE k.id = (SELECT atasan_langsung_id FROM karyawan WHERE id = $1)
 		AND ft.is_active = true
@@ -81,7 +81,7 @@ func (r *FCMTokenRepo) GetTokensByAtasan(ctx context.Context, karyawanID string)
 func (r *FCMTokenRepo) GetTokensByHRD(ctx context.Context) ([]string, error) {
 	query := `
 		SELECT ft.fcm_token 
-		FROM fcm_tokens ft
+		FROM token_fcm ft
 		JOIN karyawan k ON k.id = ft.karyawan_id
 		WHERE k.peran = 'hrd' AND ft.is_active = true
 	`
@@ -105,7 +105,7 @@ func (r *FCMTokenRepo) GetTokensByHRD(ctx context.Context) ([]string, error) {
 func (r *FCMTokenRepo) GetTokensByRole(ctx context.Context, role string) ([]string, error) {
 	query := `
 		SELECT ft.fcm_token 
-		FROM fcm_tokens ft
+		FROM token_fcm ft
 		JOIN karyawan k ON k.id = ft.karyawan_id
 		WHERE k.peran = $1 AND ft.is_active = true
 	`
@@ -127,13 +127,13 @@ func (r *FCMTokenRepo) GetTokensByRole(ctx context.Context, role string) ([]stri
 }
 
 func (r *FCMTokenRepo) DeactivateToken(ctx context.Context, token string) error {
-	query := `UPDATE fcm_tokens SET is_active = false, updated_at = NOW() WHERE fcm_token = $1`
+	query := `UPDATE token_fcm SET is_active = false, diperbarui_pada = NOW() WHERE fcm_token = $1`
 	_, err := r.DB.Exec(ctx, query, token)
 	return err
 }
 
 func (r *FCMTokenRepo) DeactivateTokensByKaryawan(ctx context.Context, karyawanID string) error {
-	query := `UPDATE fcm_tokens SET is_active = false, updated_at = NOW() WHERE karyawan_id = $1`
+	query := `UPDATE token_fcm SET is_active = false, diperbarui_pada = NOW() WHERE karyawan_id = $1`
 	_, err := r.DB.Exec(ctx, query, karyawanID)
 	return err
 }
