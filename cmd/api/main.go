@@ -55,14 +55,17 @@ func main() {
 	presensiRepo := repository.NewPresensiRepo(dbConn.Pool)
 	configRepo := repository.NewKonfigurasiRepo(dbConn.Pool)
 	leaveRepo := repository.NewLeaveRepo(dbConn.Pool)
+	riwayatRepo := repository.NewRiwayatRepo(dbConn.Pool)
 
 	authUsecase := usecase.NewAuthUsecase(karyawanRepo)
 	presensiUsecase := usecase.NewPresensiUsecase(presensiRepo, karyawanRepo, configRepo)
 	leaveUsecase := usecase.NewLeaveUsecase(leaveRepo, karyawanRepo)
+	riwayatUsecase := usecase.NewRiwayatUsecase(riwayatRepo)
 
 	authHandler := handler.NewAuthHandler(authUsecase)
 	presensiHandler := handler.NewPresensiHandler(presensiUsecase)
 	leaveHandler := handler.NewLeaveHandler(leaveUsecase)
+	riwayatHandler := handler.NewRiwayatHandler(riwayatUsecase)
 
 	app := fiber.New(fiber.Config{
 		AppName: os.Getenv("APP_NAME"),
@@ -108,6 +111,8 @@ func main() {
 	protected.Put("/leave/:id/approve", leaveHandler.ApproveLeave)
 	protected.Put("/leave/:id/reject", leaveHandler.RejectLeave)
 	protected.Put("/leave/:id/finalize", leaveHandler.FinalizeLeave)
+
+	protected.Get("/riwayat", riwayatHandler.GetRiwayat)
 
 	port := os.Getenv("APP_PORT")
 	if port == "" {
