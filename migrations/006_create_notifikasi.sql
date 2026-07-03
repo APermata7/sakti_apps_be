@@ -5,7 +5,12 @@ CREATE TABLE notifikasi (
     channel VARCHAR(20) NOT NULL CHECK (channel IN ('inapp', 'whatsapp')),
     judul VARCHAR(255) NOT NULL,
     pesan TEXT NOT NULL,
+    dibaca BOOLEAN NOT NULL DEFAULT FALSE,
+    dibaca_pada TIMESTAMP,
+    referensi_id UUID,
+    referensi_tipe VARCHAR(50),
     dibuat_pada TIMESTAMP DEFAULT NOW()
 );
 
 CREATE INDEX idx_notifikasi_karyawan ON notifikasi(karyawan_id);
+CREATE INDEX idx_notifikasi_belum_dibaca ON notifikasi(karyawan_id, dibaca);
