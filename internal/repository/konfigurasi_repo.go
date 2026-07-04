@@ -3,7 +3,10 @@ package repository
 import (
 	"context"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"sakti_apps_be/internal/domain"
 )
 
 type KonfigurasiRepo struct {
@@ -14,36 +17,42 @@ func NewKonfigurasiRepo(db *pgxpool.Pool) *KonfigurasiRepo {
 	return &KonfigurasiRepo{DB: db}
 }
 
-type Konfigurasi struct {
-	ID               string  `json:"id"`
-	NamaKantor       string  `json:"nama_kantor"`
-	LatKantor        float64 `json:"lat_kantor"`
-	LongKantor       float64 `json:"long_kantor"`
-	JamMasuk         string  `json:"jam_masuk"`
-	JamMinimalMasuk  string  `json:"jam_minimal_masuk"`
-	JamPulang        string  `json:"jam_pulang"`
-	JamMinimalPulang string  `json:"jam_minimal_pulang"`
-	RadiusKantor     int     `json:"radius_kantor"`
-}
-
-func (r *KonfigurasiRepo) GetActive(ctx context.Context) (*Konfigurasi, error) {
+func (r *KonfigurasiRepo) GetActive(ctx context.Context) (*domain.KonfigurasiKerja, error) {
 	query := `
-		SELECT id, nama_kantor, lat_kantor, long_kantor,
+		SELECT id, nama_kantor, lat_kantor, long_kantor, logo_kantor,
 		       jam_masuk, jam_minimal_masuk, jam_pulang, jam_minimal_pulang,
-		       radius_kantor
+		       radius_kantor, diperbarui_oleh, diperbarui_pada
 		FROM konfigurasi_kerja
 		LIMIT 1
 	`
 
-	var k Konfigurasi
+	var k domain.KonfigurasiKerja
 	err := r.DB.QueryRow(ctx, query).Scan(
-		&k.ID, &k.NamaKantor, &k.LatKantor, &k.LongKantor,
+		&k.ID, &k.NamaKantor, &k.LatKantor, &k.LongKantor, &k.LogoKantor,
 		&k.JamMasuk, &k.JamMinimalMasuk, &k.JamPulang, &k.JamMinimalPulang,
-		&k.RadiusKantor,
+		&k.RadiusKantor, &k.DiperbaruiOleh, &k.DiperbaruiPada,
 	)
 	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, nil
+		}
 		return nil, err
 	}
-
 	return &k, nil
+}
+
+func (r *KonfigurasiRepo) Update(ctx context.Context, k *domain.KonfigurasiKerja) error {
+	query := `
+		UPDATE konfigurasi_kerja 
+		SET nama_kantor = $2, lat_kantor = $3, long_kantor = $4, logo_kantor = $5,
+		    jam_masuk = $6, jam_minimal_masuk = $7, jam_pulang = $8, jam_minimal_pulang = $9,
+		    radius_kantor = $10, diperbarui_oleh = $11, diperbarui_pada = NOW()
+		WHERE id = $1
+	`
+	_, err := r.DB.Exec(ctx, query,
+		k.ID, k.NamaKantor, k.LatKantor, k.LongKantor, k.LogoKantor,
+		k.JamMasuk, k.JamMinimalMasuk, k.JamPulang, k.JamMinimalPulang,
+		k.RadiusKantor, k.DiperbaruiOleh,
+	)
+	return err
 }

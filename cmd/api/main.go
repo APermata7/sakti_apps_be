@@ -58,18 +58,26 @@ func main() {
 	riwayatRepo := repository.NewRiwayatRepo(dbConn.Pool)
 	notifikasiRepo := repository.NewNotifikasiRepo(dbConn.Pool)
 	fcmTokenRepo := repository.NewFCMTokenRepo(dbConn.Pool)
+	liburRepo := repository.NewLiburRepo(dbConn.Pool)
+	konfigurasiRepo := repository.NewKonfigurasiRepo(dbConn.Pool)
 
 	authUsecase := usecase.NewAuthUsecase(karyawanRepo)
 	presensiUsecase := usecase.NewPresensiUsecase(presensiRepo, karyawanRepo, configRepo)
 	leaveUsecase := usecase.NewLeaveUsecase(leaveRepo, karyawanRepo)
 	riwayatUsecase := usecase.NewRiwayatUsecase(riwayatRepo)
 	notificationUsecase := usecase.NewNotificationUsecase(fcmTokenRepo, notifikasiRepo, karyawanRepo)
+	liburUsecase := usecase.NewLiburUsecase(liburRepo)
+	konfigurasiUsecase := usecase.NewKonfigurasiUsecase(konfigurasiRepo)
+	adminUsecase := usecase.NewAdminUsecase(dbConn.Pool)
 
 	authHandler := handler.NewAuthHandler(authUsecase)
 	presensiHandler := handler.NewPresensiHandler(presensiUsecase)
 	leaveHandler := handler.NewLeaveHandler(leaveUsecase)
 	riwayatHandler := handler.NewRiwayatHandler(riwayatUsecase)
 	notificationHandler := handler.NewNotificationHandler(notificationUsecase)
+	liburHandler := handler.NewLiburHandler(liburUsecase)
+	konfigurasiHandler := handler.NewKonfigurasiHandler(konfigurasiUsecase)
+	adminHandler := handler.NewAdminHandler(adminUsecase)
 
 	app := fiber.New(fiber.Config{
 		AppName: os.Getenv("APP_NAME"),
@@ -122,6 +130,22 @@ func main() {
 	protected.Get("/notifikasi/unread", notificationHandler.GetUnreadCount)
 	protected.Put("/notifikasi/:id/read", notificationHandler.MarkAsRead)
 	protected.Put("/notifikasi/read-all", notificationHandler.MarkAllAsRead)
+
+	adminLibur := protected.Group("/admin/libur", middleware.RequireRole("admin"))
+	adminLibur.Post("/", liburHandler.Create)
+	adminLibur.Get("/", liburHandler.GetAll)
+	adminLibur.Get("/:id", liburHandler.GetByID)
+	adminLibur.Put("/:id", liburHandler.Update)
+	adminLibur.Delete("/:id", liburHandler.Delete)
+
+	adminKonfigurasi := protected.Group("/admin/konfigurasi", middleware.RequireRole("admin"))
+	adminKonfigurasi.Get("/", konfigurasiHandler.GetConfig)
+	adminKonfigurasi.Put("/", konfigurasiHandler.UpdateConfig)
+	adminKonfigurasi.Post("/logo", konfigurasiHandler.UploadLogo)
+
+	protected.Get("/admin/dashboard", adminHandler.GetDashboard)
+
+	api.Get("/libur/check", liburHandler.IsHoliday)
 
 	port := os.Getenv("APP_PORT")
 	if port == "" {
