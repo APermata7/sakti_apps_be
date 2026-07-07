@@ -41,6 +41,8 @@ type PDFData struct {
 
 	Status  string
 	Catatan string
+
+	JumlahTTD int
 }
 
 func addHeader(pdf *gofpdf.Fpdf, data PDFData) {
@@ -262,7 +264,76 @@ func generateBodyDispen(pdf *gofpdf.Fpdf, data PDFData) {
 	pdf.Ln(6)
 }
 
-func addKeputusan(pdf *gofpdf.Fpdf, data PDFData) {
+func addKeputusan2TTD(pdf *gofpdf.Fpdf, data PDFData) {
+	pdf.SetFont("Helvetica", "B", 12)
+	pdf.CellFormat(0, 6.5, "KEPUTUSAN PEJABAT YANG BERWENANG", "", 1, "L", false, 0, "")
+	pdf.Ln(2)
+
+	leftLabel := 35.0
+	leftValue := 55.0
+	lineHeight := 6.0
+	indent := 8.0
+
+	pdf.SetFont("Helvetica", "", 12)
+	pdf.SetXY(18+indent, pdf.GetY())
+	pdf.Cell(leftLabel, lineHeight, "Disetujui selama")
+	pdf.SetFont("Helvetica", "", 12)
+	pdf.Cell(leftValue, lineHeight, fmt.Sprintf(": %d hari kerja", data.DisetujuiSelama))
+	pdf.Ln(lineHeight)
+
+	pdf.SetXY(18+indent, pdf.GetY())
+	pdf.Cell(leftLabel, lineHeight, "Mulai tanggal")
+	pdf.SetFont("Helvetica", "", 12)
+	pdf.Cell(leftValue, lineHeight, ": "+data.MulaiTanggal)
+	pdf.Ln(lineHeight + 12)
+
+	pdf.SetX(145)
+	pdf.CellFormat(0, 6.5, fmt.Sprintf("Malang, %s", data.TanggalSekarang.Format("02 January 2006")), "", 1, "L", false, 0, "")
+	pdf.Ln(4)
+
+	x := 35.0
+	y := pdf.GetY()
+
+	pdf.SetDrawColor(0, 0, 0)
+
+	pdf.SetFont("Helvetica", "B", 12)
+	pdf.SetXY(x, y)
+	pdf.CellFormat(40, 6.5, "Mengetahui HRD", "", 0, "C", false, 0, "")
+	pdf.SetXY(x, y+18)
+	pdf.CellFormat(40, 20, "", "B", 0, "C", false, 0, "")
+	pdf.SetXY(x, y+39)
+	pdf.SetFont("Helvetica", "", 12)
+	pdf.CellFormat(40, 6, data.NamaHRD, "", 0, "C", false, 0, "")
+
+	x += 52
+	pdf.SetFont("Helvetica", "B", 12)
+	pdf.SetXY(x, y)
+	pdf.CellFormat(40, 6.5, "Pemohon", "", 0, "C", false, 0, "")
+	pdf.SetXY(x, y+18)
+	pdf.CellFormat(40, 20, "", "B", 0, "C", false, 0, "")
+	pdf.SetXY(x, y+39)
+	pdf.SetFont("Helvetica", "", 12)
+	pdf.CellFormat(40, 6, data.NamaPemohon, "", 0, "C", false, 0, "")
+
+	pdf.Ln(22)
+
+	yAfterTTD := pdf.GetY()
+
+	pdf.SetY(yAfterTTD - 4)
+
+	pdf.SetFont("Helvetica", "I", 10)
+	pdf.CellFormat(0, 5, "Catatan:", "", 1, "L", false, 0, "")
+	pdf.SetFont("Helvetica", "I", 8)
+	if data.Jenis == "CUTI" || data.Jenis == "DARURAT" {
+		pdf.CellFormat(0, 4.5, "1. Form cuti bisa dicetak di masing-masing unit.", "", 1, "L", false, 0, "")
+		pdf.CellFormat(0, 4.5, "2. Cuti yang tidak diketahui HRD KOPEGTEL Malang maka dianggap mangkir.", "", 1, "L", false, 0, "")
+	} else {
+		pdf.CellFormat(0, 4.5, "1. Form dispensasi bisa dicetak di masing-masing unit.", "", 1, "L", false, 0, "")
+		pdf.CellFormat(0, 4.5, "2. Dispensasi yang tidak diketahui HRD KOPEGTEL Malang maka dianggap mangkir.", "", 1, "L", false, 0, "")
+	}
+}
+
+func addKeputusan3TTD(pdf *gofpdf.Fpdf, data PDFData) {
 	pdf.SetFont("Helvetica", "B", 12)
 	pdf.CellFormat(0, 6.5, "KEPUTUSAN PEJABAT YANG BERWENANG", "", 1, "L", false, 0, "")
 	pdf.Ln(2)
@@ -350,7 +421,11 @@ func GeneratePDFCuti(data PDFData) ([]byte, error) {
 
 	addHeader(pdf, data)
 	generateBodyCuti(pdf, data)
-	addKeputusan(pdf, data)
+	if data.JumlahTTD == 2 {
+		addKeputusan2TTD(pdf, data)
+	} else {
+		addKeputusan3TTD(pdf, data)
+	}
 	addFooter(pdf)
 
 	var buf bytes.Buffer
@@ -370,7 +445,11 @@ func GeneratePDFDispensasi(data PDFData) ([]byte, error) {
 
 	addHeader(pdf, data)
 	generateBodyDispen(pdf, data)
-	addKeputusan(pdf, data)
+	if data.JumlahTTD == 2 {
+		addKeputusan2TTD(pdf, data)
+	} else {
+		addKeputusan3TTD(pdf, data)
+	}
 	addFooter(pdf)
 
 	var buf bytes.Buffer
