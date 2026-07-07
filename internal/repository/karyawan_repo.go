@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -146,4 +147,75 @@ func (r *KaryawanRepo) Delete(ctx context.Context, id string) error {
 	query := `UPDATE karyawan SET status_karyawan = 'nonaktif', diperbarui_pada = NOW() WHERE id = $1`
 	_, err := r.DB.Exec(ctx, query, id)
 	return err
+}
+
+func (r *KaryawanRepo) GetAll(ctx context.Context, limit, offset int, search, role, status string) ([]domain.Karyawan, int, error) {
+	whereClause := "WHERE 1=1"
+	args := []interface{}{}
+	argIdx := 1
+
+	if search != "" {
+		whereClause += fmt.Sprintf(" AND (nama_lengkap ILIKE $%d OR email ILIKE $%d)", argIdx, argIdx)
+		args = append(args, "%"+search+"%")
+		argIdx++
+	}
+
+	if role != "" {
+		whereClause += fmt.Sprintf(" AND peran = $%d", argIdx)
+		args = append(args, role)
+		argIdx++
+	}
+
+	if status != "" {
+		whereClause += fmt.Sprintf(" AND status_karyawan = $%d", argIdx)
+		args = append(args, status)
+		argIdx++
+	}
+
+	countQuery := "SELECT COUNT(*) FROM karyawan " + whereClause
+	var total int
+	err := r.DB.QueryRow(ctx, countQuery, args...).Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	query := `
+		SELECT id, nama_lengkap, email, nomor_telepon, foto_url, 
+		       peran, level_jabatan, atasan_langsung_id, 
+		       divisi, unit, status_karyawan, dibuat_pada, diperbarui_pada
+		FROM karyawan
+	` + whereClause + fmt.Sprintf(" ORDER BY dibuat_pada DESC LIMIT $%d OFFSET $%d", argIdx, argIdx+1)
+
+	finalArgs := append(args, limit, offset)
+	rows, err := r.DB.Query(ctx, query, finalArgs...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var karyawanList []domain.Karyawan
+	for rows.Next() {
+		var k domain.Karyawan
+		err := rows.Scan(
+			&k.ID,
+			&k.NamaLengkap,
+			&k.Email,
+			&k.NomorTelepon,
+			&k.FotoURL,
+			&k.Peran,
+			&k.LevelJabatan,
+			&k.AtasanLangsungID,
+			&k.Divisi,
+			&k.Unit,
+			&k.StatusKaryawan,
+			&k.DibuatPada,
+			&k.DiperbaruiPada,
+		)
+		if err != nil {
+			return nil, 0, err
+		}
+		karyawanList = append(karyawanList, k)
+	}
+
+	return karyawanList, total, nil
 }

@@ -1,26 +1,42 @@
 package usecase
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"os"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"sakti_apps_be/internal/domain"
+	"sakti_apps_be/internal/repository"
 )
 
 type AdminUsecase struct {
-	DB *pgxpool.Pool
+	DB           *pgxpool.Pool
+	KaryawanRepo *repository.KaryawanRepo
+	SupabaseURL  string
+	AnonKey      string
 }
 
-func NewAdminUsecase(db *pgxpool.Pool) *AdminUsecase {
-	return &AdminUsecase{DB: db}
+func NewAdminUsecase(db *pgxpool.Pool, karyawanRepo *repository.KaryawanRepo) *AdminUsecase {
+	return &AdminUsecase{
+		DB:           db,
+		KaryawanRepo: karyawanRepo,
+		SupabaseURL:  os.Getenv("SUPABASE_URL"),
+		AnonKey:      os.Getenv("SUPABASE_ANON_KEY"),
+	}
 }
 
 type DashboardStats struct {
-	TotalKaryawan      int `json:"total_karyawan"`
-	KaryawanAktif      int `json:"karyawan_aktif"`
-	PresensiHariIni    int `json:"presensi_hari_ini"`
-	PresensiTerlambat  int `json:"presensi_terlambat"`
-	CutiPending        int `json:"cuti_pending"`
-	TotalCutiTahun     int `json:"total_cuti_tahun"`
+	TotalKaryawan     int `json:"total_karyawan"`
+	KaryawanAktif     int `json:"karyawan_aktif"`
+	PresensiHariIni   int `json:"presensi_hari_ini"`
+	PresensiTerlambat int `json:"presensi_terlambat"`
+	CutiPending       int `json:"cuti_pending"`
+	TotalCutiTahun    int `json:"total_cuti_tahun"`
 }
 
 func (u *AdminUsecase) GetDashboardStats(ctx context.Context) (*DashboardStats, error) {
@@ -45,4 +61,153 @@ func (u *AdminUsecase) GetDashboardStats(ctx context.Context) (*DashboardStats, 
 	u.DB.QueryRow(ctx, queryTotalCuti).Scan(&stats.TotalCutiTahun)
 
 	return &stats, nil
+}
+
+func (u *AdminUsecase) CreateKaryawan(ctx context.Context, req domain.CreateKaryawanRequest) (*domain.Karyawan, error) {
+	existing, _ := u.KaryawanRepo.GetByEmail(ctx, req.Email)
+	if existing != nil {
+		return nil, errors.New("email sudah terdaftar")
+	}
+
+	supabaseReq := map[string]interface{}{
+		"email":    req.Email,
+		"password": req.Password,
+		"user_metadata": map[string]string{
+			"nama_lengkap":  req.NamaLengkap,
+			"peran":         req.Peran,
+			"level_jabatan": req.LevelJabatan,
+		},
+	}
+	jsonBody, _ := json.Marshal(supabaseReq)
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", u.SupabaseURL+"/auth/v1/admin/users", bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return nil, err
+	}
+	httpReq.Header.Set("apikey", u.AnonKey)
+	httpReq.Header.Set("Authorization", "Bearer "+os.Getenv("SUPABASE_SERVICE_KEY"))
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil, errors.New("gagal membuat akun di Supabase")
+	}
+
+	var authResp struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&authResp); err != nil {
+		return nil, err
+	}
+
+	karyawan := &domain.Karyawan{
+		ID:             authResp.ID,
+		NamaLengkap:    req.NamaLengkap,
+		Email:          req.Email,
+		Peran:          req.Peran,
+		LevelJabatan:   req.LevelJabatan,
+		StatusKaryawan: "aktif",
+	}
+
+	if req.NomorTelepon != "" {
+		karyawan.NomorTelepon = &req.NomorTelepon
+	}
+	if req.FotoURL != "" {
+		karyawan.FotoURL = &req.FotoURL
+	}
+	if req.Divisi != "" {
+		karyawan.Divisi = &req.Divisi
+	}
+	if req.Unit != "" {
+		karyawan.Unit = &req.Unit
+	}
+	if req.AtasanLangsungID != "" {
+		karyawan.AtasanLangsungID = &req.AtasanLangsungID
+	}
+
+	if err := u.KaryawanRepo.Create(ctx, karyawan); err != nil {
+		return nil, err
+	}
+
+	return karyawan, nil
+}
+
+func (u *AdminUsecase) GetAllKaryawan(ctx context.Context, page, limit int, search, role, status string) ([]domain.Karyawan, int, error) {
+	offset := (page - 1) * limit
+	return u.KaryawanRepo.GetAll(ctx, limit, offset, search, role, status)
+}
+
+func (u *AdminUsecase) GetKaryawanByID(ctx context.Context, id string) (*domain.Karyawan, error) {
+	return u.KaryawanRepo.GetByID(ctx, id)
+}
+
+func (u *AdminUsecase) UpdateKaryawan(ctx context.Context, id string, req domain.UpdateKaryawanRequest) (*domain.Karyawan, error) {
+	existing, err := u.KaryawanRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if existing == nil {
+		return nil, errors.New("karyawan tidak ditemukan")
+	}
+
+	if req.NamaLengkap != "" {
+		existing.NamaLengkap = req.NamaLengkap
+	}
+	if req.NomorTelepon != "" {
+		existing.NomorTelepon = &req.NomorTelepon
+	}
+	if req.FotoURL != "" {
+		existing.FotoURL = &req.FotoURL
+	}
+	if req.Peran != "" {
+		existing.Peran = req.Peran
+	}
+	if req.LevelJabatan != "" {
+		existing.LevelJabatan = req.LevelJabatan
+	}
+	if req.AtasanLangsungID != "" {
+		existing.AtasanLangsungID = &req.AtasanLangsungID
+	}
+	if req.Divisi != "" {
+		existing.Divisi = &req.Divisi
+	}
+	if req.Unit != "" {
+		existing.Unit = &req.Unit
+	}
+	if req.StatusKaryawan != "" {
+		existing.StatusKaryawan = req.StatusKaryawan
+	}
+
+	if err := u.KaryawanRepo.Update(ctx, existing); err != nil {
+		return nil, err
+	}
+
+	return existing, nil
+}
+
+func (u *AdminUsecase) DeleteKaryawan(ctx context.Context, id string) error {
+	existing, err := u.KaryawanRepo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if existing == nil {
+		return errors.New("karyawan tidak ditemukan")
+	}
+
+	if existing.Peran == "admin" {
+		var count int
+		query := `SELECT COUNT(*) FROM karyawan WHERE peran = 'admin' AND status_karyawan = 'aktif'`
+		u.DB.QueryRow(ctx, query).Scan(&count)
+		if count <= 1 {
+			return errors.New("tidak dapat menghapus admin terakhir")
+		}
+	}
+
+	return u.KaryawanRepo.Delete(ctx, id)
 }

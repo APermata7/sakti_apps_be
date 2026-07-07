@@ -68,7 +68,7 @@ func main() {
 	notificationUsecase := usecase.NewNotificationUsecase(fcmTokenRepo, notifikasiRepo, karyawanRepo)
 	liburUsecase := usecase.NewLiburUsecase(liburRepo)
 	konfigurasiUsecase := usecase.NewKonfigurasiUsecase(konfigurasiRepo)
-	adminUsecase := usecase.NewAdminUsecase(dbConn.Pool)
+	adminUsecase := usecase.NewAdminUsecase(dbConn.Pool, karyawanRepo)
 
 	authHandler := handler.NewAuthHandler(authUsecase)
 	presensiHandler := handler.NewPresensiHandler(presensiUsecase)
@@ -131,6 +131,14 @@ func main() {
 	protected.Put("/notifikasi/:id/read", notificationHandler.MarkAsRead)
 	protected.Put("/notifikasi/read-all", notificationHandler.MarkAllAsRead)
 
+	adminGroup := protected.Group("/admin", middleware.RequireRole("admin"))
+	adminGroup.Get("/dashboard", adminHandler.GetDashboard)
+	adminGroup.Post("/karyawan", adminHandler.CreateKaryawan)
+	adminGroup.Get("/karyawan", adminHandler.GetAllKaryawan)
+	adminGroup.Get("/karyawan/:id", adminHandler.GetKaryawan)
+	adminGroup.Put("/karyawan/:id", adminHandler.UpdateKaryawan)
+	adminGroup.Delete("/karyawan/:id", adminHandler.DeleteKaryawan)
+
 	adminLibur := protected.Group("/admin/libur", middleware.RequireRole("admin"))
 	adminLibur.Post("/", liburHandler.Create)
 	adminLibur.Get("/", liburHandler.GetAll)
@@ -142,9 +150,7 @@ func main() {
 	adminKonfigurasi.Get("/", konfigurasiHandler.GetConfig)
 	adminKonfigurasi.Put("/", konfigurasiHandler.UpdateConfig)
 	adminKonfigurasi.Post("/logo", konfigurasiHandler.UploadLogo)
-
-	protected.Get("/admin/dashboard", adminHandler.GetDashboard)
-
+	
 	api.Get("/libur/check", liburHandler.IsHoliday)
 
 	port := os.Getenv("APP_PORT")
