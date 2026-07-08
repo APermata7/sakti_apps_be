@@ -22,7 +22,7 @@ func NewKaryawanRepo(db *pgxpool.Pool) *KaryawanRepo {
 func (r *KaryawanRepo) GetByID(ctx context.Context, id string) (*domain.Karyawan, error) {
 	query := `
 		SELECT id, nama_lengkap, email, nomor_telepon, foto_url, 
-		       peran, level_jabatan, atasan_langsung_id, 
+		       role, level_jabatan, atasan_langsung_id, 
 		       divisi, unit, status_karyawan, dibuat_pada, diperbarui_pada
 		FROM karyawan
 		WHERE id = $1
@@ -36,7 +36,7 @@ func (r *KaryawanRepo) GetByID(ctx context.Context, id string) (*domain.Karyawan
 		&k.Email,
 		&k.NomorTelepon,
 		&k.FotoURL,
-		&k.Peran,
+		&k.Role,
 		&k.LevelJabatan,
 		&k.AtasanLangsungID,
 		&k.Divisi,
@@ -59,7 +59,7 @@ func (r *KaryawanRepo) GetByID(ctx context.Context, id string) (*domain.Karyawan
 func (r *KaryawanRepo) GetByEmail(ctx context.Context, email string) (*domain.Karyawan, error) {
 	query := `
 		SELECT id, nama_lengkap, email, nomor_telepon, foto_url, 
-		       peran, level_jabatan, atasan_langsung_id, 
+		       role, level_jabatan, atasan_langsung_id, 
 		       divisi, unit, status_karyawan, dibuat_pada, diperbarui_pada
 		FROM karyawan
 		WHERE email = $1
@@ -73,7 +73,7 @@ func (r *KaryawanRepo) GetByEmail(ctx context.Context, email string) (*domain.Ka
 		&k.Email,
 		&k.NomorTelepon,
 		&k.FotoURL,
-		&k.Peran,
+		&k.Role,
 		&k.LevelJabatan,
 		&k.AtasanLangsungID,
 		&k.Divisi,
@@ -96,7 +96,7 @@ func (r *KaryawanRepo) GetByEmail(ctx context.Context, email string) (*domain.Ka
 func (r *KaryawanRepo) Create(ctx context.Context, k *domain.Karyawan) error {
 	query := `
 		INSERT INTO karyawan (id, nama_lengkap, email, nomor_telepon, foto_url, 
-		                     peran, level_jabatan, atasan_langsung_id, 
+		                     role, level_jabatan, atasan_langsung_id, 
 		                     divisi, unit, status_karyawan, dibuat_pada, diperbarui_pada)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
 	`
@@ -107,7 +107,7 @@ func (r *KaryawanRepo) Create(ctx context.Context, k *domain.Karyawan) error {
 		k.Email,
 		k.NomorTelepon,
 		k.FotoURL,
-		k.Peran,
+		k.Role,
 		k.LevelJabatan,
 		k.AtasanLangsungID,
 		k.Divisi,
@@ -122,7 +122,7 @@ func (r *KaryawanRepo) Update(ctx context.Context, k *domain.Karyawan) error {
 	query := `
 		UPDATE karyawan 
 		SET nama_lengkap = $2, nomor_telepon = $3, foto_url = $4,
-		    peran = $5, level_jabatan = $6, atasan_langsung_id = $7,
+		    role = $5, level_jabatan = $6, atasan_langsung_id = $7,
 		    divisi = $8, unit = $9, status_karyawan = $10, diperbarui_pada = NOW()
 		WHERE id = $1
 	`
@@ -132,7 +132,7 @@ func (r *KaryawanRepo) Update(ctx context.Context, k *domain.Karyawan) error {
 		k.NamaLengkap,
 		k.NomorTelepon,
 		k.FotoURL,
-		k.Peran,
+		k.Role,
 		k.LevelJabatan,
 		k.AtasanLangsungID,
 		k.Divisi,
@@ -161,7 +161,7 @@ func (r *KaryawanRepo) GetAll(ctx context.Context, limit, offset int, search, ro
 	}
 
 	if role != "" {
-		whereClause += fmt.Sprintf(" AND peran = $%d", argIdx)
+		whereClause += fmt.Sprintf(" AND role = $%d", argIdx)
 		args = append(args, role)
 		argIdx++
 	}
@@ -181,7 +181,7 @@ func (r *KaryawanRepo) GetAll(ctx context.Context, limit, offset int, search, ro
 
 	query := `
 		SELECT id, nama_lengkap, email, nomor_telepon, foto_url, 
-		       peran, level_jabatan, atasan_langsung_id, 
+		       role, level_jabatan, atasan_langsung_id, 
 		       divisi, unit, status_karyawan, dibuat_pada, diperbarui_pada
 		FROM karyawan
 	` + whereClause + fmt.Sprintf(" ORDER BY dibuat_pada DESC LIMIT $%d OFFSET $%d", argIdx, argIdx+1)
@@ -202,7 +202,7 @@ func (r *KaryawanRepo) GetAll(ctx context.Context, limit, offset int, search, ro
 			&k.Email,
 			&k.NomorTelepon,
 			&k.FotoURL,
-			&k.Peran,
+			&k.Role,
 			&k.LevelJabatan,
 			&k.AtasanLangsungID,
 			&k.Divisi,

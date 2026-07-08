@@ -83,7 +83,7 @@ func (r *FCMTokenRepo) GetTokensByHRD(ctx context.Context) ([]string, error) {
 		SELECT ft.fcm_token 
 		FROM token_fcm ft
 		JOIN karyawan k ON k.id = ft.karyawan_id
-		WHERE k.peran = 'hrd' AND ft.is_active = true
+		WHERE k.role = 'hrd' AND ft.is_active = true
 	`
 	rows, err := r.DB.Query(ctx, query)
 	if err != nil {
@@ -107,7 +107,7 @@ func (r *FCMTokenRepo) GetTokensByRole(ctx context.Context, role string) ([]stri
 		SELECT ft.fcm_token 
 		FROM token_fcm ft
 		JOIN karyawan k ON k.id = ft.karyawan_id
-		WHERE k.peran = $1 AND ft.is_active = true
+		WHERE k.role = $1 AND ft.is_active = true
 	`
 	rows, err := r.DB.Query(ctx, query, role)
 	if err != nil {

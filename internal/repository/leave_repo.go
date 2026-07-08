@@ -6,36 +6,19 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"sakti_apps_be/internal/domain"
 )
 
 type LeaveRepo struct {
 	DB *pgxpool.Pool
 }
 
-type Leave struct {
-	ID               string  `json:"id"`
-	KaryawanID       string  `json:"karyawan_id"`
-	TipePengajuan    string  `json:"tipe_pengajuan"`
-	TanggalMulai     string  `json:"tanggal_mulai"`
-	TanggalSelesai   string  `json:"tanggal_selesai"`
-	TotalHari        int     `json:"total_hari"`
-	Alasan           string  `json:"alasan"`
-	Status           string  `json:"status"`
-	DisetujuiOleh    *string `json:"disetujui_oleh"`
-	DifinalisasiOleh *string `json:"difinalisasi_oleh"`
-}
-
-type LeaveBalance struct {
-	KuotaTotal int `json:"kuota_total"`
-	Digunakan  int `json:"digunakan"`
-	Sisa       int `json:"sisa"`
-}
-
 func NewLeaveRepo(db *pgxpool.Pool) *LeaveRepo {
 	return &LeaveRepo{DB: db}
 }
 
-func (r *LeaveRepo) Create(ctx context.Context, leave *Leave) error {
+func (r *LeaveRepo) Create(ctx context.Context, leave *domain.PengajuanCuti) error {
 	query := `
 		INSERT INTO pengajuan_cuti (
 			karyawan_id, tipe_pengajuan, tanggal_mulai, tanggal_selesai,
@@ -57,32 +40,55 @@ func (r *LeaveRepo) Create(ctx context.Context, leave *Leave) error {
 	return err
 }
 
-func (r *LeaveRepo) GetByID(ctx context.Context, id string) (*Leave, error) {
+func (r *LeaveRepo) GetByID(ctx context.Context, id string) (*domain.PengajuanCuti, error) {
 	query := `
-		SELECT id, karyawan_id, tipe_pengajuan, tanggal_mulai, tanggal_selesai,
-		       total_hari, alasan, status, disetujui_oleh, difinalisasi_oleh
+		SELECT id, karyawan_id, tipe_pengajuan, sub_tipe, tanggal_mulai, tanggal_selesai,
+		       total_hari, alasan, status, back_date, mengurangi_cuti, langsung_approve,
+		       judul_dokumen, disetujui_oleh, tanggal_disetujui, difinalisasi_oleh,
+		       tanggal_difinalisasi, url_pdf, alasan_batal, dibuat_pada, diperbarui_pada
 		FROM pengajuan_cuti
 		WHERE id = $1
 	`
 
-	var l Leave
+	var l domain.PengajuanCuti
 	err := r.DB.QueryRow(ctx, query, id).Scan(
-		&l.ID, &l.KaryawanID, &l.TipePengajuan, &l.TanggalMulai, &l.TanggalSelesai,
-		&l.TotalHari, &l.Alasan, &l.Status, &l.DisetujuiOleh, &l.DifinalisasiOleh,
+		&l.ID,
+		&l.KaryawanID,
+		&l.TipePengajuan,
+		&l.SubTipe,
+		&l.TanggalMulai,
+		&l.TanggalSelesai,
+		&l.TotalHari,
+		&l.Alasan,
+		&l.Status,
+		&l.BackDate,
+		&l.MengurangiCuti,
+		&l.LangsungApprove,
+		&l.JudulDokumen,
+		&l.DisetujuiOleh,
+		&l.TanggalDisetujui,
+		&l.DifinalisasiOleh,
+		&l.TanggalDifinalisasi,
+		&l.URLPDF,
+		&l.AlasanBatal,
+		&l.DibuatPada,
+		&l.DiperbaruiPada,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errors.New("pengajuan tidak ditemukan")
+			return nil, nil
 		}
 		return nil, err
 	}
 	return &l, nil
 }
 
-func (r *LeaveRepo) GetByKaryawanID(ctx context.Context, karyawanID string) ([]Leave, error) {
+func (r *LeaveRepo) GetByKaryawanID(ctx context.Context, karyawanID string) ([]domain.PengajuanCuti, error) {
 	query := `
-		SELECT id, karyawan_id, tipe_pengajuan, tanggal_mulai, tanggal_selesai,
-		       total_hari, alasan, status, disetujui_oleh, difinalisasi_oleh
+		SELECT id, karyawan_id, tipe_pengajuan, sub_tipe, tanggal_mulai, tanggal_selesai,
+		       total_hari, alasan, status, back_date, mengurangi_cuti, langsung_approve,
+		       judul_dokumen, disetujui_oleh, tanggal_disetujui, difinalisasi_oleh,
+		       tanggal_difinalisasi, url_pdf, alasan_batal, dibuat_pada, diperbarui_pada
 		FROM pengajuan_cuti
 		WHERE karyawan_id = $1
 		ORDER BY dibuat_pada DESC
@@ -94,12 +100,31 @@ func (r *LeaveRepo) GetByKaryawanID(ctx context.Context, karyawanID string) ([]L
 	}
 	defer rows.Close()
 
-	var leaves []Leave
+	var leaves []domain.PengajuanCuti
 	for rows.Next() {
-		var l Leave
+		var l domain.PengajuanCuti
 		err := rows.Scan(
-			&l.ID, &l.KaryawanID, &l.TipePengajuan, &l.TanggalMulai, &l.TanggalSelesai,
-			&l.TotalHari, &l.Alasan, &l.Status, &l.DisetujuiOleh, &l.DifinalisasiOleh,
+			&l.ID,
+			&l.KaryawanID,
+			&l.TipePengajuan,
+			&l.SubTipe,
+			&l.TanggalMulai,
+			&l.TanggalSelesai,
+			&l.TotalHari,
+			&l.Alasan,
+			&l.Status,
+			&l.BackDate,
+			&l.MengurangiCuti,
+			&l.LangsungApprove,
+			&l.JudulDokumen,
+			&l.DisetujuiOleh,
+			&l.TanggalDisetujui,
+			&l.DifinalisasiOleh,
+			&l.TanggalDifinalisasi,
+			&l.URLPDF,
+			&l.AlasanBatal,
+			&l.DibuatPada,
+			&l.DiperbaruiPada,
 		)
 		if err != nil {
 			return nil, err
@@ -130,7 +155,7 @@ func (r *LeaveRepo) Reject(ctx context.Context, id, managerID, alasan string) er
 	query := `
 		UPDATE pengajuan_cuti 
 		SET status = 'ditolak', disetujui_oleh = $1, tanggal_disetujui = NOW(),
-		    alasan = $2, diperbarui_pada = NOW()
+		    alasan_batal = $2, diperbarui_pada = NOW()
 		WHERE id = $3
 	`
 	_, err := r.DB.Exec(ctx, query, managerID, alasan, id)
@@ -140,7 +165,7 @@ func (r *LeaveRepo) Reject(ctx context.Context, id, managerID, alasan string) er
 func (r *LeaveRepo) Finalize(ctx context.Context, id, hrdID string) error {
 	query := `
 		UPDATE pengajuan_cuti 
-		SET status = 'disetujui', difinalisasi_oleh = $1, tanggal_difinalisasi = NOW(),
+		SET difinalisasi_oleh = $1, tanggal_difinalisasi = NOW(),
 		    diperbarui_pada = NOW()
 		WHERE id = $2 AND status = 'disetujui'
 	`
@@ -148,20 +173,33 @@ func (r *LeaveRepo) Finalize(ctx context.Context, id, hrdID string) error {
 	return err
 }
 
-func (r *LeaveRepo) GetBalance(ctx context.Context, karyawanID string, year int) (*LeaveBalance, error) {
+func (r *LeaveRepo) GetBalance(ctx context.Context, karyawanID string, year int) (*domain.SisaCuti, error) {
 	query := `
-		SELECT kuota_total, digunakan, sisa
+		SELECT id, karyawan_id, tahun, jumlah_cuti, telah_dilaksanakan, 
+		       akan_dilaksanakan, sisa_cuti, dibuat_pada, diperbarui_pada
 		FROM sisa_cuti
 		WHERE karyawan_id = $1 AND tahun = $2
 	`
 
-	var b LeaveBalance
+	var b domain.SisaCuti
 	err := r.DB.QueryRow(ctx, query, karyawanID, year).Scan(
-		&b.KuotaTotal, &b.Digunakan, &b.Sisa,
+		&b.ID,
+		&b.KaryawanID,
+		&b.Tahun,
+		&b.JumlahCuti,
+		&b.TelahDigunakan,
+		&b.AkanDigunakan,
+		&b.Sisa,
+		&b.DibuatPada,
+		&b.DiperbaruiPada,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return &LeaveBalance{KuotaTotal: 12, Digunakan: 0, Sisa: 12}, nil
+			return &domain.SisaCuti{
+				JumlahCuti:    12,
+				TelahDigunakan: 0,
+				Sisa:          12,
+			}, nil
 		}
 		return nil, err
 	}
