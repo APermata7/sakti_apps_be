@@ -100,6 +100,8 @@ func main() {
 
 	api := app.Group("/api")
 
+	api.Use(middleware.LoginRateLimiter())
+
 	api.Post("/auth/login", authHandler.Login)
 	api.Post("/auth/forgot-password", authHandler.ForgotPassword)
 	api.Post("/auth/reset-password", authHandler.ResetPassword)
