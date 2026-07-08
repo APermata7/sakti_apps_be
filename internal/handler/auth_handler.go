@@ -4,6 +4,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 
 	"sakti_apps_be/internal/domain"
+	"sakti_apps_be/internal/middleware"
 	"sakti_apps_be/internal/usecase"
 )
 
@@ -31,13 +32,32 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		})
 	}
 
+	remaining := middleware.GetRemainingAttempts(req.Email)
+
 	resp, err := h.AuthUsecase.Login(c.Context(), req)
+
 	if err != nil {
+		middleware.RecordLoginAttempt(req.Email, false)
+
+		remaining = middleware.GetRemainingAttempts(req.Email)
+
+		if remaining == 0 {
+			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
+				"success": false,
+				"message": "Anda telah mencapai batas maksimal percobaan. Akun terkunci selama 5 menit.",
+				"remaining_attempts": 0,
+				"can_reset": true,
+			})
+		}
+
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"success": false,
-			"message": err.Error(),
+			"message": "Email atau password salah",
+			"remaining_attempts": remaining,
 		})
 	}
+
+	middleware.RecordLoginAttempt(req.Email, true)
 
 	return c.JSON(fiber.Map{
 		"success": true,
