@@ -8,8 +8,8 @@ type Karyawan struct {
     Email            string     `json:"email"`
     NomorTelepon     *string    `json:"nomor_telepon"`    
     FotoURL          *string    `json:"foto_url"`         
-    Peran            string     `json:"peran"`
-    LevelJabatan     string     `json:"level_jabatan"`
+    Role             string     `json:"role"`
+    LevelJabatan     *string    `json:"level_jabatan"`
     AtasanLangsungID *string    `json:"atasan_langsung_id"`
     Divisi           *string    `json:"divisi"`         
     Unit             *string    `json:"unit"`          
@@ -19,36 +19,36 @@ type Karyawan struct {
 }
 
 type LoginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+    Email    string `json:"email"`
+    Password string `json:"password"`
 }
 
 type LoginResponse struct {
-	AccessToken string   `json:"access_token"`
-	User        Karyawan `json:"user"`
+    AccessToken string   `json:"access_token"`
+    User        Karyawan `json:"user"`
 }
 
 type CreateKaryawanRequest struct {
-	Email            string `json:"email"`
-	Password         string `json:"password"`
-	NamaLengkap      string `json:"nama_lengkap"`
-	NomorTelepon     string `json:"nomor_telepon"`
-	FotoURL          string `json:"foto_url"`
-	Peran            string `json:"peran"`
-	LevelJabatan     string `json:"level_jabatan"`
-	AtasanLangsungID string `json:"atasan_langsung_id"`
-	Divisi           string `json:"divisi"`
-	Unit             string `json:"unit"`
+    Email            string  `json:"email"`
+    Password         string  `json:"password"`
+    NamaLengkap      string  `json:"nama_lengkap"`
+    NomorTelepon     *string `json:"nomor_telepon"`
+    FotoURL          *string `json:"foto_url"`
+    Role             string  `json:"role"`
+    LevelJabatan     *string `json:"level_jabatan"`
+    AtasanLangsungID *string `json:"atasan_langsung_id"`
+    Divisi           *string `json:"divisi"`
+    Unit             *string `json:"unit"`
 }
 
 type UpdateKaryawanRequest struct {
-	NamaLengkap      string `json:"nama_lengkap"`
-	NomorTelepon     string `json:"nomor_telepon"`
-	FotoURL          string `json:"foto_url"`
-	Peran            string `json:"peran"`
-	LevelJabatan     string `json:"level_jabatan"`
-	AtasanLangsungID string `json:"atasan_langsung_id"`
-	Divisi           string `json:"divisi"`
-	Unit             string `json:"unit"`
-	StatusKaryawan   string `json:"status_karyawan"`
+    NamaLengkap      *string `json:"nama_lengkap"`
+    NomorTelepon     *string `json:"nomor_telepon"`
+    FotoURL          *string `json:"foto_url"`
+    Role             *string `json:"role"`
+    LevelJabatan     *string `json:"level_jabatan"`
+    AtasanLangsungID *string `json:"atasan_langsung_id"`
+    Divisi           *string `json:"divisi"`
+    Unit             *string `json:"unit"`
+    StatusKaryawan   *string `json:"status_karyawan"`
 }
