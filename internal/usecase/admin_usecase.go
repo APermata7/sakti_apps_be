@@ -69,15 +69,23 @@ func (u *AdminUsecase) CreateKaryawan(ctx context.Context, req domain.CreateKary
 		return nil, errors.New("email sudah terdaftar")
 	}
 
-	supabaseReq := map[string]interface{}{
-		"email":    req.Email,
-		"password": req.Password,
-		"user_metadata": map[string]string{
-			"nama_lengkap":  req.NamaLengkap,
-			"peran":         req.Peran,
-			"level_jabatan": req.LevelJabatan,
-		},
+	userMetadata := map[string]interface{}{
+		"nama_lengkap": req.NamaLengkap,
+		"role":         req.Role,
 	}
+
+	if req.LevelJabatan != nil {
+		userMetadata["level_jabatan"] = *req.LevelJabatan
+	} else {
+		userMetadata["level_jabatan"] = nil
+	}
+
+	supabaseReq := map[string]interface{}{
+		"email":          req.Email,
+		"password":       req.Password,
+		"user_metadata":  userMetadata,
+	}
+
 	jsonBody, _ := json.Marshal(supabaseReq)
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", u.SupabaseURL+"/auth/v1/admin/users", bytes.NewBuffer(jsonBody))
@@ -110,25 +118,25 @@ func (u *AdminUsecase) CreateKaryawan(ctx context.Context, req domain.CreateKary
 		ID:             authResp.ID,
 		NamaLengkap:    req.NamaLengkap,
 		Email:          req.Email,
-		Peran:          req.Peran,
+		Role:           req.Role,
 		LevelJabatan:   req.LevelJabatan,
 		StatusKaryawan: "aktif",
 	}
 
-	if req.NomorTelepon != "" {
-		karyawan.NomorTelepon = &req.NomorTelepon
+	if req.NomorTelepon != nil && *req.NomorTelepon != "" {
+		karyawan.NomorTelepon = req.NomorTelepon
 	}
-	if req.FotoURL != "" {
-		karyawan.FotoURL = &req.FotoURL
+	if req.FotoURL != nil && *req.FotoURL != "" {
+		karyawan.FotoURL = req.FotoURL
 	}
-	if req.Divisi != "" {
-		karyawan.Divisi = &req.Divisi
+	if req.Divisi != nil && *req.Divisi != "" {
+		karyawan.Divisi = req.Divisi
 	}
-	if req.Unit != "" {
-		karyawan.Unit = &req.Unit
+	if req.Unit != nil && *req.Unit != "" {
+		karyawan.Unit = req.Unit
 	}
-	if req.AtasanLangsungID != "" {
-		karyawan.AtasanLangsungID = &req.AtasanLangsungID
+	if req.AtasanLangsungID != nil && *req.AtasanLangsungID != "" {
+		karyawan.AtasanLangsungID = req.AtasanLangsungID
 	}
 
 	if err := u.KaryawanRepo.Create(ctx, karyawan); err != nil {
@@ -156,32 +164,56 @@ func (u *AdminUsecase) UpdateKaryawan(ctx context.Context, id string, req domain
 		return nil, errors.New("karyawan tidak ditemukan")
 	}
 
-	if req.NamaLengkap != "" {
-		existing.NamaLengkap = req.NamaLengkap
+	if req.NamaLengkap != nil && *req.NamaLengkap != "" {
+		existing.NamaLengkap = *req.NamaLengkap
 	}
-	if req.NomorTelepon != "" {
-		existing.NomorTelepon = &req.NomorTelepon
+	if req.NomorTelepon != nil {
+		if *req.NomorTelepon != "" {
+			existing.NomorTelepon = req.NomorTelepon
+		} else {
+			existing.NomorTelepon = nil
+		}
 	}
-	if req.FotoURL != "" {
-		existing.FotoURL = &req.FotoURL
+	if req.FotoURL != nil {
+		if *req.FotoURL != "" {
+			existing.FotoURL = req.FotoURL
+		} else {
+			existing.FotoURL = nil
+		}
 	}
-	if req.Peran != "" {
-		existing.Peran = req.Peran
+	if req.Role != nil && *req.Role != "" {
+		existing.Role = *req.Role
 	}
-	if req.LevelJabatan != "" {
-		existing.LevelJabatan = req.LevelJabatan
+	if req.LevelJabatan != nil {
+		if *req.LevelJabatan != "" {
+			existing.LevelJabatan = req.LevelJabatan
+		} else {
+			existing.LevelJabatan = nil
+		}
 	}
-	if req.AtasanLangsungID != "" {
-		existing.AtasanLangsungID = &req.AtasanLangsungID
+	if req.AtasanLangsungID != nil {
+		if *req.AtasanLangsungID != "" {
+			existing.AtasanLangsungID = req.AtasanLangsungID
+		} else {
+			existing.AtasanLangsungID = nil
+		}
 	}
-	if req.Divisi != "" {
-		existing.Divisi = &req.Divisi
+	if req.Divisi != nil {
+		if *req.Divisi != "" {
+			existing.Divisi = req.Divisi
+		} else {
+			existing.Divisi = nil
+		}
 	}
-	if req.Unit != "" {
-		existing.Unit = &req.Unit
+	if req.Unit != nil {
+		if *req.Unit != "" {
+			existing.Unit = req.Unit
+		} else {
+			existing.Unit = nil
+		}
 	}
-	if req.StatusKaryawan != "" {
-		existing.StatusKaryawan = req.StatusKaryawan
+	if req.StatusKaryawan != nil && *req.StatusKaryawan != "" {
+		existing.StatusKaryawan = *req.StatusKaryawan
 	}
 
 	if err := u.KaryawanRepo.Update(ctx, existing); err != nil {
@@ -200,9 +232,9 @@ func (u *AdminUsecase) DeleteKaryawan(ctx context.Context, id string) error {
 		return errors.New("karyawan tidak ditemukan")
 	}
 
-	if existing.Peran == "admin" {
+	if existing.Role == "admin" {
 		var count int
-		query := `SELECT COUNT(*) FROM karyawan WHERE peran = 'admin' AND status_karyawan = 'aktif'`
+		query := `SELECT COUNT(*) FROM karyawan WHERE role = 'admin' AND status_karyawan = 'aktif'`
 		u.DB.QueryRow(ctx, query).Scan(&count)
 		if count <= 1 {
 			return errors.New("tidak dapat menghapus admin terakhir")

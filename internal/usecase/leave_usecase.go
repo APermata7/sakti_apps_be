@@ -4,7 +4,8 @@ import (
 	"context"
 	"errors"
 	"time"
-	
+
+	"sakti_apps_be/internal/domain"
 	"sakti_apps_be/internal/repository"
 	"sakti_apps_be/internal/utils"
 )
@@ -21,31 +22,43 @@ func NewLeaveUsecase(leaveRepo *repository.LeaveRepo, karyawanRepo *repository.K
 	}
 }
 
-func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req struct {
+type CreateLeaveRequest struct {
 	TipePengajuan  string `json:"tipe_pengajuan"`
 	TanggalMulai   string `json:"tanggal_mulai"`
 	TanggalSelesai string `json:"tanggal_selesai"`
 	Alasan         string `json:"alasan"`
-}) error {
+}
+
+func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req CreateLeaveRequest) error {
 	karyawan, err := u.KaryawanRepo.GetByID(ctx, karyawanID)
 	if err != nil || karyawan == nil {
 		return errors.New("karyawan tidak ditemukan")
 	}
 
-	start, _ := time.Parse("2006-01-02", req.TanggalMulai)
-	end, _ := time.Parse("2006-01-02", req.TanggalSelesai)
+	start, err := time.Parse("2006-01-02", req.TanggalMulai)
+	if err != nil {
+		return errors.New("format tanggal mulai tidak valid (YYYY-MM-DD)")
+	}
+	end, err := time.Parse("2006-01-02", req.TanggalSelesai)
+	if err != nil {
+		return errors.New("format tanggal selesai tidak valid (YYYY-MM-DD)")
+	}
 	totalHari := int(end.Sub(start).Hours()/24) + 1
 
 	if totalHari <= 0 {
 		return errors.New("tanggal tidak valid")
 	}
 
-	balance, _ := u.LeaveRepo.GetBalance(ctx, karyawanID, time.Now().Year())
+	balance, err := u.LeaveRepo.GetBalance(ctx, karyawanID, time.Now().Year())
+	if err != nil {
+		return errors.New("gagal mendapatkan kuota cuti")
+	}
+
 	if req.TipePengajuan == "cuti" && totalHari > balance.Sisa {
 		return errors.New("kuota cuti tidak mencukupi")
 	}
 
-	leave := &repository.Leave{
+	leave := &domain.PengajuanCuti{
 		KaryawanID:     karyawanID,
 		TipePengajuan:  req.TipePengajuan,
 		TanggalMulai:   req.TanggalMulai,
@@ -58,13 +71,16 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req s
 	return u.LeaveRepo.Create(ctx, leave)
 }
 
-func (u *LeaveUsecase) GetStatus(ctx context.Context, karyawanID string) ([]repository.Leave, error) {
+func (u *LeaveUsecase) GetStatus(ctx context.Context, karyawanID string) ([]domain.PengajuanCuti, error) {
 	return u.LeaveRepo.GetByKaryawanID(ctx, karyawanID)
 }
 
 func (u *LeaveUsecase) CancelLeave(ctx context.Context, leaveID, karyawanID string) error {
 	leave, err := u.LeaveRepo.GetByID(ctx, leaveID)
 	if err != nil {
+		return errors.New("pengajuan tidak ditemukan")
+	}
+	if leave == nil {
 		return errors.New("pengajuan tidak ditemukan")
 	}
 	if leave.KaryawanID != karyawanID {
@@ -82,6 +98,9 @@ func (u *LeaveUsecase) ApproveLeave(ctx context.Context, leaveID, managerID stri
 	if err != nil {
 		return errors.New("pengajuan tidak ditemukan")
 	}
+	if leave == nil {
+		return errors.New("pengajuan tidak ditemukan")
+	}
 	if leave.Status != "menunggu" {
 		return errors.New("pengajuan sudah diproses")
 	}
@@ -92,6 +111,9 @@ func (u *LeaveUsecase) ApproveLeave(ctx context.Context, leaveID, managerID stri
 func (u *LeaveUsecase) RejectLeave(ctx context.Context, leaveID, managerID, alasan string) error {
 	leave, err := u.LeaveRepo.GetByID(ctx, leaveID)
 	if err != nil {
+		return errors.New("pengajuan tidak ditemukan")
+	}
+	if leave == nil {
 		return errors.New("pengajuan tidak ditemukan")
 	}
 	if leave.Status != "menunggu" {
@@ -106,6 +128,9 @@ func (u *LeaveUsecase) FinalizeLeave(ctx context.Context, leaveID, hrdID string)
 	if err != nil {
 		return errors.New("pengajuan tidak ditemukan")
 	}
+	if leave == nil {
+		return errors.New("pengajuan tidak ditemukan")
+	}
 	if leave.Status != "disetujui" {
 		return errors.New("pengajuan belum disetujui atasan")
 	}
@@ -113,28 +138,48 @@ func (u *LeaveUsecase) FinalizeLeave(ctx context.Context, leaveID, hrdID string)
 	return u.LeaveRepo.Finalize(ctx, leaveID, hrdID)
 }
 
-func (u *LeaveUsecase) GenerateSuratCuti(ctx context.Context, leaveID string) ([]byte, error) {
+func (u *LeaveUsecase) DownloadSuratCuti(ctx context.Context, leaveID string) ([]byte, string, error) {
 	leave, err := u.LeaveRepo.GetByID(ctx, leaveID)
 	if err != nil {
-		return nil, err
+		return nil, "", err
+	}
+	if leave == nil {
+		return nil, "", errors.New("pengajuan tidak ditemukan")
 	}
 
-	if leave.Status != "disetujui" && leave.Status != "ditolak" {
-		return nil, errors.New("pengajuan belum difinalisasi")
+	if leave.Status != "disetujui" {
+		return nil, "", errors.New("pengajuan belum disetujui")
 	}
 
 	karyawan, err := u.KaryawanRepo.GetByID(ctx, leave.KaryawanID)
 	if err != nil {
-		return nil, err
+		return nil, "", err
+	}
+	if karyawan == nil {
+		return nil, "", errors.New("karyawan tidak ditemukan")
 	}
 
-	atasan, _ := u.KaryawanRepo.GetByID(ctx, *leave.DisetujuiOleh)
-	hrd, _ := u.KaryawanRepo.GetByID(ctx, *leave.DifinalisasiOleh)
+	var atasan *domain.Karyawan
+	if leave.DisetujuiOleh != nil {
+		atasan, _ = u.KaryawanRepo.GetByID(ctx, *leave.DisetujuiOleh)
+	}
 
-	balance, _ := u.LeaveRepo.GetBalance(ctx, leave.KaryawanID, time.Now().Year())
+	var hrd *domain.Karyawan
+	if leave.DifinalisasiOleh != nil {
+		hrd, _ = u.KaryawanRepo.GetByID(ctx, *leave.DifinalisasiOleh)
+	}
+
+	balance, err := u.LeaveRepo.GetBalance(ctx, leave.KaryawanID, time.Now().Year())
+	if err != nil {
+		balance = &domain.SisaCuti{
+			JumlahCuti:    12,
+			TelahDigunakan: 0,
+			Sisa:          12,
+		}
+	}
 
 	jenis := "CUTI"
-	if leave.TipePengajuan == "dispen" {
+	if leave.TipePengajuan == "dispen" || leave.TipePengajuan == "dispensasi" {
 		jenis = "DISPENSASI"
 	}
 
@@ -156,6 +201,24 @@ func (u *LeaveUsecase) GenerateSuratCuti(ctx context.Context, leaveID string) ([
 		unit = *karyawan.Unit
 	}
 
+	levelJabatan := ""
+	if karyawan.LevelJabatan != nil {
+		levelJabatan = *karyawan.LevelJabatan
+	}
+
+	cutiDilaksanakan := balance.TelahDigunakan - leave.TotalHari
+	if cutiDilaksanakan < 0 {
+		cutiDilaksanakan = 0
+	}
+
+	// Tentukan Jumlah TTD
+	jumlahTTD := 3
+	if hrd == nil && atasan == nil {
+		jumlahTTD = 2
+	} else if hrd != nil && atasan == nil {
+		jumlahTTD = 2
+	}
+
 	pdfData := utils.PDFData{
 		CompanyName:    "KOPEGTEL MALANG",
 		CompanyAddress: "Jl. Ahmad Yani No.11, Blimbing, Kota Malang",
@@ -164,13 +227,13 @@ func (u *LeaveUsecase) GenerateSuratCuti(ctx context.Context, leaveID string) ([
 		Nama:        karyawan.NamaLengkap,
 		Divisi:      divisi,
 		Unit:        unit,
-		Jabatan:     karyawan.LevelJabatan,
+		Jabatan:     levelJabatan,
 		LamaCuti:    leave.TotalHari,
 		TanggalCuti: leave.TanggalMulai + " s.d " + leave.TanggalSelesai,
 		AlasanCuti:  leave.Alasan,
 
 		JumlahCutiTahun:      12,
-		CutiDilaksanakan:     balance.Digunakan - leave.TotalHari,
+		CutiDilaksanakan:     cutiDilaksanakan,
 		CutiAkanDilaksanakan: leave.TotalHari,
 		SisaCuti:             balance.Sisa,
 
@@ -182,7 +245,15 @@ func (u *LeaveUsecase) GenerateSuratCuti(ctx context.Context, leaveID string) ([
 		NamaPemohon: karyawan.NamaLengkap,
 		NamaAtasan:  namaAtasan,
 		NamaHRD:     namaHRD,
+
+		JumlahTTD: jumlahTTD,
 	}
 
-	return utils.GeneratePDF(pdfData)
+	pdfBytes, err := utils.GeneratePDF(pdfData)
+	if err != nil {
+		return nil, "", err
+	}
+
+	filename := "surat_" + jenis + "_" + karyawan.NamaLengkap + "_" + time.Now().Format("20060102") + ".pdf"
+	return pdfBytes, filename, nil
 }
