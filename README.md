@@ -22,7 +22,7 @@ Backend Service untuk Sistem Presensi dan Manajemen Kepegawaian KOPEGTEL Malang.
 
 ---
 
-# 🎯 Tentang Proyek
+## 🎯 Tentang Proyek
 
 **SAKTI (Sistem Absensi dan Kinerja Terintegrasi)** merupakan backend service yang dikembangkan untuk mendukung aplikasi presensi karyawan di **KOPEGTEL Malang**.
 
@@ -32,61 +32,63 @@ Sistem dirancang untuk menggantikan sistem presensi sebelumnya sehingga proses p
 
 ---
 
-# 🚀 Tujuan Pengembangan
+## 🚀 Tujuan Pengembangan
 
 Pengembangan backend ini bertujuan untuk:
 
 - Meningkatkan efisiensi proses presensi karyawan.
 - Mengintegrasikan seluruh proses administrasi kepegawaian dalam satu sistem.
-- Mendukung validasi presensi menggunakan lokasi dan pengenalan wajah.
+- Mendukung validasi presensi menggunakan lokasi (geofencing) dan pengenalan wajah (face recognition).
 - Mempermudah proses persetujuan cuti secara bertingkat.
 - Menyediakan laporan presensi yang akurat dan terdokumentasi.
 - Mengurangi proses administrasi manual.
 
 ---
 
-# ✨ Fitur Utama
+## ✨ Fitur Utama
 
-## 🔐 Autentikasi
+### 🔐 Autentikasi & Otorisasi
 
-- Login menggunakan JWT
+- Login menggunakan JWT (JSON Web Token) dari Supabase Auth
 - Manajemen Session
-- Role Based Access Control (RBAC)
+- Role Based Access Control (RBAC) dengan 4 role:
 
-Role pengguna:
-
-- Administrator
-- HRD
-- Atasan / Manager
-- Karyawan
+| Role | Hak Akses |
+|------|-----------|
+| **Admin** | Akses penuh ke semua fitur dan data |
+| **Atasan** | Melihat dan menyetujui pengajuan bawahan |
+| **HRD** | Mengelola data karyawan, cuti, dan finalisasi |
+| **Karyawan** | Presensi, pengajuan cuti, dan data pribadi |
 
 ---
 
-## 👤 Manajemen Pengguna
+### 👤 Manajemen Pengguna
 
-- Data Karyawan
+- CRUD Data Karyawan
 - Profil Pengguna
-- Divisi
-- Jabatan
-- Hak Akses
+- Divisi & Unit
+- Level Jabatan (staff, officer, spv, ka_unit, manager, gm, hrd)
+- Status Karyawan (aktif / nonaktif)
+- Atasan Langsung
 
 ---
 
-## 📍 Presensi
+### 📍 Presensi
 
 Fitur presensi meliputi:
 
-- Check In
-- Check Out
-- Validasi Geofencing
-- Validasi Face Recognition
-- Perhitungan keterlambatan
-- Rekap jam kerja
-- Status Kehadiran
+- **Check In** dengan validasi:
+  - Validasi Geofencing (radius kantor)
+  - Validasi Face Recognition (FaceNet)
+  - Deteksi keterlambatan berdasarkan jam kerja
+- **Check Out** dengan validasi:
+  - Validasi Geofencing
+  - Perhitungan lembur otomatis
+- Riwayat Presensi dengan filter
+- Status Kehadiran hari ini
 
-Status presensi meliputi:
-
-- Hadir
+**Status Presensi:**
+- Tepat Waktu
 - Terlambat
 - Izin
 - Sakit
@@ -95,107 +97,109 @@ Status presensi meliputi:
 
 ---
 
-## 📋 Manajemen Pengajuan
+### 📋 Manajemen Pengajuan Cuti
 
 Jenis pengajuan yang didukung:
 
-### Cuti
+| Jenis | Deskripsi | Proses |
+|-------|-----------|--------|
+| **Cuti** | Mengurangi saldo cuti tahunan | Atasan → HRD |
+| **Dispensasi** | Tidak mengurangi saldo cuti | Atasan → HRD |
+| **Cuti Darurat** | Dapat diajukan hari yang sama | HRD |
 
-- Mengurangi saldo cuti tahunan
-- Maksimal pengajuan H-1
-- Memerlukan persetujuan atasan dan HRD
-
-### Dispensasi
-
-- Tidak mengurangi saldo cuti
-- Digunakan untuk keperluan tertentu
-- Persetujuan langsung
-
-### Cuti Darurat
-
-- Dapat diajukan pada hari yang sama
-- Digunakan untuk kondisi mendesak
-- Memerlukan proses validasi HRD
+**Status Pengajuan:**
+- Menunggu
+- Disetujui (Atasan)
+- Ditolak
+- Dibatalkan
+- Difinalisasi (HRD)
 
 ---
 
-## 📄 Generate Dokumen
+### 📄 Generate Dokumen
 
-Sistem dapat menghasilkan:
+Sistem dapat menghasilkan dokumen PDF:
 
-- Surat Cuti
-- Surat Dispensasi
-- Rekap Presensi
-- Rekap Pengajuan
-
-Dokumen dihasilkan dalam format PDF.
+- **Surat Cuti** (2 atau 3 Tanda Tangan)
+  - 3 TTD: Pemohon + Atasan + HRD
+  - 2 TTD: Pemohon + HRD
+- **Surat Dispensasi** (2 atau 3 Tanda Tangan)
+- **Rekap Presensi**
+- **Rekap Pengajuan**
 
 ---
 
-## 🔔 Notifikasi
+### 🔔 Notifikasi
 
-Jenis notifikasi:
-
-- In App Notification
+**Jenis Notifikasi:**
+- In-App Notification
 - WhatsApp API
 
-Notifikasi dikirim ketika:
-
+**Trigger Notifikasi:**
 - Pengajuan dibuat
-- Pengajuan disetujui
+- Pengajuan disetujui atasan
 - Pengajuan ditolak
-- Finalisasi HRD
+- Pengajuan difinalisasi HRD
+- Reminder presensi
 
 ---
 
-## 📊 Pelaporan
+### 📊 Dashboard & Pelaporan
 
-Laporan yang tersedia:
+**Statistik Dashboard:**
+- Total Karyawan
+- Karyawan Aktif
+- Presensi Hari Ini
+- Presensi Terlambat
+- Cuti Pending
+- Total Cuti Tahun Berjalan
 
+**Laporan Tersedia:**
 - Rekap Presensi
 - Rekap Keterlambatan
 - Rekap Cuti
 - Rekap Lembur
 
-Format ekspor:
-
+**Format Ekspor:**
 - CSV
 - PDF
 
 ---
 
-## 📝 Audit Log
+### 📝 Audit Log
 
-Seluruh aktivitas penting akan dicatat seperti:
+Seluruh aktivitas penting dicatat:
 
-- Login
-- Perubahan data
-- Approval
-- Penghapusan data
-- Generate laporan
+- Login / Logout
+- Perubahan Data Karyawan
+- Approval / Reject Pengajuan
+- Finalisasi HRD
+- Generate Laporan
+- Hapus Data
 
 ---
 
-# 🛠 Teknologi yang Digunakan
+## 🛠 Teknologi yang Digunakan
 
 | Komponen | Teknologi |
 |----------|------------|
 | Bahasa Pemrograman | Go 1.25+ |
-| Framework | Fiber |
+| Framework | Fiber v2 |
 | Database | PostgreSQL |
 | Database Cloud | Supabase |
-| Driver Database | pgx |
-| Authentication | JWT |
-| Configuration | Viper |
+| Driver Database | pgx/v5 |
+| Authentication | Supabase Auth (JWT) |
 | Environment | Godotenv |
 | Storage | Supabase Storage |
 | Image Storage | Cloudinary |
-| PDF Generator | gofpdf |
+| PDF Generator | gofpdf/v2 |
+| Face Recognition | FaceNet (TFLite/ONNX) |
+| Notification | FCM + WhatsApp API |
 | Deployment | Docker |
 
 ---
 
-# 🏛 Arsitektur Sistem
+## 🏛 Arsitektur Sistem
 
 Backend menerapkan konsep **Clean Architecture** sehingga setiap lapisan memiliki tanggung jawab yang jelas.
 
@@ -232,7 +236,7 @@ Keuntungan:
 
 ---
 
-# 📂 Struktur Folder
+## 📂 Struktur Folder
 
 ```text
 sakti-backend
@@ -264,7 +268,7 @@ sakti-backend
 └── README.md
 ```
 
-# ⚙ Instalasi
+## ⚙ Instalasi
 
 Clone repository
 
@@ -286,7 +290,7 @@ go mod tidy
 
 ---
 
-# 🔑 Konfigurasi Environment
+## 🔑 Konfigurasi Environment
 
 Salin file contoh environment.
 
@@ -296,7 +300,7 @@ cp .env.example .env
 
 ---
 
-# ▶ Menjalankan Aplikasi
+## ▶ Menjalankan Aplikasi
 
 Development
 
@@ -312,7 +316,7 @@ http://localhost:8080
 
 ---
 
-# 🐳 Menjalankan Menggunakan Docker
+## 🐳 Menjalankan Menggunakan Docker
 
 Build image
 
@@ -328,19 +332,18 @@ docker run -p 8080:8080 sakti-backend
 
 ---
 
-# 📡 Modul API
+## 📡 Modul API
 
 Backend menyediakan beberapa kelompok endpoint:
 
-| Modul | Deskripsi |
-|--------|-----------|
-| Authentication | Login & Autentikasi |
-| User | Data pengguna |
-| Employee | Data karyawan |
-| Attendance | Presensi |
-| Leave | Pengajuan cuti |
-| Approval | Persetujuan |
-| Notification | Notifikasi |
-| Dashboard | Ringkasan data |
-| Report | Laporan |
+| Modul | Deskripsi | Endpoint Prefix |
+|-------|-----------|-----------------|
+| **Authentication** | Login, logout, profile, change password, forgot/reset password | `/api/auth/*` |
+| **Attendance** | Check-in, check-out, today, history, update alasan terlambat | `/api/attendance/*` |
+| **Leave** | Create, status, download surat, cancel, approve, reject, finalize | `/api/leave/*` |
+| **Admin** | Dashboard, CRUD karyawan, CRUD libur, konfigurasi kerja | `/api/admin/*` |
+| **Notification** | Get notifications, unread count, mark read, mark all read | `/api/notifikasi/*` |
+| **Riwayat** | Riwayat aktivitas user | `/api/riwayat` |
+| **Libur** | Cek hari libur (public) | `/api/libur/check` |
+| **Upload** | Upload file, image, TTD | `/upload/*` |
 ---
