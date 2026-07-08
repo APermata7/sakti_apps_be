@@ -4,8 +4,8 @@ CREATE TABLE karyawan (
     email VARCHAR(255) UNIQUE NOT NULL,
     nomor_telepon VARCHAR(20),
     foto_url VARCHAR(500),
-    peran VARCHAR(50) NOT NULL CHECK (peran IN ('admin', 'manager', 'hrd', 'karyawan', 'kepala_unit')),
-    level_jabatan VARCHAR(50) NOT NULL CHECK (level_jabatan IN ('staff', 'spv', 'ka_unit', 'manager', 'gm', 'pengurus')),
+    role VARCHAR(50) NOT NULL CHECK (role IN ('admin', 'atasan', 'hrd', 'karyawan')),
+    level_jabatan VARCHAR(50) NULL CHECK (level_jabatan IN ('staff', 'officer', 'spv', 'ka_unit', 'manager', 'gm', 'hrd')),
     atasan_langsung_id UUID REFERENCES karyawan(id) ON DELETE SET NULL,
     divisi VARCHAR(100),
     unit VARCHAR(100),
@@ -15,5 +15,5 @@ CREATE TABLE karyawan (
 );
 
 CREATE INDEX idx_karyawan_email ON karyawan(email);
-CREATE INDEX idx_karyawan_peran ON karyawan(peran);
+CREATE INDEX idx_karyawan_role ON karyawan(role);
 CREATE INDEX idx_karyawan_atasan ON karyawan(atasan_langsung_id);
