@@ -41,10 +41,17 @@ func (h *AdminHandler) CreateKaryawan(c *fiber.Ctx) error {
 		})
 	}
 
-	if req.Email == "" || req.Password == "" || req.NamaLengkap == "" {
+	if req.Email == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
-			"message": "Email, password, dan nama lengkap wajib diisi",
+			"message": "Email wajib diisi",
+		})
+	}
+
+	if req.Password == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Password wajib diisi",
 		})
 	}
 
@@ -55,8 +62,38 @@ func (h *AdminHandler) CreateKaryawan(c *fiber.Ctx) error {
 		})
 	}
 
-	if req.Peran == "" {
-		req.Peran = "karyawan"
+	if req.NamaLengkap == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Nama lengkap wajib diisi",
+		})
+	}
+
+	if req.Role == "" {
+		req.Role = "karyawan"
+	}
+
+	validRoles := map[string]bool{
+		"admin": true, "atasan": true, "hrd": true, "karyawan": true,
+	}
+	if !validRoles[req.Role] {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Role tidak valid. Pilih: admin, atasan, hrd, karyawan",
+		})
+	}
+
+	if req.LevelJabatan != nil && *req.LevelJabatan != "" {
+		validLevels := map[string]bool{
+			"staff": true, "officer": true, "spv": true,
+			"ka_unit": true, "manager": true, "gm": true, "hrd": true,
+		}
+		if !validLevels[*req.LevelJabatan] {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"success": false,
+				"message": "Level jabatan tidak valid. Pilih: staff, officer, spv, ka_unit, manager, gm, hrd",
+			})
+		}
 	}
 
 	karyawan, err := h.AdminUsecase.CreateKaryawan(c.Context(), req)
@@ -155,6 +192,43 @@ func (h *AdminHandler) UpdateKaryawan(c *fiber.Ctx) error {
 			"success": false,
 			"message": "Request tidak valid: " + err.Error(),
 		})
+	}
+
+	if req.Role != nil && *req.Role != "" {
+		validRoles := map[string]bool{
+			"admin": true, "atasan": true, "hrd": true, "karyawan": true,
+		}
+		if !validRoles[*req.Role] {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"success": false,
+				"message": "Role tidak valid. Pilih: admin, atasan, hrd, karyawan",
+			})
+		}
+	}
+
+	if req.LevelJabatan != nil && *req.LevelJabatan != "" {
+		validLevels := map[string]bool{
+			"staff": true, "officer": true, "spv": true,
+			"ka_unit": true, "manager": true, "gm": true, "hrd": true,
+		}
+		if !validLevels[*req.LevelJabatan] {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"success": false,
+				"message": "Level jabatan tidak valid. Pilih: staff, officer, spv, ka_unit, manager, gm, hrd",
+			})
+		}
+	}
+
+	if req.StatusKaryawan != nil && *req.StatusKaryawan != "" {
+		validStatus := map[string]bool{
+			"aktif": true, "nonaktif": true,
+		}
+		if !validStatus[*req.StatusKaryawan] {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"success": false,
+				"message": "Status tidak valid. Pilih: aktif, nonaktif",
+			})
+		}
 	}
 
 	karyawan, err := h.AdminUsecase.UpdateKaryawan(c.Context(), id, req)
