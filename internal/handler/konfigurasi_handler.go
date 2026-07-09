@@ -1,11 +1,12 @@
 package handler
 
 import (
+	"time"
+
 	"github.com/gofiber/fiber/v2"
 
 	"sakti_apps_be/internal/domain"
 	"sakti_apps_be/internal/usecase"
-	"sakti_apps_be/internal/utils"
 )
 
 type KonfigurasiHandler struct {
@@ -19,7 +20,7 @@ func NewKonfigurasiHandler(konfigurasiUsecase *usecase.KonfigurasiUsecase) *Konf
 func (h *KonfigurasiHandler) GetConfig(c *fiber.Ctx) error {
 	config, err := h.KonfigurasiUsecase.GetConfig(c.Context())
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"success": false,
 			"message": err.Error(),
 		})
@@ -36,7 +37,7 @@ func (h *KonfigurasiHandler) UpdateConfig(c *fiber.Ctx) error {
 
 	var req domain.UpdateKonfigurasiRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(400).JSON(fiber.Map{
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
 			"message": "Request tidak valid",
 		})
@@ -44,7 +45,7 @@ func (h *KonfigurasiHandler) UpdateConfig(c *fiber.Ctx) error {
 
 	config, err := h.KonfigurasiUsecase.UpdateConfig(c.Context(), userID, req)
 	if err != nil {
-		return c.Status(400).JSON(fiber.Map{
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
 			"message": err.Error(),
 		})
@@ -52,6 +53,7 @@ func (h *KonfigurasiHandler) UpdateConfig(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"success": true,
+		"message": "Konfigurasi berhasil diupdate",
 		"data":    config,
 	})
 }
@@ -61,32 +63,41 @@ func (h *KonfigurasiHandler) UploadLogo(c *fiber.Ctx) error {
 
 	file, err := c.FormFile("logo")
 	if err != nil {
-		return c.Status(400).JSON(fiber.Map{
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
-			"message": "File logo tidak ditemukan",
+			"message": "File logo wajib diupload",
+		})
+	}
+
+	contentType := file.Header.Get("Content-Type")
+	if contentType != "image/jpeg" && contentType != "image/png" && contentType != "image/webp" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Format file harus JPG, PNG, atau WEBP",
+		})
+	}
+
+	if file.Size > 2*1024*1024 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Ukuran file maksimal 2MB",
 		})
 	}
 
 	src, err := file.Open()
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"success": false,
 			"message": "Gagal membuka file",
 		})
 	}
 	defer src.Close()
 
-	url, err := utils.UploadImage(src, "logo_kopegtel")
-	if err != nil {
-		return c.Status(500).JSON(fiber.Map{
-			"success": false,
-			"message": "Gagal upload ke Cloudinary: " + err.Error(),
-		})
-	}
+	filename := "logo_kantor_" + time.Now().Format("20060102150405")
 
-	config, err := h.KonfigurasiUsecase.UpdateLogo(c.Context(), userID, url)
+	config, err := h.KonfigurasiUsecase.UploadLogo(c.Context(), userID, src, filename)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"success": false,
 			"message": err.Error(),
 		})
@@ -94,8 +105,9 @@ func (h *KonfigurasiHandler) UploadLogo(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"success": true,
+		"message": "Logo berhasil diupload",
 		"data": fiber.Map{
-			"logo_url": url,
+			"logo_url": config.LogoKantor,
 			"config":   config,
 		},
 	})
