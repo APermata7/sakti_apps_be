@@ -3,9 +3,11 @@ package usecase
 import (
 	"context"
 	"errors"
+	"mime/multipart"
 
 	"sakti_apps_be/internal/domain"
 	"sakti_apps_be/internal/repository"
+	"sakti_apps_be/internal/utils"
 )
 
 type KonfigurasiUsecase struct {
@@ -45,7 +47,7 @@ func (u *KonfigurasiUsecase) UpdateConfig(ctx context.Context, userID string, re
 	if req.LongKantor != 0 {
 		config.LongKantor = req.LongKantor
 	}
-	if req.LogoKantor != "" {
+	if req.LogoKantor != nil {
 		config.LogoKantor = req.LogoKantor
 	}
 	if req.JamMasuk != "" {
@@ -63,7 +65,12 @@ func (u *KonfigurasiUsecase) UpdateConfig(ctx context.Context, userID string, re
 	if req.RadiusKantor != 0 {
 		config.RadiusKantor = req.RadiusKantor
 	}
-	config.DiperbaruiOleh = userID
+
+	if userID != "" {
+		config.DiperbaruiOleh = &userID
+	} else {
+		config.DiperbaruiOleh = nil
+	}
 
 	if err := u.KonfigurasiRepo.Update(ctx, config); err != nil {
 		return nil, err
@@ -80,11 +87,30 @@ func (u *KonfigurasiUsecase) UpdateLogo(ctx context.Context, userID, logoURL str
 		return nil, errors.New("konfigurasi tidak ditemukan")
 	}
 
-	config.LogoKantor = logoURL
-	config.DiperbaruiOleh = userID
+	logo := logoURL
+	config.LogoKantor = &logo
+
+	if userID != "" {
+		config.DiperbaruiOleh = &userID
+	} else {
+		config.DiperbaruiOleh = nil
+	}
 
 	if err := u.KonfigurasiRepo.Update(ctx, config); err != nil {
 		return nil, err
 	}
 	return config, nil
+}
+
+func (u *KonfigurasiUsecase) UploadLogo(ctx context.Context, userID string, file multipart.File, filename string) (*domain.KonfigurasiKerja, error) {
+	logoURL, err := utils.UploadImage(file, filename)
+	if err != nil {
+		return nil, errors.New("gagal upload logo ke Cloudinary: " + err.Error())
+	}
+
+	if logoURL == "" {
+		return nil, errors.New("Cloudinary tidak tersedia")
+	}
+
+	return u.UpdateLogo(ctx, userID, logoURL)
 }
