@@ -88,6 +88,38 @@ func UploadImage(file multipart.File, filename string) (string, error) {
 	return resp.SecureURL, nil
 }
 
+func UploadImageWithCustomFolder(file multipart.File, folderPath, filename string) (string, error) {
+	if Cld == nil {
+		return "", nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	baseFolder := os.Getenv("CLOUDINARY_UPLOAD_FOLDER")
+	if baseFolder == "" {
+		baseFolder = "sakti-apps"
+	}
+
+	folder := baseFolder
+	if folderPath != "" {
+		folder = baseFolder + "/" + folderPath
+	}
+
+	resp, err := Cld.Upload.Upload(ctx, file, uploader.UploadParams{
+		Folder:         folder,
+		PublicID:       filename,
+		UseFilename:    api.Bool(true),
+		UniqueFilename: api.Bool(true),
+		ResourceType:   "image",
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return resp.SecureURL, nil
+}
+
 func UploadTTD(file multipart.File, filename string) (string, error) {
 	if Cld == nil {
 		return "", nil
