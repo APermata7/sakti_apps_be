@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"os"
 
@@ -33,6 +34,8 @@ func (u *AuthUsecase) Login(ctx context.Context, req domain.LoginRequest) (*doma
 	}
 	jsonBody, _ := json.Marshal(supabaseReq)
 
+	log.Printf("Login attempt: email=%s", req.Email)
+
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", u.SupabaseURL+"/auth/v1/token?grant_type=password", bytes.NewBuffer(jsonBody))
 	if err != nil {
 		return nil, err
@@ -48,6 +51,7 @@ func (u *AuthUsecase) Login(ctx context.Context, req domain.LoginRequest) (*doma
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
+		log.Printf("Supabase login failed: status=%d", resp.StatusCode)
 		return nil, errors.New("email atau password salah")
 	}
 
@@ -62,18 +66,27 @@ func (u *AuthUsecase) Login(ctx context.Context, req domain.LoginRequest) (*doma
 		return nil, err
 	}
 
+	log.Printf("Auth User ID: %s, Email: %s", authResp.User.ID, authResp.User.Email)
+
 	karyawan, err := u.KaryawanRepo.GetByID(ctx, authResp.User.ID)
 	if err != nil {
+		log.Printf("GetByID error: %v", err)
 		return nil, err
 	}
 
 	if karyawan == nil {
+		log.Printf("Karyawan dengan ID %s tidak ditemukan di tabel karyawan", authResp.User.ID)
 		return nil, errors.New("data karyawan tidak ditemukan")
 	}
 
+	log.Printf("Karyawan ditemukan: ID=%s, Status=%s, Role=%s", karyawan.ID, karyawan.StatusKaryawan, karyawan.Role)
+
 	if karyawan.StatusKaryawan != "aktif" {
+		log.Printf("Login ditolak: status karyawan = %s", karyawan.StatusKaryawan)
 		return nil, errors.New("akun tidak aktif")
 	}
+
+	log.Printf("Login berhasil: email=%s, role=%s", karyawan.Email, karyawan.Role)
 
 	return &domain.LoginResponse{
 		AccessToken: authResp.AccessToken,
@@ -82,19 +95,27 @@ func (u *AuthUsecase) Login(ctx context.Context, req domain.LoginRequest) (*doma
 }
 
 func (u *AuthUsecase) GetProfile(ctx context.Context, userID string) (*domain.Karyawan, error) {
+	log.Printf("GetProfile: userID=%s", userID)
+
 	karyawan, err := u.KaryawanRepo.GetByID(ctx, userID)
 	if err != nil {
+		log.Printf("GetByID error: %v", err)
 		return nil, err
 	}
 
 	if karyawan == nil {
+		log.Printf("Karyawan dengan ID %s tidak ditemukan", userID)
 		return nil, errors.New("karyawan tidak ditemukan")
 	}
+
+	log.Printf("Profile ditemukan: email=%s, role=%s", karyawan.Email, karyawan.Role)
 
 	return karyawan, nil
 }
 
 func (u *AuthUsecase) ChangePassword(ctx context.Context, userID, newPassword string) error {
+	log.Printf("ChangePassword: userID=%s", userID)
+
 	supabaseReq := map[string]string{
 		"password": newPassword,
 	}
@@ -115,13 +136,28 @@ func (u *AuthUsecase) ChangePassword(ctx context.Context, userID, newPassword st
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
+		log.Printf("ChangePassword failed: status=%d", resp.StatusCode)
 		return errors.New("gagal mengubah password")
 	}
+
+	log.Printf("ChangePassword berhasil: userID=%s", userID)
 
 	return nil
 }
 
 func (u *AuthUsecase) ForgotPassword(ctx context.Context, email string) error {
+	log.Printf("ForgotPassword: email=%s", email)
+
+	karyawan, err := u.KaryawanRepo.GetByEmail(ctx, email)
+	if err != nil {
+		log.Printf("GetByEmail error: %v", err)
+		return errors.New("email tidak ditemukan")
+	}
+	if karyawan == nil {
+		log.Printf("Email %s tidak ditemukan di tabel karyawan", email)
+		return errors.New("email tidak ditemukan")
+	}
+
 	supabaseReq := map[string]string{
 		"email": email,
 	}
@@ -142,13 +178,18 @@ func (u *AuthUsecase) ForgotPassword(ctx context.Context, email string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
+		log.Printf("ForgotPassword failed: status=%d", resp.StatusCode)
 		return errors.New("gagal mengirim link reset")
 	}
+
+	log.Printf("ForgotPassword berhasil: email=%s", email)
 
 	return nil
 }
 
 func (u *AuthUsecase) ResetPassword(ctx context.Context, token, newPassword string) error {
+	log.Printf("ResetPassword: token=%s...", token[:20])
+
 	supabaseReq := map[string]string{
 		"password": newPassword,
 	}
@@ -170,8 +211,11 @@ func (u *AuthUsecase) ResetPassword(ctx context.Context, token, newPassword stri
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
+		log.Printf("ResetPassword failed: status=%d", resp.StatusCode)
 		return errors.New("token tidak valid atau sudah kadaluarsa")
 	}
+
+	log.Printf("ResetPassword berhasil")
 
 	return nil
 }
