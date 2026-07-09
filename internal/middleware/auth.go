@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"strings"
+	"log"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -39,11 +40,29 @@ func AuthMiddleware() fiber.Handler {
 		c.Locals("user_id", claims.Subject)
 		c.Locals("email", claims.Email)
 
+		var role string
+
 		if claims.AppMetadata != nil {
-			if role, ok := claims.AppMetadata["role"].(string); ok {
-				c.Locals("role", role)
+			if r, ok := claims.AppMetadata["role"].(string); ok {
+				role = r
 			}
 		}
+
+		if role == "" && claims.UserMetadata != nil {
+			if r, ok := claims.UserMetadata["role"].(string); ok {
+				role = r
+			}
+		}
+
+		if role == "" {
+			log.Printf("Role tidak ditemukan di metadata untuk user: %s", claims.Email)
+			log.Printf("   AppMetadata: %+v", claims.AppMetadata)
+			log.Printf("   UserMetadata: %+v", claims.UserMetadata)
+		} else {
+			log.Printf("Role ditemukan: %s untuk user: %s", role, claims.Email)
+		}
+
+		c.Locals("role", role)
 
 		return c.Next()
 	}
@@ -52,7 +71,7 @@ func AuthMiddleware() fiber.Handler {
 func RequireRole(allowedRoles ...string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		role, ok := c.Locals("role").(string)
-		if !ok {
+		if !ok || role == "" {
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 				"success": false,
 				"message": "Role tidak ditemukan",
