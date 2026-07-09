@@ -43,16 +43,16 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 
 		if remaining == 0 {
 			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
-				"success": false,
-				"message": "Anda telah mencapai batas maksimal percobaan. Akun terkunci selama 5 menit.",
+				"success":            false,
+				"message":            "Anda telah mencapai batas maksimal percobaan. Akun terkunci selama 5 menit.",
 				"remaining_attempts": 0,
-				"can_reset": true,
+				"can_reset":          true,
 			})
 		}
 
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"success": false,
-			"message": "Email atau password salah",
+			"success":            false,
+			"message":            err.Error(),
 			"remaining_attempts": remaining,
 		})
 	}
