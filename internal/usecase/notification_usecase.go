@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"log"
 
 	"sakti_apps_be/internal/domain"
 	"sakti_apps_be/internal/repository"
@@ -12,6 +13,7 @@ type NotificationUsecase struct {
 	FCMTokenRepo   *repository.FCMTokenRepo
 	NotifikasiRepo *repository.NotifikasiRepo
 	KaryawanRepo   *repository.KaryawanRepo
+	TelegramBot    *utils.TelegramBot
 }
 
 func NewNotificationUsecase(
@@ -23,6 +25,7 @@ func NewNotificationUsecase(
 		FCMTokenRepo:   fcmTokenRepo,
 		NotifikasiRepo: notifikasiRepo,
 		KaryawanRepo:   karyawanRepo,
+		TelegramBot:    utils.NewTelegramBot(),
 	}
 }
 
@@ -50,23 +53,26 @@ func (u *NotificationUsecase) KirimInApp(ctx context.Context, req domain.KirimNo
 	return nil
 }
 
-func (u *NotificationUsecase) KirimWhatsApp(ctx context.Context, karyawanID, jenis, tanggal string) error {
-	karyawan, err := u.KaryawanRepo.GetByID(ctx, karyawanID)
-	if err != nil || karyawan == nil {
-		return err
-	}
-
-	if karyawan.NomorTelepon == nil || *karyawan.NomorTelepon == "" {
+func (u *NotificationUsecase) SendTelegramNotification(chatID, title, message string) error {
+	if u.TelegramBot == nil {
+		log.Println("Telegram bot not initialized")
 		return nil
 	}
+	return u.TelegramBot.SendNotification(chatID, title, message)
+}
 
-	nomor := *karyawan.NomorTelepon
-	if len(nomor) > 0 && nomor[0:1] == "0" {
-		nomor = "62" + nomor[1:]
+func (u *NotificationUsecase) SendLeaveNotification(chatID, karyawanNama, status, tanggal string) error {
+	if u.TelegramBot == nil {
+		return nil
 	}
+	return u.TelegramBot.SendLeaveNotification(chatID, karyawanNama, status, tanggal)
+}
 
-	go utils.SendWhatsAppNotification(nomor, karyawan.NamaLengkap, "pegawai", jenis, tanggal)
-	return nil
+func (u *NotificationUsecase) SendApprovalNotification(chatID, karyawanNama, totalHari, alasan string) error {
+	if u.TelegramBot == nil {
+		return nil
+	}
+	return u.TelegramBot.SendApprovalNotification(chatID, karyawanNama, totalHari, alasan)
 }
 
 func (u *NotificationUsecase) GetNotifikasi(ctx context.Context, karyawanID string, page, limit int) ([]domain.Notifikasi, int, error) {

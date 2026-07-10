@@ -29,8 +29,7 @@ type Config struct {
 	CloudinaryAPISecret    string
 	CloudinaryUploadFolder string
 
-	WhatsAppPhoneNumberID string
-	WhatsAppAccessToken   string
+	TelegramBotToken string
 
 	CORSAllowedOrigins string
 }
@@ -61,8 +60,7 @@ func LoadConfig() *Config {
 		CloudinaryAPISecret:    getEnv("CLOUDINARY_API_SECRET", ""),
 		CloudinaryUploadFolder: getEnv("CLOUDINARY_UPLOAD_FOLDER", "sakti-apps"),
 
-		WhatsAppPhoneNumberID: getEnv("WHATSAPP_PHONE_NUMBER_ID", ""),
-		WhatsAppAccessToken:   getEnv("WHATSAPP_ACCESS_TOKEN", ""),
+		TelegramBotToken: getEnv("TELEGRAM_BOT_TOKEN", ""),
 
 		CORSAllowedOrigins: getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:54323"),
 	}
