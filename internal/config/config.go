@@ -30,6 +30,7 @@ type Config struct {
 	CloudinaryUploadFolder string
 
 	TelegramBotToken string
+	FrontendURL      string
 
 	CORSAllowedOrigins string
 }
@@ -61,6 +62,7 @@ func LoadConfig() *Config {
 		CloudinaryUploadFolder: getEnv("CLOUDINARY_UPLOAD_FOLDER", "sakti-apps"),
 
 		TelegramBotToken: getEnv("TELEGRAM_BOT_TOKEN", ""),
+		FrontendURL:      getEnv("FRONTEND_URL", "http://localhost:65138/"),
 
 		CORSAllowedOrigins: getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:54323"),
 	}
