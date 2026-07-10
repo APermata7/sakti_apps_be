@@ -152,7 +152,7 @@ func main() {
 	adminKonfigurasi.Get("/", konfigurasiHandler.GetConfig)
 	adminKonfigurasi.Put("/", konfigurasiHandler.UpdateConfig)
 	adminKonfigurasi.Post("/logo", konfigurasiHandler.UploadLogo)
-	
+
 	api.Get("/libur/check", liburHandler.IsHoliday)
 
 	port := os.Getenv("APP_PORT")
