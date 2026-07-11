@@ -95,10 +95,23 @@ func (r *KaryawanRepo) GetByEmail(ctx context.Context, email string) (*domain.Ka
 
 func (r *KaryawanRepo) Create(ctx context.Context, k *domain.Karyawan) error {
 	query := `
-		INSERT INTO karyawan (id, nama_lengkap, email, nomor_telepon, foto_url, 
-		                     role, level_jabatan, atasan_langsung_id, 
-		                     divisi, unit, status_karyawan, dibuat_pada, diperbarui_pada)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
+		INSERT INTO karyawan (
+			id, nama_lengkap, email, nomor_telepon, foto_url, 
+			role, level_jabatan, atasan_langsung_id, 
+			divisi, unit, status_karyawan, dibuat_pada, diperbarui_pada
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
+		ON CONFLICT (id) DO UPDATE SET
+			nama_lengkap = EXCLUDED.nama_lengkap,
+			email = EXCLUDED.email,
+			nomor_telepon = EXCLUDED.nomor_telepon,
+			foto_url = EXCLUDED.foto_url,
+			role = EXCLUDED.role,
+			level_jabatan = EXCLUDED.level_jabatan,
+			atasan_langsung_id = EXCLUDED.atasan_langsung_id,
+			divisi = EXCLUDED.divisi,
+			unit = EXCLUDED.unit,
+			status_karyawan = EXCLUDED.status_karyawan,
+			diperbarui_pada = NOW()
 	`
 
 	_, err := r.DB.Exec(ctx, query,
