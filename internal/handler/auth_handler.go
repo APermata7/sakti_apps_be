@@ -91,6 +91,7 @@ func (h *AuthHandler) Logout(c *fiber.Ctx) error {
 
 func (h *AuthHandler) ChangePassword(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(string)
+	token := c.Locals("token").(string)
 
 	var req struct {
 		NewPassword     string `json:"new_password"`
@@ -124,7 +125,7 @@ func (h *AuthHandler) ChangePassword(c *fiber.Ctx) error {
 		})
 	}
 
-	err := h.AuthUsecase.ChangePassword(c.Context(), userID, req.NewPassword)
+	err := h.AuthUsecase.ChangePassword(c.Context(), userID, token, req.NewPassword)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,

@@ -39,6 +39,7 @@ func AuthMiddleware() fiber.Handler {
 
 		c.Locals("user_id", claims.Subject)
 		c.Locals("email", claims.Email)
+		c.Locals("token", tokenString)
 
 		var role string
 

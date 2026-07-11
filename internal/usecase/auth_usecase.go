@@ -113,7 +113,7 @@ func (u *AuthUsecase) GetProfile(ctx context.Context, userID string) (*domain.Ka
 	return karyawan, nil
 }
 
-func (u *AuthUsecase) ChangePassword(ctx context.Context, userID, newPassword string) error {
+func (u *AuthUsecase) ChangePassword(ctx context.Context, userID, token, newPassword string) error {
 	log.Printf("ChangePassword: userID=%s", userID)
 
 	supabaseReq := map[string]string{
@@ -126,6 +126,7 @@ func (u *AuthUsecase) ChangePassword(ctx context.Context, userID, newPassword st
 		return err
 	}
 	httpReq.Header.Set("apikey", u.AnonKey)
+	httpReq.Header.Set("Authorization", "Bearer "+token)
 	httpReq.Header.Set("Content-Type", "application/json")
 
 	client := &http.Client{}
