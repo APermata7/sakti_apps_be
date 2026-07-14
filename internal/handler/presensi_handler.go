@@ -66,6 +66,13 @@ func (h *PresensiHandler) CheckOut(c *fiber.Ctx) error {
 		})
 	}
 
+	if req.SelfieURL == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Selfie URL wajib diisi untuk check-out",
+		})
+	}
+
 	if req.Latitude == 0 || req.Longitude == 0 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
