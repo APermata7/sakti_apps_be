@@ -153,6 +153,14 @@ func main() {
 	adminKonfigurasi.Put("/", konfigurasiHandler.UpdateConfig)
 	adminKonfigurasi.Post("/logo", konfigurasiHandler.UploadLogo)
 
+	liburGroup := protected.Group("/libur")
+	liburGroup.Get("/aktif", liburHandler.GetAktif)
+	liburGroup.Get("/tahun/:tahun", liburHandler.GetByTahun)
+	liburGroup.Get("/bulan/:bulan", liburHandler.GetByBulan)
+	liburGroup.Get("/tanggal/:tanggal", liburHandler.CheckTanggal)
+	liburGroup.Get("/", liburHandler.GetAll)
+	liburGroup.Get("/:id", liburHandler.GetByID)
+
 	api.Get("/libur/check", liburHandler.IsHoliday)
 
 	port := os.Getenv("APP_PORT")
