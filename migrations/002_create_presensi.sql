@@ -15,6 +15,9 @@ CREATE TABLE presensi (
     alasan_terlambat TEXT,
     lembur BOOLEAN DEFAULT FALSE,
     jam_lembur DECIMAL(4, 2) DEFAULT 0,
+    distance_meter DECIMAL(10, 2) DEFAULT 0,
+    is_outside_radius BOOLEAN DEFAULT FALSE,
+    location_status VARCHAR(20) DEFAULT 'di_dalam_radius',
     dibuat_pada TIMESTAMP DEFAULT NOW(),
     diperbarui_pada TIMESTAMP DEFAULT NOW()
 );
