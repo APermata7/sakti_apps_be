@@ -1,6 +1,7 @@
 CREATE TABLE konfigurasi_kerja (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nama_kantor VARCHAR(255) NOT NULL DEFAULT 'KOPEGTEL MALANG',
+    kantor_id UUID REFERENCES kantor(id),
     lat_kantor DECIMAL(10, 8) NOT NULL DEFAULT -7.942777,
     long_kantor DECIMAL(11, 8) NOT NULL DEFAULT 112.641110,
     logo_kantor VARCHAR(255),
