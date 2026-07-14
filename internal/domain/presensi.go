@@ -3,27 +3,28 @@ package domain
 import "time"
 
 type Presensi struct {
-	ID              string    `json:"id"`
-	KaryawanID      string    `json:"karyawan_id"`
-	Tanggal         string    `json:"tanggal"`
-	JamMasuk        string    `json:"jam_masuk"`
-	JamKeluar       string    `json:"jam_keluar"`
-	Status          string    `json:"status"`
-	LintangMasuk    float64   `json:"lintang_masuk"`
-	BujurMasuk      float64   `json:"bujur_masuk"`
-	LintangKeluar   float64   `json:"lintang_keluar"`
-	BujurKeluar     float64   `json:"bujur_keluar"`
-	ValidasiWajah   bool      `json:"validasi_wajah"`
-	FaceSimilarity  float64   `json:"face_similarity"`
-	URLFoto         string    `json:"url_foto"`
-	AlasanTerlambat string    `json:"alasan_terlambat"`
-	Lembur          bool      `json:"lembur"`
-	JamLembur       float64   `json:"jam_lembur"`
-	DistanceMeter   float64   `json:"distance_meter"`
-	IsOutsideRadius bool      `json:"is_outside_radius"`
-	LocationStatus  string    `json:"location_status"`
-	DibuatPada      time.Time `json:"dibuat_pada"`
-	DiperbaruiPada  time.Time `json:"diperbarui_pada"`
+	ID              string     `json:"id"`
+	KaryawanID      string     `json:"karyawan_id"`
+	KantorID        *string    `json:"kantor_id"`
+	Tanggal         time.Time  `json:"tanggal"`
+	JamMasuk        string     `json:"jam_masuk"`
+	JamKeluar       *string    `json:"jam_keluar"`
+	Status          string     `json:"status"`
+	LintangMasuk    float64    `json:"lintang_masuk"`
+	BujurMasuk      float64    `json:"bujur_masuk"`
+	LintangKeluar   *float64   `json:"lintang_keluar"`
+	BujurKeluar     *float64   `json:"bujur_keluar"`
+	ValidasiWajah   bool       `json:"validasi_wajah"`
+	FaceSimilarity  float64    `json:"face_similarity"`
+	URLFoto         string     `json:"url_foto"`
+	AlasanTerlambat string     `json:"alasan_terlambat"`
+	Lembur          bool       `json:"lembur"`
+	JamLembur       float64    `json:"jam_lembur"`
+	DistanceMeter   float64    `json:"distance_meter"`
+	IsOutsideRadius bool       `json:"is_outside_radius"`
+	LocationStatus  string     `json:"location_status"`
+	DibuatPada      time.Time  `json:"dibuat_pada"`
+	DiperbaruiPada  time.Time  `json:"diperbarui_pada"`
 }
 
 type CheckInRequest struct {
@@ -34,8 +35,9 @@ type CheckInRequest struct {
 }
 
 type CheckOutRequest struct {
-	Latitude  float64 `json:"latitude"`
-	Longitude float64 `json:"longitude"`
+	SelfieURL  string  `json:"selfie_url"`
+	Latitude   float64 `json:"latitude"`
+	Longitude  float64 `json:"longitude"`
 }
 
 type CheckInResponse struct {
@@ -78,6 +80,6 @@ type TodayResponse struct {
 }
 
 type FaceVerificationRequest struct {
-	SelfieURL   string `json:"selfie_url"`
-	KaryawanID  string `json:"karyawan_id"`
+	SelfieURL  string `json:"selfie_url"`
+	KaryawanID string `json:"karyawan_id"`
 }
