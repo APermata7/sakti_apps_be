@@ -113,31 +113,60 @@ func (u *AuthUsecase) GetProfile(ctx context.Context, userID string) (*domain.Ka
 	return karyawan, nil
 }
 
-func (u *AuthUsecase) ChangePassword(ctx context.Context, userID, token, newPassword string) error {
+func (u *AuthUsecase) ChangePassword(ctx context.Context, userID, token, currentPassword, newPassword string) error {
 	log.Printf("ChangePassword: userID=%s", userID)
 
-	supabaseReq := map[string]string{
-		"password": newPassword,
+	karyawan, err := u.KaryawanRepo.GetByID(ctx, userID)
+	if err != nil || karyawan == nil {
+		return errors.New("karyawan tidak ditemukan")
 	}
-	jsonBody, _ := json.Marshal(supabaseReq)
 
-	httpReq, err := http.NewRequestWithContext(ctx, "PUT", u.SupabaseURL+"/auth/v1/user", bytes.NewBuffer(jsonBody))
+	verifyReq := map[string]string{
+		"email":    karyawan.Email,
+		"password": currentPassword,
+	}
+	jsonBody, _ := json.Marshal(verifyReq)
+
+	verifyHTTPReq, err := http.NewRequestWithContext(ctx, "POST", u.SupabaseURL+"/auth/v1/token?grant_type=password", bytes.NewBuffer(jsonBody))
 	if err != nil {
 		return err
 	}
-	httpReq.Header.Set("apikey", u.AnonKey)
-	httpReq.Header.Set("Authorization", "Bearer "+token)
-	httpReq.Header.Set("Content-Type", "application/json")
+	verifyHTTPReq.Header.Set("apikey", u.AnonKey)
+	verifyHTTPReq.Header.Set("Content-Type", "application/json")
 
 	client := &http.Client{}
-	resp, err := client.Do(httpReq)
+	verifyResp, err := client.Do(verifyHTTPReq)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer verifyResp.Body.Close()
 
-	if resp.StatusCode != 200 {
-		log.Printf("ChangePassword failed: status=%d", resp.StatusCode)
+	if verifyResp.StatusCode != 200 {
+		log.Printf("ChangePassword: current password verification failed, status=%d", verifyResp.StatusCode)
+		return errors.New("password saat ini salah")
+	}
+
+	changeReq := map[string]string{
+		"password": newPassword,
+	}
+	changeBody, _ := json.Marshal(changeReq)
+
+	changeHTTPReq, err := http.NewRequestWithContext(ctx, "PUT", u.SupabaseURL+"/auth/v1/user", bytes.NewBuffer(changeBody))
+	if err != nil {
+		return err
+	}
+	changeHTTPReq.Header.Set("apikey", u.AnonKey)
+	changeHTTPReq.Header.Set("Authorization", "Bearer "+token)
+	changeHTTPReq.Header.Set("Content-Type", "application/json")
+
+	changeResp, err := client.Do(changeHTTPReq)
+	if err != nil {
+		return err
+	}
+	defer changeResp.Body.Close()
+
+	if changeResp.StatusCode != 200 {
+		log.Printf("ChangePassword failed: status=%d", changeResp.StatusCode)
 		return errors.New("gagal mengubah password")
 	}
 
