@@ -2,7 +2,10 @@ package repository
 
 import (
 	"context"
+	"errors"
+	"log"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"sakti_apps_be/internal/domain"
@@ -19,18 +22,19 @@ func NewPresensiRepo(db *pgxpool.Pool) *PresensiRepo {
 func (r *PresensiRepo) Create(ctx context.Context, p *domain.Presensi) error {
 	query := `
 		INSERT INTO presensi (
-			karyawan_id, tanggal, jam_masuk, status,
+			karyawan_id, kantor_id, tanggal, jam_masuk, status,
 			lintang_masuk, bujur_masuk,
 			validasi_wajah, url_foto, alasan_terlambat,
 			distance_meter, is_outside_radius, location_status,
 			dibuat_pada, diperbarui_pada
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())
 		RETURNING id
 	`
 
 	var id string
 	err := r.DB.QueryRow(ctx, query,
 		p.KaryawanID,
+		p.KantorID,
 		p.Tanggal,
 		p.JamMasuk,
 		p.Status,
@@ -59,8 +63,11 @@ func (r *PresensiRepo) GetToday(ctx context.Context, karyawanID string) (*domain
 		       validasi_wajah, url_foto, alasan_terlambat, lembur, jam_lembur,
 		       dibuat_pada, diperbarui_pada
 		FROM presensi
-		WHERE karyawan_id = $1 AND tanggal = CURRENT_DATE
+		WHERE karyawan_id = $1 AND tanggal = DATE(NOW() AT TIME ZONE 'Asia/Jakarta')
+		LIMIT 1
 	`
+
+	log.Printf("karyawanID: %s", karyawanID)
 
 	var p domain.Presensi
 	err := r.DB.QueryRow(ctx, query, karyawanID).Scan(
@@ -70,23 +77,30 @@ func (r *PresensiRepo) GetToday(ctx context.Context, karyawanID string) (*domain
 		&p.Lembur, &p.JamLembur, &p.DibuatPada, &p.DiperbaruiPada,
 	)
 
+	log.Printf("p: %+v", p)
+	log.Printf("err: %v", err)
+
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
 		return nil, err
 	}
 
 	return &p, nil
 }
 
-func (r *PresensiRepo) UpdateCheckOut(ctx context.Context, id string, jamKeluar string, lembur bool, jamLembur float64, lat, lon float64) error {
+func (r *PresensiRepo) UpdateCheckOut(ctx context.Context, id string, jamKeluar string, lembur bool, jamLembur float64, lat, lon float64, selfieURL string) error {
 	query := `
 		UPDATE presensi 
 		SET jam_keluar = $2, lembur = $3, jam_lembur = $4,
 		    lintang_keluar = $5, bujur_keluar = $6,
+		    url_foto = $7,
 		    diperbarui_pada = NOW()
 		WHERE id = $1
 	`
 
-	_, err := r.DB.Exec(ctx, query, id, jamKeluar, lembur, jamLembur, lat, lon)
+	_, err := r.DB.Exec(ctx, query, id, jamKeluar, lembur, jamLembur, lat, lon, selfieURL)
 	return err
 }
 
