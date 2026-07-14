@@ -93,14 +93,18 @@ func (h *AuthHandler) ChangePassword(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(string)
 	token := c.Locals("token").(string)
 
-	var req struct {
-		NewPassword     string `json:"new_password"`
-		ConfirmPassword string `json:"confirm_password"`
-	}
+	var req domain.ChangePasswordRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
 			"message": "Request tidak valid",
+		})
+	}
+
+	if req.CurrentPassword == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Password saat ini wajib diisi",
 		})
 	}
 
@@ -125,7 +129,14 @@ func (h *AuthHandler) ChangePassword(c *fiber.Ctx) error {
 		})
 	}
 
-	err := h.AuthUsecase.ChangePassword(c.Context(), userID, token, req.NewPassword)
+	if req.NewPassword == req.CurrentPassword {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Password baru tidak boleh sama dengan password saat ini",
+		})
+	}
+
+	err := h.AuthUsecase.ChangePassword(c.Context(), userID, token, req.CurrentPassword, req.NewPassword)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
@@ -134,8 +145,9 @@ func (h *AuthHandler) ChangePassword(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"success": true,
-		"message": "Password berhasil diubah",
+		"success":      true,
+		"message":      "Password berhasil diubah. Silakan login kembali.",
+		"force_logout": true,
 	})
 }
 
