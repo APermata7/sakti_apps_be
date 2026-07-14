@@ -6,13 +6,13 @@ type Karyawan struct {
     ID               string     `json:"id"`
     NamaLengkap      string     `json:"nama_lengkap"`
     Email            string     `json:"email"`
-    NomorTelepon     *string    `json:"nomor_telepon"`    
-    FotoURL          *string    `json:"foto_url"`         
+    NomorTelepon     *string    `json:"nomor_telepon"`
+    FotoURL          *string    `json:"foto_url"`
     Role             string     `json:"role"`
     LevelJabatan     *string    `json:"level_jabatan"`
     AtasanLangsungID *string    `json:"atasan_langsung_id"`
-    Divisi           *string    `json:"divisi"`         
-    Unit             *string    `json:"unit"`          
+    Divisi           *string    `json:"divisi"`
+    Unit             *string    `json:"unit"`
     StatusKaryawan   string     `json:"status_karyawan"`
     DibuatPada       time.Time  `json:"dibuat_pada"`
     DiperbaruiPada   time.Time  `json:"diperbarui_pada"`
@@ -26,6 +26,12 @@ type LoginRequest struct {
 type LoginResponse struct {
     AccessToken string   `json:"access_token"`
     User        Karyawan `json:"user"`
+}
+
+type ChangePasswordRequest struct {
+    CurrentPassword string `json:"current_password"`
+    NewPassword     string `json:"new_password"`
+    ConfirmPassword string `json:"confirm_password"`
 }
 
 type CreateKaryawanRequest struct {
