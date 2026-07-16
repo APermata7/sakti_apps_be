@@ -10,14 +10,16 @@ func UploadFile(c *fiber.Ctx) error {
 	file, err := c.FormFile("file")
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "File not found",
+			"success": false,
+			"message": "File not found",
 		})
 	}
 
 	src, err := file.Open()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to open file",
+			"success": false,
+			"message": "Failed to open file",
 		})
 	}
 	defer src.Close()
@@ -25,7 +27,8 @@ func UploadFile(c *fiber.Ctx) error {
 	url, err := utils.UploadFile(src, file.Filename)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": err.Error(),
+			"success": false,
+			"message": err.Error(),
 		})
 	}
 
@@ -39,14 +42,16 @@ func UploadImage(c *fiber.Ctx) error {
 	file, err := c.FormFile("image")
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Image not found",
+			"success": false,
+			"message": "Image not found",
 		})
 	}
 
 	src, err := file.Open()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to open image",
+			"success": false,
+			"message": "Failed to open image",
 		})
 	}
 	defer src.Close()
@@ -54,7 +59,8 @@ func UploadImage(c *fiber.Ctx) error {
 	url, err := utils.UploadImage(src, file.Filename)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": err.Error(),
+			"success": false,
+			"message": err.Error(),
 		})
 	}
 
@@ -65,17 +71,26 @@ func UploadImage(c *fiber.Ctx) error {
 }
 
 func UploadTTD(c *fiber.Ctx) error {
-	file, err := c.FormFile("ttd")
+	file, err := c.FormFile("image")
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "TTD file not found",
+			"success": false,
+			"message": "File image wajib diupload",
+		})
+	}
+
+	if file.Size > 2*1024*1024 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Ukuran file maksimal 2MB",
 		})
 	}
 
 	src, err := file.Open()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to open TTD file",
+			"success": false,
+			"message": "Gagal membaca file",
 		})
 	}
 	defer src.Close()
@@ -83,7 +98,8 @@ func UploadTTD(c *fiber.Ctx) error {
 	url, err := utils.UploadTTD(src, file.Filename)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": err.Error(),
+			"success": false,
+			"message": "Gagal upload file: " + err.Error(),
 		})
 	}
 
