@@ -60,6 +60,7 @@ func main() {
 	fcmTokenRepo := repository.NewFCMTokenRepo(dbConn.Pool)
 	liburRepo := repository.NewLiburRepo(dbConn.Pool)
 	konfigurasiRepo := repository.NewKonfigurasiRepo(dbConn.Pool)
+	ttdRepo := repository.NewTTDRepo(dbConn.Pool)
 
 	authUsecase := usecase.NewAuthUsecase(karyawanRepo)
 	presensiUsecase := usecase.NewPresensiUsecase(presensiRepo, karyawanRepo, configRepo)
@@ -69,6 +70,7 @@ func main() {
 	liburUsecase := usecase.NewLiburUsecase(liburRepo)
 	konfigurasiUsecase := usecase.NewKonfigurasiUsecase(konfigurasiRepo)
 	adminUsecase := usecase.NewAdminUsecase(dbConn.Pool, karyawanRepo)
+	ttdUsecase := usecase.NewTTDUsecase(ttdRepo)
 
 	authHandler := handler.NewAuthHandler(authUsecase)
 	presensiHandler := handler.NewPresensiHandler(presensiUsecase)
@@ -78,6 +80,7 @@ func main() {
 	liburHandler := handler.NewLiburHandler(liburUsecase)
 	konfigurasiHandler := handler.NewKonfigurasiHandler(konfigurasiUsecase)
 	adminHandler := handler.NewAdminHandler(adminUsecase)
+	ttdHandler := handler.NewTTDHandler(ttdUsecase)
 
 	app := fiber.New(fiber.Config{
 		AppName: os.Getenv("APP_NAME"),
@@ -106,6 +109,8 @@ func main() {
 	api.Post("/auth/forgot-password", authHandler.ForgotPassword)
 	api.Post("/auth/reset-password", authHandler.ResetPassword)
 
+	api.Get("/libur/check", liburHandler.IsHoliday)
+
 	protected := api.Group("/", middleware.AuthMiddleware())
 	protected.Get("/auth/me", authHandler.GetProfile)
 	protected.Post("/auth/logout", authHandler.Logout)
@@ -133,6 +138,11 @@ func main() {
 	protected.Put("/notifikasi/:id/read", notificationHandler.MarkAsRead)
 	protected.Put("/notifikasi/read-all", notificationHandler.MarkAllAsRead)
 
+	protected.Post("/ttd/upload", ttdHandler.UploadTTD)
+	protected.Get("/ttd", ttdHandler.GetTTD)
+	protected.Put("/ttd", ttdHandler.UpdateTTD)
+	protected.Delete("/ttd", ttdHandler.DeleteTTD)
+
 	adminGroup := protected.Group("/admin", middleware.RequireRole("admin"))
 	adminGroup.Get("/dashboard", adminHandler.GetDashboard)
 	adminGroup.Post("/karyawan", adminHandler.CreateKaryawan)
@@ -146,6 +156,7 @@ func main() {
 	adminLibur.Get("/", liburHandler.GetAll)
 	adminLibur.Get("/:id", liburHandler.GetByID)
 	adminLibur.Put("/:id", liburHandler.Update)
+	adminLibur.Put("/:id/toggle", liburHandler.Toggle)
 	adminLibur.Delete("/:id", liburHandler.Delete)
 
 	adminKonfigurasi := protected.Group("/admin/konfigurasi", middleware.RequireRole("admin"))
@@ -160,8 +171,6 @@ func main() {
 	liburGroup.Get("/tanggal/:tanggal", liburHandler.CheckTanggal)
 	liburGroup.Get("/", liburHandler.GetAll)
 	liburGroup.Get("/:id", liburHandler.GetByID)
-
-	api.Get("/libur/check", liburHandler.IsHoliday)
 
 	port := os.Getenv("APP_PORT")
 	if port == "" {
