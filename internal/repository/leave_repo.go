@@ -21,20 +21,26 @@ func NewLeaveRepo(db *pgxpool.Pool) *LeaveRepo {
 func (r *LeaveRepo) Create(ctx context.Context, leave *domain.PengajuanCuti) error {
 	query := `
 		INSERT INTO pengajuan_cuti (
-			karyawan_id, tipe_pengajuan, tanggal_mulai, tanggal_selesai,
-			total_hari, alasan, status, dibuat_pada, diperbarui_pada
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+			karyawan_id, tipe_pengajuan, sub_tipe, tanggal_mulai, tanggal_selesai,
+			total_hari, alasan, status, back_date, mengurangi_cuti, langsung_approve,
+			judul_dokumen, dibuat_pada, diperbarui_pada
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
 		RETURNING id
 	`
 
 	err := r.DB.QueryRow(ctx, query,
 		leave.KaryawanID,
 		leave.TipePengajuan,
+		leave.SubTipe,
 		leave.TanggalMulai,
 		leave.TanggalSelesai,
 		leave.TotalHari,
 		leave.Alasan,
 		leave.Status,
+		leave.BackDate,
+		leave.MengurangiCuti,
+		leave.LangsungApprove,
+		leave.JudulDokumen,
 	).Scan(&leave.ID)
 
 	return err
@@ -45,7 +51,8 @@ func (r *LeaveRepo) GetByID(ctx context.Context, id string) (*domain.PengajuanCu
 		SELECT id, karyawan_id, tipe_pengajuan, sub_tipe, tanggal_mulai, tanggal_selesai,
 		       total_hari, alasan, status, back_date, mengurangi_cuti, langsung_approve,
 		       judul_dokumen, disetujui_oleh, tanggal_disetujui, difinalisasi_oleh,
-		       tanggal_difinalisasi, url_pdf, alasan_batal, dibuat_pada, diperbarui_pada
+		       tanggal_difinalisasi, url_pdf, alasan_batal, tanggal_dibatalkan,
+		       dibuat_pada, diperbarui_pada
 		FROM pengajuan_cuti
 		WHERE id = $1
 	`
@@ -71,6 +78,7 @@ func (r *LeaveRepo) GetByID(ctx context.Context, id string) (*domain.PengajuanCu
 		&l.TanggalDifinalisasi,
 		&l.URLPDF,
 		&l.AlasanBatal,
+		&l.TanggalDibatalkan,
 		&l.DibuatPada,
 		&l.DiperbaruiPada,
 	)
@@ -83,24 +91,41 @@ func (r *LeaveRepo) GetByID(ctx context.Context, id string) (*domain.PengajuanCu
 	return &l, nil
 }
 
-func (r *LeaveRepo) GetByKaryawanID(ctx context.Context, karyawanID string) ([]domain.PengajuanCuti, error) {
-	query := `
+func (r *LeaveRepo) GetByKaryawanID(ctx context.Context, karyawanID string, status string, limit, offset int) ([]domain.PengajuanCuti, int, error) {
+	var items []domain.PengajuanCuti
+	var total int
+
+	baseQuery := `FROM pengajuan_cuti WHERE karyawan_id = $1`
+	args := []interface{}{karyawanID}
+	argIdx := 2
+
+	if status != "" {
+		baseQuery += ` AND status = $` + string(rune(argIdx+'0'))
+		args = append(args, status)
+		argIdx++
+	}
+
+	countQuery := `SELECT COUNT(*) ` + baseQuery
+	err := r.DB.QueryRow(ctx, countQuery, args...).Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	dataQuery := `
 		SELECT id, karyawan_id, tipe_pengajuan, sub_tipe, tanggal_mulai, tanggal_selesai,
 		       total_hari, alasan, status, back_date, mengurangi_cuti, langsung_approve,
 		       judul_dokumen, disetujui_oleh, tanggal_disetujui, difinalisasi_oleh,
-		       tanggal_difinalisasi, url_pdf, alasan_batal, dibuat_pada, diperbarui_pada
-		FROM pengajuan_cuti
-		WHERE karyawan_id = $1
-		ORDER BY dibuat_pada DESC
-	`
+		       tanggal_difinalisasi, url_pdf, alasan_batal, tanggal_dibatalkan,
+		       dibuat_pada, diperbarui_pada
+	` + baseQuery + ` ORDER BY dibuat_pada DESC LIMIT $` + string(rune(argIdx+'0')) + ` OFFSET $` + string(rune(argIdx+1+'0'))
 
-	rows, err := r.DB.Query(ctx, query, karyawanID)
+	finalArgs := append(args, limit, offset)
+	rows, err := r.DB.Query(ctx, dataQuery, finalArgs...)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
-	var leaves []domain.PengajuanCuti
 	for rows.Next() {
 		var l domain.PengajuanCuti
 		err := rows.Scan(
@@ -123,15 +148,17 @@ func (r *LeaveRepo) GetByKaryawanID(ctx context.Context, karyawanID string) ([]d
 			&l.TanggalDifinalisasi,
 			&l.URLPDF,
 			&l.AlasanBatal,
+			&l.TanggalDibatalkan,
 			&l.DibuatPada,
 			&l.DiperbaruiPada,
 		)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
-		leaves = append(leaves, l)
+		items = append(items, l)
 	}
-	return leaves, nil
+
+	return items, total, nil
 }
 
 func (r *LeaveRepo) UpdateStatus(ctx context.Context, id, status string) error {
@@ -155,21 +182,23 @@ func (r *LeaveRepo) Reject(ctx context.Context, id, managerID, alasan string) er
 	query := `
 		UPDATE pengajuan_cuti 
 		SET status = 'ditolak', disetujui_oleh = $1, tanggal_disetujui = NOW(),
-		    alasan_batal = $2, diperbarui_pada = NOW()
+		    alasan_batal = $2, tanggal_dibatalkan = NOW(),
+		    diperbarui_pada = NOW()
 		WHERE id = $3
 	`
 	_, err := r.DB.Exec(ctx, query, managerID, alasan, id)
 	return err
 }
 
-func (r *LeaveRepo) Finalize(ctx context.Context, id, hrdID string) error {
+func (r *LeaveRepo) Finalize(ctx context.Context, id, hrdID, catatan string) error {
 	query := `
 		UPDATE pengajuan_cuti 
 		SET difinalisasi_oleh = $1, tanggal_difinalisasi = NOW(),
+		    alasan = CONCAT(COALESCE(alasan, ''), ' | Catatan HRD: ', COALESCE($2, '')),
 		    diperbarui_pada = NOW()
-		WHERE id = $2 AND status = 'disetujui'
+		WHERE id = $3 AND status = 'disetujui'
 	`
-	_, err := r.DB.Exec(ctx, query, hrdID, id)
+	_, err := r.DB.Exec(ctx, query, hrdID, catatan, id)
 	return err
 }
 
@@ -187,21 +216,69 @@ func (r *LeaveRepo) GetBalance(ctx context.Context, karyawanID string, year int)
 		&b.KaryawanID,
 		&b.Tahun,
 		&b.JumlahCuti,
-		&b.TelahDigunakan,
-		&b.AkanDigunakan,
-		&b.Sisa,
+		&b.TelahDilaksanakan,
+		&b.AkanDilaksanakan,
+		&b.SisaCuti,
 		&b.DibuatPada,
 		&b.DiperbaruiPada,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return &domain.SisaCuti{
-				JumlahCuti:    12,
-				TelahDigunakan: 0,
-				Sisa:          12,
-			}, nil
+			return nil, nil
 		}
 		return nil, err
 	}
 	return &b, nil
+}
+
+func (r *LeaveRepo) GetActiveLeaves(ctx context.Context, karyawanID string) ([]domain.PengajuanCuti, error) {
+	query := `
+		SELECT id, karyawan_id, tipe_pengajuan, sub_tipe, tanggal_mulai, tanggal_selesai,
+		       total_hari, alasan, status, back_date, mengurangi_cuti, langsung_approve,
+		       judul_dokumen, disetujui_oleh, tanggal_disetujui, difinalisasi_oleh,
+		       tanggal_difinalisasi, url_pdf, alasan_batal, tanggal_dibatalkan,
+		       dibuat_pada, diperbarui_pada
+		FROM pengajuan_cuti
+		WHERE karyawan_id = $1 AND status NOT IN ('ditolak', 'dibatalkan')
+	`
+
+	rows, err := r.DB.Query(ctx, query, karyawanID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var items []domain.PengajuanCuti
+	for rows.Next() {
+		var l domain.PengajuanCuti
+		err := rows.Scan(
+			&l.ID,
+			&l.KaryawanID,
+			&l.TipePengajuan,
+			&l.SubTipe,
+			&l.TanggalMulai,
+			&l.TanggalSelesai,
+			&l.TotalHari,
+			&l.Alasan,
+			&l.Status,
+			&l.BackDate,
+			&l.MengurangiCuti,
+			&l.LangsungApprove,
+			&l.JudulDokumen,
+			&l.DisetujuiOleh,
+			&l.TanggalDisetujui,
+			&l.DifinalisasiOleh,
+			&l.TanggalDifinalisasi,
+			&l.URLPDF,
+			&l.AlasanBatal,
+			&l.TanggalDibatalkan,
+			&l.DibuatPada,
+			&l.DiperbaruiPada,
+		)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, l)
+	}
+	return items, nil
 }
