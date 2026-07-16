@@ -1,8 +1,11 @@
 package handler
 
 import (
+	"strconv"
+
 	"github.com/gofiber/fiber/v2"
 
+	"sakti_apps_be/internal/domain"
 	"sakti_apps_be/internal/usecase"
 )
 
@@ -17,12 +20,7 @@ func NewLeaveHandler(leaveUsecase *usecase.LeaveUsecase) *LeaveHandler {
 func (h *LeaveHandler) CreateLeave(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(string)
 
-	var req struct {
-		TipePengajuan  string `json:"tipe_pengajuan"`
-		TanggalMulai   string `json:"tanggal_mulai"`
-		TanggalSelesai string `json:"tanggal_selesai"`
-		Alasan         string `json:"alasan"`
-	}
+	var req domain.CreateCutiRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
@@ -33,7 +31,14 @@ func (h *LeaveHandler) CreateLeave(c *fiber.Ctx) error {
 	if req.TipePengajuan == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
-			"message": "Tipe pengajuan wajib diisi (cuti/dispen)",
+			"message": "Tipe pengajuan wajib diisi (cuti/darurat)",
+		})
+	}
+
+	if req.SubTipe == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Sub tipe wajib diisi",
 		})
 	}
 
@@ -51,7 +56,7 @@ func (h *LeaveHandler) CreateLeave(c *fiber.Ctx) error {
 		})
 	}
 
-	err := h.LeaveUsecase.CreateLeave(c.Context(), userID, req)
+	cuti, err := h.LeaveUsecase.CreateLeave(c.Context(), userID, req)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
@@ -61,14 +66,26 @@ func (h *LeaveHandler) CreateLeave(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"success": true,
-		"message": "Pengajuan cuti berhasil dikirim",
+		"message": "Pengajuan cuti berhasil",
+		"data":    cuti,
 	})
 }
 
 func (h *LeaveHandler) GetStatus(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(string)
 
-	leaves, err := h.LeaveUsecase.GetStatus(c.Context(), userID)
+	status := c.Query("status")
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+
+	if limit <= 0 {
+		limit = 10
+	}
+	if page <= 0 {
+		page = 1
+	}
+
+	items, total, err := h.LeaveUsecase.GetStatus(c.Context(), userID, status, limit, page)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"success": false,
@@ -76,9 +93,19 @@ func (h *LeaveHandler) GetStatus(c *fiber.Ctx) error {
 		})
 	}
 
+	totalPages := (total + limit - 1) / limit
+
 	return c.JSON(fiber.Map{
 		"success": true,
-		"data":    leaves,
+		"data": fiber.Map{
+			"items": items,
+			"meta": fiber.Map{
+				"total":       total,
+				"page":        page,
+				"limit":       limit,
+				"total_pages": totalPages,
+			},
+		},
 	})
 }
 
@@ -116,7 +143,7 @@ func (h *LeaveHandler) CancelLeave(c *fiber.Ctx) error {
 
 	userID := c.Locals("user_id").(string)
 
-	err := h.LeaveUsecase.CancelLeave(c.Context(), leaveID, userID)
+	cuti, err := h.LeaveUsecase.CancelLeave(c.Context(), leaveID, userID)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
@@ -127,6 +154,7 @@ func (h *LeaveHandler) CancelLeave(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"success": true,
 		"message": "Pengajuan cuti berhasil dibatalkan",
+		"data":    cuti,
 	})
 }
 
@@ -141,7 +169,7 @@ func (h *LeaveHandler) ApproveLeave(c *fiber.Ctx) error {
 
 	userID := c.Locals("user_id").(string)
 
-	err := h.LeaveUsecase.ApproveLeave(c.Context(), leaveID, userID)
+	cuti, err := h.LeaveUsecase.ApproveLeave(c.Context(), leaveID, userID)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
@@ -152,6 +180,7 @@ func (h *LeaveHandler) ApproveLeave(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"success": true,
 		"message": "Pengajuan cuti berhasil disetujui",
+		"data":    cuti,
 	})
 }
 
@@ -166,9 +195,7 @@ func (h *LeaveHandler) RejectLeave(c *fiber.Ctx) error {
 
 	userID := c.Locals("user_id").(string)
 
-	var req struct {
-		Alasan string `json:"alasan"`
-	}
+	var req domain.RejectCutiRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
@@ -183,7 +210,7 @@ func (h *LeaveHandler) RejectLeave(c *fiber.Ctx) error {
 		})
 	}
 
-	err := h.LeaveUsecase.RejectLeave(c.Context(), leaveID, userID, req.Alasan)
+	cuti, err := h.LeaveUsecase.RejectLeave(c.Context(), leaveID, userID, req.Alasan)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
@@ -194,6 +221,7 @@ func (h *LeaveHandler) RejectLeave(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"success": true,
 		"message": "Pengajuan cuti ditolak",
+		"data":    cuti,
 	})
 }
 
@@ -208,7 +236,12 @@ func (h *LeaveHandler) FinalizeLeave(c *fiber.Ctx) error {
 
 	userID := c.Locals("user_id").(string)
 
-	err := h.LeaveUsecase.FinalizeLeave(c.Context(), leaveID, userID)
+	var req domain.FinalizeCutiRequest
+	if err := c.BodyParser(&req); err != nil {
+		req.Catatan = ""
+	}
+
+	cuti, err := h.LeaveUsecase.FinalizeLeave(c.Context(), leaveID, userID, req.Catatan)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
@@ -219,5 +252,6 @@ func (h *LeaveHandler) FinalizeLeave(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"success": true,
 		"message": "Pengajuan cuti berhasil difinalisasi",
+		"data":    cuti,
 	})
 }
