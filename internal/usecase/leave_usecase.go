@@ -22,120 +22,213 @@ func NewLeaveUsecase(leaveRepo *repository.LeaveRepo, karyawanRepo *repository.K
 	}
 }
 
-type CreateLeaveRequest struct {
-	TipePengajuan  string `json:"tipe_pengajuan"`
-	TanggalMulai   string `json:"tanggal_mulai"`
-	TanggalSelesai string `json:"tanggal_selesai"`
-	Alasan         string `json:"alasan"`
-}
-
-func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req CreateLeaveRequest) error {
+func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req domain.CreateCutiRequest) (*domain.PengajuanCuti, error) {
 	karyawan, err := u.KaryawanRepo.GetByID(ctx, karyawanID)
 	if err != nil || karyawan == nil {
-		return errors.New("karyawan tidak ditemukan")
+		return nil, errors.New("karyawan tidak ditemukan")
+	}
+
+	if req.TipePengajuan != "cuti" && req.TipePengajuan != "darurat" {
+		return nil, errors.New("tipe pengajuan harus 'cuti' atau 'darurat'")
+	}
+
+	switch req.TipePengajuan {
+	case "cuti":
+		if req.SubTipe != "izin" && req.SubTipe != "sakit" {
+			return nil, errors.New("sub tipe untuk cuti harus 'izin' atau 'sakit'")
+		}
+	case "darurat":
+		if req.SubTipe != "dispensasi" && req.SubTipe != "darurat" {
+			return nil, errors.New("sub tipe untuk darurat harus 'dispensasi' atau 'darurat'")
+		}
 	}
 
 	start, err := time.Parse("2006-01-02", req.TanggalMulai)
 	if err != nil {
-		return errors.New("format tanggal mulai tidak valid (YYYY-MM-DD)")
+		return nil, errors.New("format tanggal mulai tidak valid (YYYY-MM-DD)")
 	}
 	end, err := time.Parse("2006-01-02", req.TanggalSelesai)
 	if err != nil {
-		return errors.New("format tanggal selesai tidak valid (YYYY-MM-DD)")
+		return nil, errors.New("format tanggal selesai tidak valid (YYYY-MM-DD)")
 	}
 	totalHari := int(end.Sub(start).Hours()/24) + 1
 
 	if totalHari <= 0 {
-		return errors.New("tanggal tidak valid")
+		return nil, errors.New("tanggal tidak valid")
+	}
+
+	today := time.Now()
+	if req.TipePengajuan == "cuti" && start.Before(today) {
+		return nil, errors.New("cuti tidak bisa back date (maksimal H-1)")
+	}
+
+	if req.TipePengajuan == "darurat" && req.SubTipe == "dispensasi" && totalHari > 2 {
+		return nil, errors.New("dispensasi maksimal 2 hari")
+	}
+
+	existingLeaves, err := u.LeaveRepo.GetActiveLeaves(ctx, karyawanID)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, existing := range existingLeaves {
+		existingStart := existing.TanggalMulai
+		existingEnd := existing.TanggalSelesai
+
+		if !(end.Before(existingStart) || start.After(existingEnd)) {
+			return nil, errors.New("terdapat pengajuan cuti yang overlap pada tanggal tersebut")
+		}
 	}
 
 	balance, err := u.LeaveRepo.GetBalance(ctx, karyawanID, time.Now().Year())
 	if err != nil {
-		return errors.New("gagal mendapatkan kuota cuti")
+		return nil, errors.New("gagal mendapatkan kuota cuti")
 	}
 
-	if req.TipePengajuan == "cuti" && totalHari > balance.Sisa {
-		return errors.New("kuota cuti tidak mencukupi")
+	if balance == nil {
+		balance = &domain.SisaCuti{
+			JumlahCuti:        12,
+			TelahDilaksanakan: 0,
+			AkanDilaksanakan:  0,
+			SisaCuti:          12,
+		}
+	}
+
+	mengurangiCuti := true
+	if req.TipePengajuan == "darurat" && req.SubTipe == "dispensasi" {
+		mengurangiCuti = false
+	}
+
+	if mengurangiCuti && totalHari > balance.SisaCuti {
+		return nil, errors.New("kuota cuti tidak mencukupi")
+	}
+
+	langsungApprove := req.LangsungApprove
+	if req.TipePengajuan == "darurat" && req.SubTipe == "dispensasi" {
+		langsungApprove = true
+	}
+
+	judulDokumen := "PERMOHONAN/LAPORAN CUTI TAHUNAN"
+	if req.TipePengajuan == "darurat" && req.SubTipe == "dispensasi" {
+		judulDokumen = "PERMOHONAN/LAPORAN DISPEN"
+	} else if req.TipePengajuan == "darurat" {
+		judulDokumen = "PERMOHONAN/LAPORAN DARURAT"
+	}
+
+	status := "menunggu"
+	if langsungApprove {
+		status = "disetujui"
 	}
 
 	leave := &domain.PengajuanCuti{
-		KaryawanID:     karyawanID,
-		TipePengajuan:  req.TipePengajuan,
-		TanggalMulai:   req.TanggalMulai,
-		TanggalSelesai: req.TanggalSelesai,
-		TotalHari:      totalHari,
-		Alasan:         req.Alasan,
-		Status:         "menunggu",
+		KaryawanID:        karyawanID,
+		TipePengajuan:     req.TipePengajuan,
+		SubTipe:           req.SubTipe,
+		TanggalMulai:      start,
+		TanggalSelesai:    end,
+		TotalHari:         totalHari,
+		Alasan:            req.Alasan,
+		Status:            status,
+		BackDate:          req.BackDate,
+		MengurangiCuti:    mengurangiCuti,
+		LangsungApprove:   langsungApprove,
+		JudulDokumen:      judulDokumen,
 	}
 
-	return u.LeaveRepo.Create(ctx, leave)
+	if err := u.LeaveRepo.Create(ctx, leave); err != nil {
+		return nil, err
+	}
+
+	return u.LeaveRepo.GetByID(ctx, leave.ID)
 }
 
-func (u *LeaveUsecase) GetStatus(ctx context.Context, karyawanID string) ([]domain.PengajuanCuti, error) {
-	return u.LeaveRepo.GetByKaryawanID(ctx, karyawanID)
+func (u *LeaveUsecase) GetStatus(ctx context.Context, karyawanID, status string, limit, page int) ([]domain.PengajuanCuti, int, error) {
+	offset := (page - 1) * limit
+	return u.LeaveRepo.GetByKaryawanID(ctx, karyawanID, status, limit, offset)
 }
 
-func (u *LeaveUsecase) CancelLeave(ctx context.Context, leaveID, karyawanID string) error {
+func (u *LeaveUsecase) CancelLeave(ctx context.Context, leaveID, karyawanID string) (*domain.PengajuanCuti, error) {
 	leave, err := u.LeaveRepo.GetByID(ctx, leaveID)
 	if err != nil {
-		return errors.New("pengajuan tidak ditemukan")
+		return nil, errors.New("pengajuan tidak ditemukan")
 	}
 	if leave == nil {
-		return errors.New("pengajuan tidak ditemukan")
+		return nil, errors.New("pengajuan tidak ditemukan")
 	}
 	if leave.KaryawanID != karyawanID {
-		return errors.New("anda tidak memiliki akses")
-	}
-	if leave.Status != "menunggu" && leave.Status != "disetujui" {
-		return errors.New("pengajuan tidak bisa dibatalkan")
+		return nil, errors.New("anda tidak memiliki akses")
 	}
 
-	return u.LeaveRepo.UpdateStatus(ctx, leaveID, "dibatalkan")
+	if leave.DifinalisasiOleh == nil || leave.TanggalDifinalisasi == nil {
+		return nil, errors.New("pengajuan belum difinalisasi HRD, tidak dapat dibatalkan")
+	}
+
+	if leave.Status != "disetujui" {
+		return nil, errors.New("pengajuan tidak bisa dibatalkan")
+	}
+
+	if err := u.LeaveRepo.UpdateStatus(ctx, leaveID, "dibatalkan"); err != nil {
+		return nil, err
+	}
+
+	return u.LeaveRepo.GetByID(ctx, leaveID)
 }
 
-func (u *LeaveUsecase) ApproveLeave(ctx context.Context, leaveID, managerID string) error {
+func (u *LeaveUsecase) ApproveLeave(ctx context.Context, leaveID, managerID string) (*domain.PengajuanCuti, error) {
 	leave, err := u.LeaveRepo.GetByID(ctx, leaveID)
 	if err != nil {
-		return errors.New("pengajuan tidak ditemukan")
+		return nil, errors.New("pengajuan tidak ditemukan")
 	}
 	if leave == nil {
-		return errors.New("pengajuan tidak ditemukan")
+		return nil, errors.New("pengajuan tidak ditemukan")
 	}
 	if leave.Status != "menunggu" {
-		return errors.New("pengajuan sudah diproses")
+		return nil, errors.New("pengajuan sudah diproses")
 	}
 
-	return u.LeaveRepo.Approve(ctx, leaveID, managerID)
+	if err := u.LeaveRepo.Approve(ctx, leaveID, managerID); err != nil {
+		return nil, err
+	}
+
+	return u.LeaveRepo.GetByID(ctx, leaveID)
 }
 
-func (u *LeaveUsecase) RejectLeave(ctx context.Context, leaveID, managerID, alasan string) error {
+func (u *LeaveUsecase) RejectLeave(ctx context.Context, leaveID, managerID, alasan string) (*domain.PengajuanCuti, error) {
 	leave, err := u.LeaveRepo.GetByID(ctx, leaveID)
 	if err != nil {
-		return errors.New("pengajuan tidak ditemukan")
+		return nil, errors.New("pengajuan tidak ditemukan")
 	}
 	if leave == nil {
-		return errors.New("pengajuan tidak ditemukan")
+		return nil, errors.New("pengajuan tidak ditemukan")
 	}
 	if leave.Status != "menunggu" {
-		return errors.New("pengajuan sudah diproses")
+		return nil, errors.New("pengajuan sudah diproses")
 	}
 
-	return u.LeaveRepo.Reject(ctx, leaveID, managerID, alasan)
+	if err := u.LeaveRepo.Reject(ctx, leaveID, managerID, alasan); err != nil {
+		return nil, err
+	}
+
+	return u.LeaveRepo.GetByID(ctx, leaveID)
 }
 
-func (u *LeaveUsecase) FinalizeLeave(ctx context.Context, leaveID, hrdID string) error {
+func (u *LeaveUsecase) FinalizeLeave(ctx context.Context, leaveID, hrdID, catatan string) (*domain.PengajuanCuti, error) {
 	leave, err := u.LeaveRepo.GetByID(ctx, leaveID)
 	if err != nil {
-		return errors.New("pengajuan tidak ditemukan")
+		return nil, errors.New("pengajuan tidak ditemukan")
 	}
 	if leave == nil {
-		return errors.New("pengajuan tidak ditemukan")
+		return nil, errors.New("pengajuan tidak ditemukan")
 	}
 	if leave.Status != "disetujui" {
-		return errors.New("pengajuan belum disetujui atasan")
+		return nil, errors.New("pengajuan belum disetujui atasan")
 	}
 
-	return u.LeaveRepo.Finalize(ctx, leaveID, hrdID)
+	if err := u.LeaveRepo.Finalize(ctx, leaveID, hrdID, catatan); err != nil {
+		return nil, err
+	}
+
+	return u.LeaveRepo.GetByID(ctx, leaveID)
 }
 
 func (u *LeaveUsecase) DownloadSuratCuti(ctx context.Context, leaveID string) ([]byte, string, error) {
@@ -147,7 +240,7 @@ func (u *LeaveUsecase) DownloadSuratCuti(ctx context.Context, leaveID string) ([
 		return nil, "", errors.New("pengajuan tidak ditemukan")
 	}
 
-	if leave.Status != "disetujui" {
+	if leave.Status != "disetujui" && leave.Status != "dibatalkan" {
 		return nil, "", errors.New("pengajuan belum disetujui")
 	}
 
@@ -172,15 +265,18 @@ func (u *LeaveUsecase) DownloadSuratCuti(ctx context.Context, leaveID string) ([
 	balance, err := u.LeaveRepo.GetBalance(ctx, leave.KaryawanID, time.Now().Year())
 	if err != nil {
 		balance = &domain.SisaCuti{
-			JumlahCuti:    12,
-			TelahDigunakan: 0,
-			Sisa:          12,
+			JumlahCuti:        12,
+			TelahDilaksanakan: 0,
+			AkanDilaksanakan:  0,
+			SisaCuti:          12,
 		}
 	}
 
-	jenis := "CUTI"
-	if leave.TipePengajuan == "dispen" || leave.TipePengajuan == "dispensasi" {
-		jenis = "DISPENSASI"
+	jenisPDF := "CUTI"
+	if leave.TipePengajuan == "darurat" && leave.SubTipe == "dispensasi" {
+		jenisPDF = "DISPENSASI"
+	} else if leave.TipePengajuan == "darurat" {
+		jenisPDF = "DARURAT"
 	}
 
 	namaAtasan := ""
@@ -200,18 +296,16 @@ func (u *LeaveUsecase) DownloadSuratCuti(ctx context.Context, leaveID string) ([
 	if karyawan.Unit != nil {
 		unit = *karyawan.Unit
 	}
-
 	levelJabatan := ""
 	if karyawan.LevelJabatan != nil {
 		levelJabatan = *karyawan.LevelJabatan
 	}
 
-	cutiDilaksanakan := balance.TelahDigunakan - leave.TotalHari
+	cutiDilaksanakan := balance.TelahDilaksanakan - leave.TotalHari
 	if cutiDilaksanakan < 0 {
 		cutiDilaksanakan = 0
 	}
 
-	// Tentukan Jumlah TTD
 	jumlahTTD := 3
 	if hrd == nil && atasan == nil {
 		jumlahTTD = 2
@@ -219,26 +313,29 @@ func (u *LeaveUsecase) DownloadSuratCuti(ctx context.Context, leaveID string) ([
 		jumlahTTD = 2
 	}
 
+	tanggalMulai := leave.TanggalMulai.Format("2006-01-02")
+	tanggalSelesai := leave.TanggalSelesai.Format("2006-01-02")
+
 	pdfData := utils.PDFData{
 		CompanyName:    "KOPEGTEL MALANG",
 		CompanyAddress: "Jl. Ahmad Yani No.11, Blimbing, Kota Malang",
 
-		Jenis:       jenis,
+		Jenis:       jenisPDF,
 		Nama:        karyawan.NamaLengkap,
 		Divisi:      divisi,
 		Unit:        unit,
 		Jabatan:     levelJabatan,
 		LamaCuti:    leave.TotalHari,
-		TanggalCuti: leave.TanggalMulai + " s.d " + leave.TanggalSelesai,
+		TanggalCuti: tanggalMulai + " s.d " + tanggalSelesai,
 		AlasanCuti:  leave.Alasan,
 
 		JumlahCutiTahun:      12,
 		CutiDilaksanakan:     cutiDilaksanakan,
 		CutiAkanDilaksanakan: leave.TotalHari,
-		SisaCuti:             balance.Sisa,
+		SisaCuti:             balance.SisaCuti,
 
 		DisetujuiSelama: leave.TotalHari,
-		MulaiTanggal:    leave.TanggalMulai,
+		MulaiTanggal:    tanggalMulai,
 		Tahun:           time.Now().Year(),
 		TanggalSekarang: time.Now(),
 
@@ -254,6 +351,6 @@ func (u *LeaveUsecase) DownloadSuratCuti(ctx context.Context, leaveID string) ([
 		return nil, "", err
 	}
 
-	filename := "surat_" + jenis + "_" + karyawan.NamaLengkap + "_" + time.Now().Format("20060102") + ".pdf"
+	filename := "surat_" + jenisPDF + "_" + karyawan.NamaLengkap + "_" + time.Now().Format("20060102") + ".pdf"
 	return pdfBytes, filename, nil
 }
