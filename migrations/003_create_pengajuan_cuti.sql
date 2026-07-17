@@ -1,8 +1,7 @@
 CREATE TABLE pengajuan_cuti (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     karyawan_id UUID NOT NULL REFERENCES karyawan(id) ON DELETE CASCADE,
-    tipe_pengajuan VARCHAR(20) NOT NULL CHECK (tipe_pengajuan IN ('cuti', 'darurat')),
-    sub_tipe VARCHAR(20) CHECK (sub_tipe IN ('izin', 'sakit', 'dispensasi', 'darurat')),
+    sub_tipe VARCHAR(20) NOT NULL CHECK (sub_tipe IN ('izin', 'sakit', 'dispensasi')),
     tanggal_mulai DATE NOT NULL,
     tanggal_selesai DATE NOT NULL,
     total_hari INT NOT NULL,
