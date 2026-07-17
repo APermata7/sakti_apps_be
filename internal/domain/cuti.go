@@ -5,7 +5,6 @@ import "time"
 type PengajuanCuti struct {
 	ID                  string     `json:"id"`
 	KaryawanID          string     `json:"karyawan_id"`
-	TipePengajuan       string     `json:"tipe_pengajuan"`
 	SubTipe             string     `json:"sub_tipe"`
 	TanggalMulai        time.Time  `json:"tanggal_mulai"`
 	TanggalSelesai      time.Time  `json:"tanggal_selesai"`
@@ -40,7 +39,6 @@ type SisaCuti struct {
 }
 
 type CreateCutiRequest struct {
-	TipePengajuan   string `json:"tipe_pengajuan"`
 	SubTipe         string `json:"sub_tipe"`
 	TanggalMulai    string `json:"tanggal_mulai"`
 	TanggalSelesai  string `json:"tanggal_selesai"`
