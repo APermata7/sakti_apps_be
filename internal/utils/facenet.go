@@ -14,8 +14,11 @@ import (
 )
 
 type FaceVerificationResponse struct {
+	Success    bool    `json:"success"`
 	Match      bool    `json:"match"`
 	Similarity float64 `json:"similarity"`
+	Threshold  float64 `json:"threshold"`
+	Message    string  `json:"message"`
 }
 
 type FaceVerificationRequest struct {
@@ -29,7 +32,7 @@ func VerifyFace(ctx context.Context, selfieURL, employeeID string) (bool, float6
 		return true, 0.95, nil
 	}
 
-	return true, 0.95, nil
+	return callFaceService(ctx, faceServiceURL, "", selfieURL)
 }
 
 func VerifyFaceWithRepo(ctx context.Context, selfieURL, employeeID string, karyawanRepo *repository.KaryawanRepo) (bool, float64, error) {
@@ -47,13 +50,25 @@ func VerifyFaceWithRepo(ctx context.Context, selfieURL, employeeID string, karya
 		return false, 0, errors.New("foto wajah tidak ditemukan")
 	}
 
+	return callFaceService(ctx, faceServiceURL, *karyawan.FotoURL, selfieURL)
+}
+
+func callFaceService(ctx context.Context, serviceURL, referenceURL, selfieURL string) (bool, float64, error) {
 	reqBody := FaceVerificationRequest{
-		ReferenceURL: *karyawan.FotoURL,
+		ReferenceURL: referenceURL,
 		SelfieURL:    selfieURL,
 	}
-	jsonBody, _ := json.Marshal(reqBody)
+	jsonBody, err := json.Marshal(reqBody)
+	if err != nil {
+		return false, 0, err
+	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", faceServiceURL+"/verify", bytes.NewBuffer(jsonBody))
+	httpReq, err := http.NewRequestWithContext(
+		ctx,
+		"POST",
+		serviceURL+"/api/v1/verify", 
+		bytes.NewBuffer(jsonBody),
+	)
 	if err != nil {
 		return false, 0, err
 	}
@@ -74,6 +89,10 @@ func VerifyFaceWithRepo(ctx context.Context, selfieURL, employeeID string, karya
 	var result FaceVerificationResponse
 	if err := json.Unmarshal(body, &result); err != nil {
 		return false, 0, err
+	}
+
+	if !result.Success {
+		return false, result.Similarity, errors.New(result.Message)
 	}
 
 	return result.Match, result.Similarity, nil
