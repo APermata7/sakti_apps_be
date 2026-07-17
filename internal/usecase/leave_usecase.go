@@ -28,19 +28,8 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 		return nil, errors.New("karyawan tidak ditemukan")
 	}
 
-	if req.TipePengajuan != "cuti" && req.TipePengajuan != "darurat" {
-		return nil, errors.New("tipe pengajuan harus 'cuti' atau 'darurat'")
-	}
-
-	switch req.TipePengajuan {
-	case "cuti":
-		if req.SubTipe != "izin" && req.SubTipe != "sakit" {
-			return nil, errors.New("sub tipe untuk cuti harus 'izin' atau 'sakit'")
-		}
-	case "darurat":
-		if req.SubTipe != "dispensasi" && req.SubTipe != "darurat" {
-			return nil, errors.New("sub tipe untuk darurat harus 'dispensasi' atau 'darurat'")
-		}
+	if req.SubTipe != "izin" && req.SubTipe != "sakit" && req.SubTipe != "dispensasi" {
+		return nil, errors.New("sub tipe harus 'izin', 'sakit', atau 'dispensasi'")
 	}
 
 	start, err := time.Parse("2006-01-02", req.TanggalMulai)
@@ -57,12 +46,7 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 		return nil, errors.New("tanggal tidak valid")
 	}
 
-	today := time.Now()
-	if req.TipePengajuan == "cuti" && start.Before(today) {
-		return nil, errors.New("cuti tidak bisa back date (maksimal H-1)")
-	}
-
-	if req.TipePengajuan == "darurat" && req.SubTipe == "dispensasi" && totalHari > 2 {
+	if req.SubTipe == "dispensasi" && totalHari > 2 {
 		return nil, errors.New("dispensasi maksimal 2 hari")
 	}
 
@@ -95,7 +79,7 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 	}
 
 	mengurangiCuti := true
-	if req.TipePengajuan == "darurat" && req.SubTipe == "dispensasi" {
+	if req.SubTipe == "dispensasi" {
 		mengurangiCuti = false
 	}
 
@@ -104,15 +88,13 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 	}
 
 	langsungApprove := req.LangsungApprove
-	if req.TipePengajuan == "darurat" && req.SubTipe == "dispensasi" {
+	if req.SubTipe == "dispensasi" {
 		langsungApprove = true
 	}
 
 	judulDokumen := "PERMOHONAN/LAPORAN CUTI TAHUNAN"
-	if req.TipePengajuan == "darurat" && req.SubTipe == "dispensasi" {
-		judulDokumen = "PERMOHONAN/LAPORAN DISPEN"
-	} else if req.TipePengajuan == "darurat" {
-		judulDokumen = "PERMOHONAN/LAPORAN DARURAT"
+	if req.SubTipe == "dispensasi" {
+		judulDokumen = "PERMOHONAN/LAPORAN DISPENSASI"
 	}
 
 	status := "menunggu"
@@ -122,7 +104,6 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 
 	leave := &domain.PengajuanCuti{
 		KaryawanID:        karyawanID,
-		TipePengajuan:     req.TipePengajuan,
 		SubTipe:           req.SubTipe,
 		TanggalMulai:      start,
 		TanggalSelesai:    end,
@@ -273,10 +254,8 @@ func (u *LeaveUsecase) DownloadSuratCuti(ctx context.Context, leaveID string) ([
 	}
 
 	jenisPDF := "CUTI"
-	if leave.TipePengajuan == "darurat" && leave.SubTipe == "dispensasi" {
+	if leave.SubTipe == "dispensasi" {
 		jenisPDF = "DISPENSASI"
-	} else if leave.TipePengajuan == "darurat" {
-		jenisPDF = "DARURAT"
 	}
 
 	namaAtasan := ""
