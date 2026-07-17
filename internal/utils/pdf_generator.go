@@ -166,7 +166,7 @@ func generateBodyCuti(pdf *gofpdf.Fpdf, data PDFData) {
 	pdf.MultiCell(0, lineHeight, ": "+data.AlasanCuti, "", "L", false)
 	pdf.Ln(6)
 
-	if data.Jenis == "CUTI" || data.Jenis == "DARURAT" {
+	if data.Jenis == "CUTI" {
 		pdf.SetFont("Helvetica", "B", 12)
 		pdf.CellFormat(0, 6.5, "CATATAN SDM KOPEGTEL", "", 1, "L", false, 0, "")
 		pdf.Ln(2)
@@ -324,7 +324,7 @@ func addKeputusan2TTD(pdf *gofpdf.Fpdf, data PDFData) {
 	pdf.SetFont("Helvetica", "I", 10)
 	pdf.CellFormat(0, 5, "Catatan:", "", 1, "L", false, 0, "")
 	pdf.SetFont("Helvetica", "I", 8)
-	if data.Jenis == "CUTI" || data.Jenis == "DARURAT" {
+	if data.Jenis == "CUTI" {
 		pdf.CellFormat(0, 4.5, "1. Form cuti bisa dicetak di masing-masing unit.", "", 1, "L", false, 0, "")
 		pdf.CellFormat(0, 4.5, "2. Cuti yang tidak diketahui HRD KOPEGTEL Malang maka dianggap mangkir.", "", 1, "L", false, 0, "")
 	} else {
@@ -403,7 +403,7 @@ func addKeputusan3TTD(pdf *gofpdf.Fpdf, data PDFData) {
 	pdf.SetFont("Helvetica", "I", 10)
 	pdf.CellFormat(0, 5, "Catatan:", "", 1, "L", false, 0, "")
 	pdf.SetFont("Helvetica", "I", 8)
-	if data.Jenis == "CUTI" || data.Jenis == "DARURAT" {
+	if data.Jenis == "CUTI" {
 		pdf.CellFormat(0, 4.5, "1. Form cuti bisa dicetak di masing-masing unit.", "", 1, "L", false, 0, "")
 		pdf.CellFormat(0, 4.5, "2. Cuti yang tidak diketahui HRD KOPEGTEL Malang maka dianggap mangkir.", "", 1, "L", false, 0, "")
 	} else {
@@ -464,8 +464,6 @@ func GeneratePDF(data PDFData) ([]byte, error) {
 	switch data.Jenis {
 	case "DISPENSASI":
 		return GeneratePDFDispensasi(data)
-	case "DARURAT":
-		return GeneratePDFCuti(data)
 	default:
 		return GeneratePDFCuti(data)
 	}
