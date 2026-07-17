@@ -28,13 +28,6 @@ func (h *LeaveHandler) CreateLeave(c *fiber.Ctx) error {
 		})
 	}
 
-	if req.TipePengajuan == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"success": false,
-			"message": "Tipe pengajuan wajib diisi (cuti/darurat)",
-		})
-	}
-
 	if req.SubTipe == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
