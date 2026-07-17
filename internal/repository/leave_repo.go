@@ -21,16 +21,15 @@ func NewLeaveRepo(db *pgxpool.Pool) *LeaveRepo {
 func (r *LeaveRepo) Create(ctx context.Context, leave *domain.PengajuanCuti) error {
 	query := `
 		INSERT INTO pengajuan_cuti (
-			karyawan_id, tipe_pengajuan, sub_tipe, tanggal_mulai, tanggal_selesai,
+			karyawan_id, sub_tipe, tanggal_mulai, tanggal_selesai,
 			total_hari, alasan, status, back_date, mengurangi_cuti, langsung_approve,
 			judul_dokumen, dibuat_pada, diperbarui_pada
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
 		RETURNING id
 	`
 
 	err := r.DB.QueryRow(ctx, query,
 		leave.KaryawanID,
-		leave.TipePengajuan,
 		leave.SubTipe,
 		leave.TanggalMulai,
 		leave.TanggalSelesai,
@@ -48,7 +47,7 @@ func (r *LeaveRepo) Create(ctx context.Context, leave *domain.PengajuanCuti) err
 
 func (r *LeaveRepo) GetByID(ctx context.Context, id string) (*domain.PengajuanCuti, error) {
 	query := `
-		SELECT id, karyawan_id, tipe_pengajuan, sub_tipe, tanggal_mulai, tanggal_selesai,
+		SELECT id, karyawan_id, sub_tipe, tanggal_mulai, tanggal_selesai,
 		       total_hari, alasan, status, back_date, mengurangi_cuti, langsung_approve,
 		       judul_dokumen, disetujui_oleh, tanggal_disetujui, difinalisasi_oleh,
 		       tanggal_difinalisasi, url_pdf, alasan_batal, tanggal_dibatalkan,
@@ -61,7 +60,6 @@ func (r *LeaveRepo) GetByID(ctx context.Context, id string) (*domain.PengajuanCu
 	err := r.DB.QueryRow(ctx, query, id).Scan(
 		&l.ID,
 		&l.KaryawanID,
-		&l.TipePengajuan,
 		&l.SubTipe,
 		&l.TanggalMulai,
 		&l.TanggalSelesai,
@@ -112,7 +110,7 @@ func (r *LeaveRepo) GetByKaryawanID(ctx context.Context, karyawanID string, stat
 	}
 
 	dataQuery := `
-		SELECT id, karyawan_id, tipe_pengajuan, sub_tipe, tanggal_mulai, tanggal_selesai,
+		SELECT id, karyawan_id, sub_tipe, tanggal_mulai, tanggal_selesai,
 		       total_hari, alasan, status, back_date, mengurangi_cuti, langsung_approve,
 		       judul_dokumen, disetujui_oleh, tanggal_disetujui, difinalisasi_oleh,
 		       tanggal_difinalisasi, url_pdf, alasan_batal, tanggal_dibatalkan,
@@ -131,7 +129,6 @@ func (r *LeaveRepo) GetByKaryawanID(ctx context.Context, karyawanID string, stat
 		err := rows.Scan(
 			&l.ID,
 			&l.KaryawanID,
-			&l.TipePengajuan,
 			&l.SubTipe,
 			&l.TanggalMulai,
 			&l.TanggalSelesai,
@@ -233,7 +230,7 @@ func (r *LeaveRepo) GetBalance(ctx context.Context, karyawanID string, year int)
 
 func (r *LeaveRepo) GetActiveLeaves(ctx context.Context, karyawanID string) ([]domain.PengajuanCuti, error) {
 	query := `
-		SELECT id, karyawan_id, tipe_pengajuan, sub_tipe, tanggal_mulai, tanggal_selesai,
+		SELECT id, karyawan_id, sub_tipe, tanggal_mulai, tanggal_selesai,
 		       total_hari, alasan, status, back_date, mengurangi_cuti, langsung_approve,
 		       judul_dokumen, disetujui_oleh, tanggal_disetujui, difinalisasi_oleh,
 		       tanggal_difinalisasi, url_pdf, alasan_batal, tanggal_dibatalkan,
@@ -254,7 +251,6 @@ func (r *LeaveRepo) GetActiveLeaves(ctx context.Context, karyawanID string) ([]d
 		err := rows.Scan(
 			&l.ID,
 			&l.KaryawanID,
-			&l.TipePengajuan,
 			&l.SubTipe,
 			&l.TanggalMulai,
 			&l.TanggalSelesai,
