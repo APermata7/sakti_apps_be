@@ -93,6 +93,44 @@ func (r *KaryawanRepo) GetByEmail(ctx context.Context, email string) (*domain.Ka
 	return &k, nil
 }
 
+func (r *KaryawanRepo) GetByRole(ctx context.Context, role string) (*domain.Karyawan, error) {
+	query := `
+		SELECT id, nama_lengkap, email, nomor_telepon, foto_url, 
+		       role, level_jabatan, atasan_langsung_id, 
+		       divisi, unit, status_karyawan, dibuat_pada, diperbarui_pada
+		FROM karyawan
+		WHERE role = $1 AND status_karyawan = 'aktif'
+		LIMIT 1
+	`
+
+	var k domain.Karyawan
+
+	err := r.DB.QueryRow(ctx, query, role).Scan(
+		&k.ID,
+		&k.NamaLengkap,
+		&k.Email,
+		&k.NomorTelepon,
+		&k.FotoURL,
+		&k.Role,
+		&k.LevelJabatan,
+		&k.AtasanLangsungID,
+		&k.Divisi,
+		&k.Unit,
+		&k.StatusKaryawan,
+		&k.DibuatPada,
+		&k.DiperbaruiPada,
+	)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &k, nil
+}
+
 func (r *KaryawanRepo) Create(ctx context.Context, k *domain.Karyawan) error {
 	query := `
 		INSERT INTO karyawan (
