@@ -14,6 +14,7 @@ type PengajuanCuti struct {
 	BackDate            bool       `json:"back_date"`
 	MengurangiCuti      bool       `json:"mengurangi_cuti"`
 	LangsungApprove     bool       `json:"langsung_approve"`
+	LangsungFinal       bool       `json:"langsung_final"`
 	JudulDokumen        string     `json:"judul_dokumen"`
 	DisetujuiOleh       *string    `json:"disetujui_oleh"`
 	TanggalDisetujui    *time.Time `json:"tanggal_disetujui"`
