@@ -10,6 +10,7 @@ CREATE TABLE pengajuan_cuti (
     back_date BOOLEAN DEFAULT FALSE,
     mengurangi_cuti BOOLEAN DEFAULT TRUE,
     langsung_approve BOOLEAN DEFAULT FALSE,
+    langsung_final BOOLEAN DEFAULT FALSE,
     judul_dokumen VARCHAR(100) DEFAULT 'PERMOHONAN/LAPORAN CUTI TAHUNAN',
     disetujui_oleh UUID REFERENCES karyawan(id) ON DELETE SET NULL,
     tanggal_disetujui TIMESTAMP,
