@@ -64,7 +64,7 @@ func main() {
 
 	authUsecase := usecase.NewAuthUsecase(karyawanRepo)
 	presensiUsecase := usecase.NewPresensiUsecase(presensiRepo, karyawanRepo, configRepo)
-	leaveUsecase := usecase.NewLeaveUsecase(leaveRepo, karyawanRepo)
+	leaveUsecase := usecase.NewLeaveUsecase(leaveRepo, karyawanRepo, ttdRepo, konfigurasiRepo)
 	riwayatUsecase := usecase.NewRiwayatUsecase(riwayatRepo)
 	notificationUsecase := usecase.NewNotificationUsecase(fcmTokenRepo, notifikasiRepo, karyawanRepo)
 	liburUsecase := usecase.NewLiburUsecase(liburRepo)
@@ -121,6 +121,7 @@ func main() {
 	protected.Get("/attendance/today", presensiHandler.GetToday)
 	protected.Get("/attendance/history", presensiHandler.GetHistory)
 	protected.Put("/attendance/check-in/reason", presensiHandler.UpdateAlasanTerlambat)
+	protected.Get("/attendance/work-config", konfigurasiHandler.GetWorkConfig)
 
 	protected.Post("/leave/request", leaveHandler.CreateLeave)
 	protected.Get("/leave/status", leaveHandler.GetStatus)
