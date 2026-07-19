@@ -29,6 +29,24 @@ func (u *KonfigurasiUsecase) GetConfig(ctx context.Context) (*domain.Konfigurasi
 	return config, nil
 }
 
+func (u *KonfigurasiUsecase) GetWorkConfig(ctx context.Context) (*domain.WorkConfigResponse, error) {
+	config, err := u.KonfigurasiRepo.GetActive(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if config == nil {
+		return nil, errors.New("konfigurasi tidak ditemukan")
+	}
+
+	return &domain.WorkConfigResponse{
+		JamMasuk:         config.JamMasuk,
+		JamMinimalMasuk:  config.JamMinimalMasuk,
+		JamPulang:        config.JamPulang,
+		JamMinimalPulang: config.JamMinimalPulang,
+		RadiusKantor:     config.RadiusKantor,
+	}, nil
+}
+
 func (u *KonfigurasiUsecase) UpdateConfig(ctx context.Context, userID string, req domain.UpdateKonfigurasiRequest) (*domain.KonfigurasiKerja, error) {
 	config, err := u.KonfigurasiRepo.GetActive(ctx)
 	if err != nil {
