@@ -11,6 +11,7 @@ CREATE TABLE presensi (
     lintang_keluar DECIMAL(10, 8),
     bujur_keluar DECIMAL(11, 8),
     validasi_wajah BOOLEAN DEFAULT FALSE,
+    face_similarity DECIMAL(5, 4) DEFAULT 0,
     url_foto VARCHAR(500),
     alasan_terlambat TEXT,
     lembur BOOLEAN DEFAULT FALSE,
