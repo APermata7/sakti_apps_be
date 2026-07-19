@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"log"
 	"time"
 
 	"sakti_apps_be/internal/domain"
@@ -13,12 +14,21 @@ import (
 type LeaveUsecase struct {
 	LeaveRepo    *repository.LeaveRepo
 	KaryawanRepo *repository.KaryawanRepo
+	TTDRepo      *repository.TTDRepo
+	ConfigRepo   *repository.KonfigurasiRepo
 }
 
-func NewLeaveUsecase(leaveRepo *repository.LeaveRepo, karyawanRepo *repository.KaryawanRepo) *LeaveUsecase {
+func NewLeaveUsecase(
+	leaveRepo *repository.LeaveRepo,
+	karyawanRepo *repository.KaryawanRepo,
+	ttdRepo *repository.TTDRepo,
+	configRepo *repository.KonfigurasiRepo,
+) *LeaveUsecase {
 	return &LeaveUsecase{
 		LeaveRepo:    leaveRepo,
 		KaryawanRepo: karyawanRepo,
+		TTDRepo:      ttdRepo,
+		ConfigRepo:   configRepo,
 	}
 }
 
@@ -88,8 +98,11 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 	}
 
 	langsungApprove := req.LangsungApprove
+	langsungFinal := false
+
 	if req.SubTipe == "dispensasi" {
 		langsungApprove = true
+		langsungFinal = true
 	}
 
 	judulDokumen := "PERMOHONAN/LAPORAN CUTI TAHUNAN"
@@ -113,7 +126,17 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 		BackDate:          req.BackDate,
 		MengurangiCuti:    mengurangiCuti,
 		LangsungApprove:   langsungApprove,
+		LangsungFinal:     langsungFinal,
 		JudulDokumen:      judulDokumen,
+	}
+
+	if req.SubTipe == "dispensasi" {
+		hrd, err := u.KaryawanRepo.GetByRole(ctx, "hrd")
+		if err == nil && hrd != nil {
+			leave.DifinalisasiOleh = &hrd.ID
+			now := time.Now()
+			leave.TanggalDifinalisasi = &now
+		}
 	}
 
 	if err := u.LeaveRepo.Create(ctx, leave); err != nil {
@@ -140,8 +163,14 @@ func (u *LeaveUsecase) CancelLeave(ctx context.Context, leaveID, karyawanID stri
 		return nil, errors.New("anda tidak memiliki akses")
 	}
 
-	if leave.DifinalisasiOleh == nil || leave.TanggalDifinalisasi == nil {
-		return nil, errors.New("pengajuan belum difinalisasi HRD, tidak dapat dibatalkan")
+	if leave.SubTipe != "dispensasi" {
+		if leave.DifinalisasiOleh == nil || leave.TanggalDifinalisasi == nil {
+			return nil, errors.New("pengajuan belum difinalisasi HRD, tidak dapat dibatalkan")
+		}
+	} else {
+		if leave.TanggalDifinalisasi == nil {
+			return nil, errors.New("pengajuan belum difinalisasi, tidak dapat dibatalkan")
+		}
 	}
 
 	if leave.Status != "disetujui" {
@@ -238,9 +267,102 @@ func (u *LeaveUsecase) DownloadSuratCuti(ctx context.Context, leaveID string) ([
 		atasan, _ = u.KaryawanRepo.GetByID(ctx, *leave.DisetujuiOleh)
 	}
 
+	if leave.SubTipe == "dispensasi" && atasan == nil {
+		if karyawan.AtasanLangsungID != nil {
+			atasan, _ = u.KaryawanRepo.GetByID(ctx, *karyawan.AtasanLangsungID)
+		}
+	}
+
+	if leave.SubTipe == "dispensasi" && atasan == nil {
+		atasanList, _, err := u.KaryawanRepo.GetAll(ctx, 10, 0, "", "atasan", "aktif")
+		if err == nil && len(atasanList) > 0 {
+			for _, calonAtasan := range atasanList {
+				if calonAtasan.ID != leave.KaryawanID {
+					atasan = &calonAtasan
+					break
+				}
+			}
+		}
+	}
+
+	if leave.SubTipe == "dispensasi" && atasan == nil {
+		allKaryawan, _, err := u.KaryawanRepo.GetAll(ctx, 100, 0, "", "", "")
+		if err == nil && len(allKaryawan) > 0 {
+			for _, calonAtasan := range allKaryawan {
+				if calonAtasan.ID != leave.KaryawanID && calonAtasan.Role != "hrd" && calonAtasan.Role != "admin" {
+					atasan = &calonAtasan
+					break
+				}
+			}
+		}
+	}
+
 	var hrd *domain.Karyawan
 	if leave.DifinalisasiOleh != nil {
 		hrd, _ = u.KaryawanRepo.GetByID(ctx, *leave.DifinalisasiOleh)
+	}
+
+	if hrd == nil {
+		hrdList, _, err := u.KaryawanRepo.GetAll(ctx, 10, 0, "", "hrd", "aktif")
+		if err == nil && len(hrdList) > 0 {
+			hrd = &hrdList[0]
+		}
+	}
+
+	var ttdKaryawanURL string
+	ttdKaryawan, err := u.TTDRepo.GetByKaryawanID(ctx, leave.KaryawanID)
+	if err == nil && ttdKaryawan != nil {
+		ttdKaryawanURL = ttdKaryawan.URLTandaTangan
+	}
+
+	var ttdAtasanURL string
+	if leave.DisetujuiOleh != nil {
+		ttdAtasan, err := u.TTDRepo.GetByKaryawanID(ctx, *leave.DisetujuiOleh)
+		if err == nil && ttdAtasan != nil {
+			ttdAtasanURL = ttdAtasan.URLTandaTangan
+		}
+	}
+
+	if leave.SubTipe == "dispensasi" && ttdAtasanURL == "" {
+		if karyawan.AtasanLangsungID != nil {
+			ttdAtasan, err := u.TTDRepo.GetByKaryawanID(ctx, *karyawan.AtasanLangsungID)
+			if err == nil && ttdAtasan != nil {
+				ttdAtasanURL = ttdAtasan.URLTandaTangan
+			}
+		}
+	}
+
+	if leave.SubTipe == "dispensasi" && ttdAtasanURL == "" {
+		if atasan != nil {
+			ttdAtasan, err := u.TTDRepo.GetByKaryawanID(ctx, atasan.ID)
+			if err == nil && ttdAtasan != nil {
+				ttdAtasanURL = ttdAtasan.URLTandaTangan
+			}
+		}
+	}
+
+	var ttdHRDURL string
+	if leave.DifinalisasiOleh != nil {
+		ttdHRD, err := u.TTDRepo.GetByKaryawanID(ctx, *leave.DifinalisasiOleh)
+		if err == nil && ttdHRD != nil {
+			ttdHRDURL = ttdHRD.URLTandaTangan
+		}
+	}
+
+	if ttdHRDURL == "" && hrd != nil {
+		ttdHRD, err := u.TTDRepo.GetByKaryawanID(ctx, hrd.ID)
+		if err == nil && ttdHRD != nil {
+			ttdHRDURL = ttdHRD.URLTandaTangan
+		}
+	}
+
+	config, err := u.ConfigRepo.GetActive(ctx)
+	if err != nil {
+		config = &domain.KonfigurasiKerja{}
+	}
+	logoURL := ""
+	if config.LogoKantor != nil {
+		logoURL = *config.LogoKantor
 	}
 
 	balance, err := u.LeaveRepo.GetBalance(ctx, leave.KaryawanID, time.Now().Year())
@@ -295,9 +417,41 @@ func (u *LeaveUsecase) DownloadSuratCuti(ctx context.Context, leaveID string) ([
 	tanggalMulai := leave.TanggalMulai.Format("2006-01-02")
 	tanggalSelesai := leave.TanggalSelesai.Format("2006-01-02")
 
+	logoPath, err := utils.DownloadImage(logoURL)
+	if err != nil {
+		log.Printf("Gagal download logo: %v", err)
+		logoPath = ""
+	}
+	defer utils.CleanupTempFiles(logoPath)
+
+	ttdKaryawanPath, err := utils.DownloadImage(ttdKaryawanURL)
+	if err != nil {
+		log.Printf("Gagal download TTD karyawan: %v", err)
+		ttdKaryawanPath = ""
+	}
+	defer utils.CleanupTempFiles(ttdKaryawanPath)
+
+	ttdAtasanPath, err := utils.DownloadImage(ttdAtasanURL)
+	if err != nil {
+		log.Printf("Gagal download TTD atasan: %v", err)
+		ttdAtasanPath = ""
+	}
+	defer utils.CleanupTempFiles(ttdAtasanPath)
+
+	ttdHRDPath, err := utils.DownloadImage(ttdHRDURL)
+	if err != nil {
+		log.Printf("Gagal download TTD HRD: %v", err)
+		ttdHRDPath = ""
+	}
+	defer utils.CleanupTempFiles(ttdHRDPath)
+
 	pdfData := utils.PDFData{
 		CompanyName:    "KOPEGTEL MALANG",
 		CompanyAddress: "Jl. Ahmad Yani No.11, Blimbing, Kota Malang",
+		LogoPath:       logoPath,
+		TTDKaryawanURL: ttdKaryawanPath,
+		TTDAtasanURL:   ttdAtasanPath,
+		TTDHRDURL:      ttdHRDPath,
 
 		Jenis:       jenisPDF,
 		Nama:        karyawan.NamaLengkap,
@@ -331,5 +485,16 @@ func (u *LeaveUsecase) DownloadSuratCuti(ctx context.Context, leaveID string) ([
 	}
 
 	filename := "surat_" + jenisPDF + "_" + karyawan.NamaLengkap + "_" + time.Now().Format("20060102") + ".pdf"
+
+	pdfURL, err := utils.UploadPDF(pdfBytes, filename)
+	if err != nil {
+		log.Printf("Gagal upload PDF ke Cloudinary: %v", err)
+	} else {
+		err = u.LeaveRepo.UpdatePDFURL(ctx, leaveID, pdfURL)
+		if err != nil {
+			log.Printf("Gagal simpan URL PDF: %v", err)
+		}
+	}
+
 	return pdfBytes, filename, nil
 }
