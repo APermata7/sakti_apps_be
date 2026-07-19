@@ -5,19 +5,19 @@ import "time"
 type Presensi struct {
 	ID              string     `json:"id"`
 	KaryawanID      string     `json:"karyawan_id"`
-	KantorID        *string    `json:"kantor_id"`
+	KantorID        *string    `json:"kantor_id,omitempty"`
 	Tanggal         time.Time  `json:"tanggal"`
 	JamMasuk        string     `json:"jam_masuk"`
-	JamKeluar       *string    `json:"jam_keluar"`
+	JamKeluar       *string    `json:"jam_keluar,omitempty"`
 	Status          string     `json:"status"`
 	LintangMasuk    float64    `json:"lintang_masuk"`
 	BujurMasuk      float64    `json:"bujur_masuk"`
-	LintangKeluar   *float64   `json:"lintang_keluar"`
-	BujurKeluar     *float64   `json:"bujur_keluar"`
+	LintangKeluar   *float64   `json:"lintang_keluar,omitempty"`
+	BujurKeluar     *float64   `json:"bujur_keluar,omitempty"`
 	ValidasiWajah   bool       `json:"validasi_wajah"`
 	FaceSimilarity  float64    `json:"face_similarity"`
 	URLFoto         string     `json:"url_foto"`
-	AlasanTerlambat string     `json:"alasan_terlambat"`
+	AlasanTerlambat *string    `json:"alasan_terlambat,omitempty"`
 	Lembur          bool       `json:"lembur"`
 	JamLembur       float64    `json:"jam_lembur"`
 	DistanceMeter   float64    `json:"distance_meter"`
@@ -38,6 +38,7 @@ type CheckOutRequest struct {
 	SelfieURL  string  `json:"selfie_url"`
 	Latitude   float64 `json:"latitude"`
 	Longitude  float64 `json:"longitude"`
+	Lembur     bool    `json:"lembur"`
 }
 
 type CheckInResponse struct {
