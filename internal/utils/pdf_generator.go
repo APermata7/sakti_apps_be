@@ -15,6 +15,10 @@ type PDFData struct {
 	CompanyEmail   string
 	LogoPath       string
 
+	TTDKaryawanURL string
+	TTDAtasanURL   string
+	TTDHRDURL      string
+
 	Jenis string
 
 	Nama        string
@@ -301,6 +305,9 @@ func addKeputusan2TTD(pdf *gofpdf.Fpdf, data PDFData) {
 	pdf.CellFormat(40, 6.5, "Mengetahui HRD", "", 0, "C", false, 0, "")
 	pdf.SetXY(x, y+18)
 	pdf.CellFormat(40, 20, "", "B", 0, "C", false, 0, "")
+	if data.TTDHRDURL != "" {
+		pdf.Image(data.TTDHRDURL, x+5, y+20, 30, 15, false, "", 0, "")
+	}
 	pdf.SetXY(x, y+39)
 	pdf.SetFont("Helvetica", "", 12)
 	pdf.CellFormat(40, 6, data.NamaHRD, "", 0, "C", false, 0, "")
@@ -311,6 +318,9 @@ func addKeputusan2TTD(pdf *gofpdf.Fpdf, data PDFData) {
 	pdf.CellFormat(40, 6.5, "Pemohon", "", 0, "C", false, 0, "")
 	pdf.SetXY(x, y+18)
 	pdf.CellFormat(40, 20, "", "B", 0, "C", false, 0, "")
+	if data.TTDKaryawanURL != "" {
+		pdf.Image(data.TTDKaryawanURL, x+5, y+20, 30, 15, false, "", 0, "")
+	}
 	pdf.SetXY(x, y+39)
 	pdf.SetFont("Helvetica", "", 12)
 	pdf.CellFormat(40, 6, data.NamaPemohon, "", 0, "C", false, 0, "")
@@ -370,6 +380,9 @@ func addKeputusan3TTD(pdf *gofpdf.Fpdf, data PDFData) {
 	pdf.CellFormat(40, 6.5, "Mengetahui HRD", "", 0, "C", false, 0, "")
 	pdf.SetXY(x, y+18)
 	pdf.CellFormat(40, 20, "", "B", 0, "C", false, 0, "")
+	if data.TTDHRDURL != "" {
+		pdf.Image(data.TTDHRDURL, x+5, y+20, 30, 15, false, "", 0, "")
+	}
 	pdf.SetXY(x, y+39)
 	pdf.SetFont("Helvetica", "", 12)
 	pdf.CellFormat(40, 6, data.NamaHRD, "", 0, "C", false, 0, "")
@@ -380,6 +393,9 @@ func addKeputusan3TTD(pdf *gofpdf.Fpdf, data PDFData) {
 	pdf.CellFormat(40, 6.5, "Menyetujui Atasan", "", 0, "C", false, 0, "")
 	pdf.SetXY(x, y+18)
 	pdf.CellFormat(40, 20, "", "B", 0, "C", false, 0, "")
+	if data.TTDAtasanURL != "" {
+		pdf.Image(data.TTDAtasanURL, x+5, y+20, 30, 15, false, "", 0, "")
+	}
 	pdf.SetXY(x, y+39)
 	pdf.SetFont("Helvetica", "", 12)
 	pdf.CellFormat(40, 6, data.NamaAtasan, "", 0, "C", false, 0, "")
@@ -390,6 +406,9 @@ func addKeputusan3TTD(pdf *gofpdf.Fpdf, data PDFData) {
 	pdf.CellFormat(40, 6.5, "Pemohon", "", 0, "C", false, 0, "")
 	pdf.SetXY(x, y+18)
 	pdf.CellFormat(40, 20, "", "B", 0, "C", false, 0, "")
+	if data.TTDKaryawanURL != "" {
+		pdf.Image(data.TTDKaryawanURL, x+5, y+20, 30, 15, false, "", 0, "")
+	}
 	pdf.SetXY(x, y+39)
 	pdf.SetFont("Helvetica", "", 12)
 	pdf.CellFormat(40, 6, data.NamaPemohon, "", 0, "C", false, 0, "")
