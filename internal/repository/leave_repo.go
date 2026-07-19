@@ -22,9 +22,11 @@ func (r *LeaveRepo) Create(ctx context.Context, leave *domain.PengajuanCuti) err
 	query := `
 		INSERT INTO pengajuan_cuti (
 			karyawan_id, sub_tipe, tanggal_mulai, tanggal_selesai,
-			total_hari, alasan, status, back_date, mengurangi_cuti, langsung_approve,
-			judul_dokumen, dibuat_pada, diperbarui_pada
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
+			total_hari, alasan, status, back_date, mengurangi_cuti, 
+			langsung_approve, langsung_final,
+			judul_dokumen, difinalisasi_oleh, tanggal_difinalisasi,
+			dibuat_pada, diperbarui_pada
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW())
 		RETURNING id
 	`
 
@@ -39,7 +41,10 @@ func (r *LeaveRepo) Create(ctx context.Context, leave *domain.PengajuanCuti) err
 		leave.BackDate,
 		leave.MengurangiCuti,
 		leave.LangsungApprove,
+		leave.LangsungFinal,
 		leave.JudulDokumen,
+		leave.DifinalisasiOleh,
+		leave.TanggalDifinalisasi,
 	).Scan(&leave.ID)
 
 	return err
@@ -48,7 +53,8 @@ func (r *LeaveRepo) Create(ctx context.Context, leave *domain.PengajuanCuti) err
 func (r *LeaveRepo) GetByID(ctx context.Context, id string) (*domain.PengajuanCuti, error) {
 	query := `
 		SELECT id, karyawan_id, sub_tipe, tanggal_mulai, tanggal_selesai,
-		       total_hari, alasan, status, back_date, mengurangi_cuti, langsung_approve,
+		       total_hari, alasan, status, back_date, mengurangi_cuti, 
+		       langsung_approve, langsung_final,
 		       judul_dokumen, disetujui_oleh, tanggal_disetujui, difinalisasi_oleh,
 		       tanggal_difinalisasi, url_pdf, alasan_batal, tanggal_dibatalkan,
 		       dibuat_pada, diperbarui_pada
@@ -69,6 +75,7 @@ func (r *LeaveRepo) GetByID(ctx context.Context, id string) (*domain.PengajuanCu
 		&l.BackDate,
 		&l.MengurangiCuti,
 		&l.LangsungApprove,
+		&l.LangsungFinal,
 		&l.JudulDokumen,
 		&l.DisetujuiOleh,
 		&l.TanggalDisetujui,
@@ -111,7 +118,8 @@ func (r *LeaveRepo) GetByKaryawanID(ctx context.Context, karyawanID string, stat
 
 	dataQuery := `
 		SELECT id, karyawan_id, sub_tipe, tanggal_mulai, tanggal_selesai,
-		       total_hari, alasan, status, back_date, mengurangi_cuti, langsung_approve,
+		       total_hari, alasan, status, back_date, mengurangi_cuti, 
+		       langsung_approve, langsung_final,
 		       judul_dokumen, disetujui_oleh, tanggal_disetujui, difinalisasi_oleh,
 		       tanggal_difinalisasi, url_pdf, alasan_batal, tanggal_dibatalkan,
 		       dibuat_pada, diperbarui_pada
@@ -138,6 +146,7 @@ func (r *LeaveRepo) GetByKaryawanID(ctx context.Context, karyawanID string, stat
 			&l.BackDate,
 			&l.MengurangiCuti,
 			&l.LangsungApprove,
+			&l.LangsungFinal,
 			&l.JudulDokumen,
 			&l.DisetujuiOleh,
 			&l.TanggalDisetujui,
@@ -199,6 +208,12 @@ func (r *LeaveRepo) Finalize(ctx context.Context, id, hrdID, catatan string) err
 	return err
 }
 
+func (r *LeaveRepo) UpdatePDFURL(ctx context.Context, id, url string) error {
+	query := `UPDATE pengajuan_cuti SET url_pdf = $1, diperbarui_pada = NOW() WHERE id = $2`
+	_, err := r.DB.Exec(ctx, query, url, id)
+	return err
+}
+
 func (r *LeaveRepo) GetBalance(ctx context.Context, karyawanID string, year int) (*domain.SisaCuti, error) {
 	query := `
 		SELECT id, karyawan_id, tahun, jumlah_cuti, telah_dilaksanakan, 
@@ -231,7 +246,8 @@ func (r *LeaveRepo) GetBalance(ctx context.Context, karyawanID string, year int)
 func (r *LeaveRepo) GetActiveLeaves(ctx context.Context, karyawanID string) ([]domain.PengajuanCuti, error) {
 	query := `
 		SELECT id, karyawan_id, sub_tipe, tanggal_mulai, tanggal_selesai,
-		       total_hari, alasan, status, back_date, mengurangi_cuti, langsung_approve,
+		       total_hari, alasan, status, back_date, mengurangi_cuti, 
+		       langsung_approve, langsung_final,
 		       judul_dokumen, disetujui_oleh, tanggal_disetujui, difinalisasi_oleh,
 		       tanggal_difinalisasi, url_pdf, alasan_batal, tanggal_dibatalkan,
 		       dibuat_pada, diperbarui_pada
@@ -260,6 +276,7 @@ func (r *LeaveRepo) GetActiveLeaves(ctx context.Context, karyawanID string) ([]d
 			&l.BackDate,
 			&l.MengurangiCuti,
 			&l.LangsungApprove,
+			&l.LangsungFinal,
 			&l.JudulDokumen,
 			&l.DisetujuiOleh,
 			&l.TanggalDisetujui,
