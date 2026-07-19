@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bytes"
 	"context"
 	"log"
 	"mime/multipart"
@@ -160,7 +161,9 @@ func UploadPDF(data []byte, filename string) (string, error) {
 		folder = "sakti-apps/documents"
 	}
 
-	resp, err := Cld.Upload.Upload(ctx, data, uploader.UploadParams{
+	reader := bytes.NewReader(data)
+
+	resp, err := Cld.Upload.Upload(ctx, reader, uploader.UploadParams{
 		Folder:         folder,
 		PublicID:       filename,
 		UseFilename:    api.Bool(true),
@@ -187,7 +190,9 @@ func UploadBytes(data []byte, filename string) (string, error) {
 		folder = "sakti-apps"
 	}
 
-	resp, err := Cld.Upload.Upload(ctx, data, uploader.UploadParams{
+	reader := bytes.NewReader(data)
+
+	resp, err := Cld.Upload.Upload(ctx, reader, uploader.UploadParams{
 		Folder:         folder,
 		PublicID:       filename,
 		UseFilename:    api.Bool(true),
