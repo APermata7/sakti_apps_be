@@ -62,9 +62,9 @@ func main() {
 	konfigurasiRepo := repository.NewKonfigurasiRepo(dbConn.Pool)
 	ttdRepo := repository.NewTTDRepo(dbConn.Pool)
 
-	authUsecase := usecase.NewAuthUsecase(karyawanRepo)
-	presensiUsecase := usecase.NewPresensiUsecase(presensiRepo, karyawanRepo, configRepo)
-	leaveUsecase := usecase.NewLeaveUsecase(leaveRepo, karyawanRepo, ttdRepo, konfigurasiRepo)
+	authUsecase := usecase.NewAuthUsecase(karyawanRepo, riwayatRepo)
+	presensiUsecase := usecase.NewPresensiUsecase(presensiRepo, karyawanRepo, configRepo, riwayatRepo)
+	leaveUsecase := usecase.NewLeaveUsecase(leaveRepo, karyawanRepo, ttdRepo, konfigurasiRepo, riwayatRepo)
 	riwayatUsecase := usecase.NewRiwayatUsecase(riwayatRepo)
 	notificationUsecase := usecase.NewNotificationUsecase(fcmTokenRepo, notifikasiRepo, karyawanRepo)
 	liburUsecase := usecase.NewLiburUsecase(liburRepo)
