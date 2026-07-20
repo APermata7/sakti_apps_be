@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"sakti_apps_be/internal/domain"
 	"sakti_apps_be/internal/repository"
@@ -15,13 +16,15 @@ import (
 
 type AuthUsecase struct {
 	KaryawanRepo *repository.KaryawanRepo
+	RiwayatRepo  *repository.RiwayatRepo
 	SupabaseURL  string
 	AnonKey      string
 }
 
-func NewAuthUsecase(karyawanRepo *repository.KaryawanRepo) *AuthUsecase {
+func NewAuthUsecase(karyawanRepo *repository.KaryawanRepo, riwayatRepo *repository.RiwayatRepo) *AuthUsecase {
 	return &AuthUsecase{
 		KaryawanRepo: karyawanRepo,
+		RiwayatRepo:  riwayatRepo,
 		SupabaseURL:  os.Getenv("SUPABASE_URL"),
 		AnonKey:      os.Getenv("SUPABASE_ANON_KEY"),
 	}
@@ -84,6 +87,11 @@ func (u *AuthUsecase) Login(ctx context.Context, req domain.LoginRequest) (*doma
 	if karyawan.StatusKaryawan != "aktif" {
 		log.Printf("Login ditolak: status karyawan = %s", karyawan.StatusKaryawan)
 		return nil, errors.New("akun tidak aktif")
+	}
+
+	if u.RiwayatRepo != nil {
+		detail := "Login berhasil pada " + time.Now().Format("2006-01-02 15:04:05")
+		u.RiwayatRepo.CreateRiwayat(ctx, karyawan.ID, "login", detail)
 	}
 
 	log.Printf("Login berhasil: email=%s, role=%s", karyawan.Email, karyawan.Role)
@@ -170,6 +178,11 @@ func (u *AuthUsecase) ChangePassword(ctx context.Context, userID, token, current
 		return errors.New("gagal mengubah password")
 	}
 
+	if u.RiwayatRepo != nil {
+		detail := "Password diubah pada " + time.Now().Format("2006-01-02 15:04:05")
+		u.RiwayatRepo.CreateRiwayat(ctx, userID, "update_password", detail)
+	}
+
 	log.Printf("ChangePassword berhasil: userID=%s", userID)
 
 	return nil
@@ -247,5 +260,31 @@ func (u *AuthUsecase) ResetPassword(ctx context.Context, token, newPassword stri
 
 	log.Printf("ResetPassword berhasil")
 
+	return nil
+}
+
+func (u *AuthUsecase) Logout(ctx context.Context, token string) error {
+	log.Printf("Logout: token=%s...", token[:20])
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", u.SupabaseURL+"/auth/v1/logout", nil)
+	if err != nil {
+		return err
+	}
+	httpReq.Header.Set("apikey", u.AnonKey)
+	httpReq.Header.Set("Authorization", "Bearer "+token)
+
+	client := &http.Client{}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		log.Printf("Logout failed: status=%d", resp.StatusCode)
+		return errors.New("gagal logout")
+	}
+
+	log.Printf("Logout berhasil")
 	return nil
 }
