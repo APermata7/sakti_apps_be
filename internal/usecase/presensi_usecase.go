@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"strconv"
 	"time"
 
 	"sakti_apps_be/internal/domain"
@@ -15,13 +16,15 @@ type PresensiUsecase struct {
 	PresensiRepo *repository.PresensiRepo
 	KaryawanRepo *repository.KaryawanRepo
 	ConfigRepo   *repository.KonfigurasiRepo
+	RiwayatRepo  *repository.RiwayatRepo
 }
 
-func NewPresensiUsecase(presensiRepo *repository.PresensiRepo, karyawanRepo *repository.KaryawanRepo, configRepo *repository.KonfigurasiRepo) *PresensiUsecase {
+func NewPresensiUsecase(presensiRepo *repository.PresensiRepo, karyawanRepo *repository.KaryawanRepo, configRepo *repository.KonfigurasiRepo, riwayatRepo *repository.RiwayatRepo) *PresensiUsecase {
 	return &PresensiUsecase{
 		PresensiRepo: presensiRepo,
 		KaryawanRepo: karyawanRepo,
 		ConfigRepo:   configRepo,
+		RiwayatRepo:  riwayatRepo,
 	}
 }
 
@@ -108,6 +111,11 @@ func (u *PresensiUsecase) CheckIn(ctx context.Context, karyawanID string, req do
 		return nil, err
 	}
 	log.Printf("Presensi berhasil disimpan dengan ID: %s", presensi.ID)
+
+	if u.RiwayatRepo != nil {
+		detail := "Check-in pada " + jamMasukStr + " dengan status " + status + " di lokasi " + locationStatus
+		u.RiwayatRepo.CreateRiwayat(ctx, karyawanID, "check_in", detail)
+	}
 
 	return &domain.CheckInResponse{
 		ID:              presensi.ID,
@@ -210,6 +218,15 @@ func (u *PresensiUsecase) CheckOut(ctx context.Context, karyawanID string, req d
 		return nil, err
 	}
 	log.Printf("Check-out berhasil diperbarui untuk presensi ID: %s", presensi.ID)
+
+	if u.RiwayatRepo != nil {
+		statusLembur := ""
+		if lembur {
+			statusLembur = " dengan lembur " + strconv.FormatFloat(jamLembur, 'f', 1, 64) + " jam"
+		}
+		detail := "Check-out pada " + jamKeluarStr + statusLembur + " di lokasi " + locationStatus
+		u.RiwayatRepo.CreateRiwayat(ctx, karyawanID, "check_out", detail)
+	}
 
 	return &domain.CheckOutResponse{
 		ID:              presensi.ID,
