@@ -49,6 +49,24 @@ type PDFData struct {
 	JumlahTTD int
 }
 
+func formatTanggalIndonesia(t time.Time) string {
+	bulanIndonesia := map[time.Month]string{
+		time.January:   "Januari",
+		time.February:  "Februari",
+		time.March:     "Maret",
+		time.April:     "April",
+		time.May:       "Mei",
+		time.June:      "Juni",
+		time.July:      "Juli",
+		time.August:    "Agustus",
+		time.September: "September",
+		time.October:   "Oktober",
+		time.November:  "November",
+		time.December:  "Desember",
+	}
+	return fmt.Sprintf("%d %s %d", t.Day(), bulanIndonesia[t.Month()], t.Year())
+}
+
 func addHeader(pdf *gofpdf.Fpdf, data PDFData) {
 	logoSize := 24.0
 	startY := 5.0
@@ -63,13 +81,13 @@ func addHeader(pdf *gofpdf.Fpdf, data PDFData) {
 
 	pdf.SetXY(textX, textStartY)
 	pdf.SetFont("Helvetica", "B", 24)
-	pdf.SetTextColor(0, 0, 255)
+	pdf.SetTextColor(0, 0, 100)
 	pdf.CellFormat(105, 9, "KOPEGTEL MALANG", "", 0, "L", false, 0, "")
 
 	rightX := 150.0
 	pdf.SetXY(rightX, textStartY)
 	pdf.SetFont("Helvetica", "", 10)
-	pdf.SetTextColor(0, 0, 255)
+	pdf.SetTextColor(0, 0, 100)
 	pdf.CellFormat(45, 4.5, "Badan Hukum :", "", 1, "L", false, 0, "")
 	pdf.SetXY(rightX, textStartY+4.5)
 	pdf.CellFormat(45, 4.5, "5538/BH/II/1983", "", 1, "L", false, 0, "")
@@ -78,7 +96,7 @@ func addHeader(pdf *gofpdf.Fpdf, data PDFData) {
 
 	pdf.SetXY(textX, textStartY+10)
 	pdf.SetFont("Helvetica", "B", 14)
-	pdf.SetTextColor(0, 0, 255)
+	pdf.SetTextColor(0, 0, 100)
 	pdf.CellFormat(105, 8, "Koperasi Pegawai PT. Telkom Malang", "", 1, "L", false, 0, "")
 
 	pdf.SetY(34)
@@ -102,7 +120,7 @@ func addFooter(pdf *gofpdf.Fpdf) {
 
 	pdf.SetY(-30)
 	pdf.SetFont("Helvetica", "B", 11)
-	pdf.SetTextColor(0, 0, 255)
+	pdf.SetTextColor(0, 0, 100)
 	pdf.CellFormat(0, 4, "Alamat: Jl. Ahmad Yani 11 Malang - Jawa Timur | Telepon: 0341 479881 | Faximile: 0341 499553", "", 1, "C", false, 0, "")
 	pdf.SetY(-25)
 	pdf.SetFont("Helvetica", "B", 11)
@@ -292,7 +310,7 @@ func addKeputusan2TTD(pdf *gofpdf.Fpdf, data PDFData) {
 	pdf.Ln(lineHeight + 12)
 
 	pdf.SetX(145)
-	pdf.CellFormat(0, 6.5, fmt.Sprintf("Malang, %s", data.TanggalSekarang.Format("02 January 2006")), "", 1, "L", false, 0, "")
+	pdf.CellFormat(0, 6.5, fmt.Sprintf("Malang, %s", formatTanggalIndonesia(data.TanggalSekarang)), "", 1, "L", false, 0, "")
 	pdf.Ln(4)
 
 	x := 35.0
@@ -306,9 +324,9 @@ func addKeputusan2TTD(pdf *gofpdf.Fpdf, data PDFData) {
 	pdf.SetXY(x, y+18)
 	pdf.CellFormat(40, 20, "", "B", 0, "C", false, 0, "")
 	if data.TTDHRDURL != "" {
-		pdf.Image(data.TTDHRDURL, x+5, y+20, 30, 15, false, "", 0, "")
+		pdf.Image(data.TTDHRDURL, x+2, y+15, 40, 20, false, "", 0, "")
 	}
-	pdf.SetXY(x, y+39)
+	pdf.SetXY(x, y+40)
 	pdf.SetFont("Helvetica", "", 12)
 	pdf.CellFormat(40, 6, data.NamaHRD, "", 0, "C", false, 0, "")
 
@@ -319,17 +337,17 @@ func addKeputusan2TTD(pdf *gofpdf.Fpdf, data PDFData) {
 	pdf.SetXY(x, y+18)
 	pdf.CellFormat(40, 20, "", "B", 0, "C", false, 0, "")
 	if data.TTDKaryawanURL != "" {
-		pdf.Image(data.TTDKaryawanURL, x+5, y+20, 30, 15, false, "", 0, "")
+		pdf.Image(data.TTDKaryawanURL, x+2, y+15, 40, 20, false, "", 0, "")
 	}
-	pdf.SetXY(x, y+39)
+	pdf.SetXY(x, y+40)
 	pdf.SetFont("Helvetica", "", 12)
 	pdf.CellFormat(40, 6, data.NamaPemohon, "", 0, "C", false, 0, "")
 
-	pdf.Ln(22)
+	pdf.Ln(38)
 
 	yAfterTTD := pdf.GetY()
 
-	pdf.SetY(yAfterTTD - 4)
+	pdf.SetY(yAfterTTD)
 
 	pdf.SetFont("Helvetica", "I", 10)
 	pdf.CellFormat(0, 5, "Catatan:", "", 1, "L", false, 0, "")
@@ -367,7 +385,7 @@ func addKeputusan3TTD(pdf *gofpdf.Fpdf, data PDFData) {
 	pdf.Ln(lineHeight + 12)
 
 	pdf.SetX(145)
-	pdf.CellFormat(0, 6.5, fmt.Sprintf("Malang, %s", data.TanggalSekarang.Format("02 January 2006")), "", 1, "L", false, 0, "")
+	pdf.CellFormat(0, 6.5, fmt.Sprintf("Malang, %s", formatTanggalIndonesia(data.TanggalSekarang)), "", 1, "L", false, 0, "")
 	pdf.Ln(4)
 
 	x := 35.0
@@ -381,9 +399,9 @@ func addKeputusan3TTD(pdf *gofpdf.Fpdf, data PDFData) {
 	pdf.SetXY(x, y+18)
 	pdf.CellFormat(40, 20, "", "B", 0, "C", false, 0, "")
 	if data.TTDHRDURL != "" {
-		pdf.Image(data.TTDHRDURL, x+5, y+20, 30, 15, false, "", 0, "")
+		pdf.Image(data.TTDHRDURL, x+2, y+15, 40, 20, false, "", 0, "")
 	}
-	pdf.SetXY(x, y+39)
+	pdf.SetXY(x, y+40)
 	pdf.SetFont("Helvetica", "", 12)
 	pdf.CellFormat(40, 6, data.NamaHRD, "", 0, "C", false, 0, "")
 
@@ -394,9 +412,9 @@ func addKeputusan3TTD(pdf *gofpdf.Fpdf, data PDFData) {
 	pdf.SetXY(x, y+18)
 	pdf.CellFormat(40, 20, "", "B", 0, "C", false, 0, "")
 	if data.TTDAtasanURL != "" {
-		pdf.Image(data.TTDAtasanURL, x+5, y+20, 30, 15, false, "", 0, "")
+		pdf.Image(data.TTDAtasanURL, x+2, y+15, 40, 20, false, "", 0, "")
 	}
-	pdf.SetXY(x, y+39)
+	pdf.SetXY(x, y+40)
 	pdf.SetFont("Helvetica", "", 12)
 	pdf.CellFormat(40, 6, data.NamaAtasan, "", 0, "C", false, 0, "")
 
@@ -407,17 +425,17 @@ func addKeputusan3TTD(pdf *gofpdf.Fpdf, data PDFData) {
 	pdf.SetXY(x, y+18)
 	pdf.CellFormat(40, 20, "", "B", 0, "C", false, 0, "")
 	if data.TTDKaryawanURL != "" {
-		pdf.Image(data.TTDKaryawanURL, x+5, y+20, 30, 15, false, "", 0, "")
+		pdf.Image(data.TTDKaryawanURL, x+2, y+15, 40, 20, false, "", 0, "")
 	}
-	pdf.SetXY(x, y+39)
+	pdf.SetXY(x, y+40)
 	pdf.SetFont("Helvetica", "", 12)
 	pdf.CellFormat(40, 6, data.NamaPemohon, "", 0, "C", false, 0, "")
 
-	pdf.Ln(22)
+	pdf.Ln(38)
 
 	yAfterTTD := pdf.GetY()
 
-	pdf.SetY(yAfterTTD - 4)
+	pdf.SetY(yAfterTTD)
 
 	pdf.SetFont("Helvetica", "I", 10)
 	pdf.CellFormat(0, 5, "Catatan:", "", 1, "L", false, 0, "")
