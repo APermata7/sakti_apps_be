@@ -16,6 +16,15 @@ func NewRiwayatRepo(db *pgxpool.Pool) *RiwayatRepo {
 	return &RiwayatRepo{DB: db}
 }
 
+func (r *RiwayatRepo) CreateRiwayat(ctx context.Context, karyawanID, action, detail string) error {
+	query := `
+		INSERT INTO riwayat_user (karyawan_id, action, detail, dibuat_pada)
+		VALUES ($1, $2, $3, NOW())
+	`
+	_, err := r.DB.Exec(ctx, query, karyawanID, action, detail)
+	return err
+}
+
 func (r *RiwayatRepo) GetRiwayat(ctx context.Context, karyawanID string, limit, offset int) ([]domain.RiwayatItem, int, error) {
 	var items []domain.RiwayatItem
 	var total int
@@ -52,11 +61,29 @@ func (r *RiwayatRepo) GetRiwayat(ctx context.Context, karyawanID string, limit, 
 		FROM pengajuan_cuti
 		WHERE karyawan_id = $1
 	`
+	riwayatUserQuery := `
+		SELECT 
+			'aktivitas' AS tipe,
+			id,
+			dibuat_pada::text AS tanggal,
+			NULL AS jam_masuk,
+			NULL AS jam_keluar,
+			action AS status,
+			0 AS total_hari,
+			false AS lembur,
+			0 AS jam_lembur,
+			'' AS url_foto,
+			dibuat_pada::text
+		FROM riwayat_user
+		WHERE karyawan_id = $1
+	`
 	finalQuery := `
 		SELECT * FROM (
 			` + presensiQuery + `
 			UNION ALL
 			` + cutiQuery + `
+			UNION ALL
+			` + riwayatUserQuery + `
 		) AS riwayat
 		ORDER BY tanggal DESC
 		LIMIT $2 OFFSET $3
@@ -94,6 +121,8 @@ func (r *RiwayatRepo) GetRiwayat(ctx context.Context, karyawanID string, limit, 
 			SELECT 1 FROM presensi WHERE karyawan_id = $1
 			UNION ALL
 			SELECT 1 FROM pengajuan_cuti WHERE karyawan_id = $1
+			UNION ALL
+			SELECT 1 FROM riwayat_user WHERE karyawan_id = $1
 		) AS total
 	`
 	err = r.DB.QueryRow(ctx, countQuery, karyawanID).Scan(&total)
