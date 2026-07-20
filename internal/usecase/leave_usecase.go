@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"strconv"
 	"time"
 
 	"sakti_apps_be/internal/domain"
@@ -16,6 +17,7 @@ type LeaveUsecase struct {
 	KaryawanRepo *repository.KaryawanRepo
 	TTDRepo      *repository.TTDRepo
 	ConfigRepo   *repository.KonfigurasiRepo
+	RiwayatRepo  *repository.RiwayatRepo
 }
 
 func NewLeaveUsecase(
@@ -23,12 +25,14 @@ func NewLeaveUsecase(
 	karyawanRepo *repository.KaryawanRepo,
 	ttdRepo *repository.TTDRepo,
 	configRepo *repository.KonfigurasiRepo,
+	riwayatRepo *repository.RiwayatRepo,
 ) *LeaveUsecase {
 	return &LeaveUsecase{
 		LeaveRepo:    leaveRepo,
 		KaryawanRepo: karyawanRepo,
 		TTDRepo:      ttdRepo,
 		ConfigRepo:   configRepo,
+		RiwayatRepo:  riwayatRepo,
 	}
 }
 
@@ -143,6 +147,11 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 		return nil, err
 	}
 
+	if u.RiwayatRepo != nil {
+		detail := "Pengajuan cuti " + req.SubTipe + " " + strconv.Itoa(totalHari) + " hari dari " + req.TanggalMulai + " sampai " + req.TanggalSelesai
+		u.RiwayatRepo.CreateRiwayat(ctx, karyawanID, "cuti_diajukan", detail)
+	}
+
 	return u.LeaveRepo.GetByID(ctx, leave.ID)
 }
 
@@ -181,6 +190,11 @@ func (u *LeaveUsecase) CancelLeave(ctx context.Context, leaveID, karyawanID stri
 		return nil, err
 	}
 
+	if u.RiwayatRepo != nil {
+		detail := "Cuti dibatalkan oleh karyawan"
+		u.RiwayatRepo.CreateRiwayat(ctx, karyawanID, "cuti_dibatalkan", detail)
+	}
+
 	return u.LeaveRepo.GetByID(ctx, leaveID)
 }
 
@@ -198,6 +212,16 @@ func (u *LeaveUsecase) ApproveLeave(ctx context.Context, leaveID, managerID stri
 
 	if err := u.LeaveRepo.Approve(ctx, leaveID, managerID); err != nil {
 		return nil, err
+	}
+
+	if u.RiwayatRepo != nil {
+		karyawan, _ := u.KaryawanRepo.GetByID(ctx, managerID)
+		namaAtasan := "atasan"
+		if karyawan != nil {
+			namaAtasan = karyawan.NamaLengkap
+		}
+		detail := "Cuti disetujui oleh " + namaAtasan
+		u.RiwayatRepo.CreateRiwayat(ctx, leave.KaryawanID, "cuti_disetujui", detail)
 	}
 
 	return u.LeaveRepo.GetByID(ctx, leaveID)
@@ -219,6 +243,16 @@ func (u *LeaveUsecase) RejectLeave(ctx context.Context, leaveID, managerID, alas
 		return nil, err
 	}
 
+	if u.RiwayatRepo != nil {
+		karyawan, _ := u.KaryawanRepo.GetByID(ctx, managerID)
+		namaAtasan := "atasan"
+		if karyawan != nil {
+			namaAtasan = karyawan.NamaLengkap
+		}
+		detail := "Cuti ditolak oleh " + namaAtasan + " dengan alasan: " + alasan
+		u.RiwayatRepo.CreateRiwayat(ctx, leave.KaryawanID, "cuti_ditolak", detail)
+	}
+
 	return u.LeaveRepo.GetByID(ctx, leaveID)
 }
 
@@ -236,6 +270,16 @@ func (u *LeaveUsecase) FinalizeLeave(ctx context.Context, leaveID, hrdID, catata
 
 	if err := u.LeaveRepo.Finalize(ctx, leaveID, hrdID, catatan); err != nil {
 		return nil, err
+	}
+
+	if u.RiwayatRepo != nil {
+		karyawan, _ := u.KaryawanRepo.GetByID(ctx, hrdID)
+		namaHRD := "HRD"
+		if karyawan != nil {
+			namaHRD = karyawan.NamaLengkap
+		}
+		detail := "Cuti difinalisasi oleh " + namaHRD
+		u.RiwayatRepo.CreateRiwayat(ctx, leave.KaryawanID, "cuti_difinalisasi", detail)
 	}
 
 	return u.LeaveRepo.GetByID(ctx, leaveID)
