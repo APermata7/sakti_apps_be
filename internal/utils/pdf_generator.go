@@ -3,6 +3,7 @@ package utils
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jung-kurt/gofpdf/v2"
@@ -65,6 +66,42 @@ func formatTanggalIndonesia(t time.Time) string {
 		time.December:  "Desember",
 	}
 	return fmt.Sprintf("%d %s %d", t.Day(), bulanIndonesia[t.Month()], t.Year())
+}
+
+func formatTanggalCuti(tanggalCuti string) string {
+	if tanggalCuti == "" {
+		return ""
+	}
+
+	parts := strings.Split(tanggalCuti, " s.d ")
+	if len(parts) == 2 {
+		tglMulai := formatTanggalSingle(parts[0])
+		tglSelesai := formatTanggalSingle(parts[1])
+		return tglMulai + " s.d " + tglSelesai
+	}
+
+	return formatTanggalSingle(tanggalCuti)
+}
+
+func formatTanggalSingle(tanggal string) string {
+	if tanggal == "" {
+		return ""
+	}
+
+	t, err := time.Parse("2006-01-02", tanggal)
+	if err != nil {
+		return tanggal
+	}
+
+	return formatTanggalIndonesia(t)
+}
+
+func cleanAlasanCuti(alasan string) string {
+	if strings.Contains(alasan, "| Catatan HRD:") {
+		parts := strings.Split(alasan, "| Catatan HRD:")
+		return strings.TrimSpace(parts[0])
+	}
+	return alasan
 }
 
 func addHeader(pdf *gofpdf.Fpdf, data PDFData) {
@@ -145,6 +182,9 @@ func generateBodyCuti(pdf *gofpdf.Fpdf, data PDFData) {
 	lineHeight := 5.5
 	indent := 8.0
 
+	alasanBersih := cleanAlasanCuti(data.AlasanCuti)
+	tanggalCutiFormatted := formatTanggalCuti(data.TanggalCuti)
+
 	pdf.SetFont("Helvetica", "", 12)
 	pdf.SetXY(18+indent, pdf.GetY())
 	pdf.Cell(leftLabel, lineHeight, "1) Nama")
@@ -179,13 +219,13 @@ func generateBodyCuti(pdf *gofpdf.Fpdf, data PDFData) {
 	pdf.SetXY(18+indent, pdf.GetY())
 	pdf.Cell(leftLabel, lineHeight, "6) Tanggal Cuti")
 	pdf.SetFont("Helvetica", "", 12)
-	pdf.Cell(leftValue, lineHeight, ": "+data.TanggalCuti)
+	pdf.Cell(leftValue, lineHeight, ": "+tanggalCutiFormatted)
 	pdf.Ln(lineHeight)
 
 	pdf.SetXY(18+indent, pdf.GetY())
 	pdf.Cell(leftLabel, lineHeight, "7) Alasan Cuti")
 	pdf.SetFont("Helvetica", "", 12)
-	pdf.MultiCell(0, lineHeight, ": "+data.AlasanCuti, "", "L", false)
+	pdf.MultiCell(0, lineHeight, ": "+alasanBersih, "", "L", false)
 	pdf.Ln(6)
 
 	if data.Jenis == "CUTI" {
@@ -242,6 +282,9 @@ func generateBodyDispen(pdf *gofpdf.Fpdf, data PDFData) {
 	lineHeight := 6.0
 	indent := 8.0
 
+	alasanBersih := cleanAlasanCuti(data.AlasanCuti)
+	tanggalCutiFormatted := formatTanggalCuti(data.TanggalCuti)
+
 	pdf.SetFont("Helvetica", "", 12)
 	pdf.SetXY(18+indent, pdf.GetY())
 	pdf.Cell(leftLabel, lineHeight, "1) Nama")
@@ -276,13 +319,13 @@ func generateBodyDispen(pdf *gofpdf.Fpdf, data PDFData) {
 	pdf.SetXY(18+indent, pdf.GetY())
 	pdf.Cell(leftLabel, lineHeight, "6) Tanggal Cuti")
 	pdf.SetFont("Helvetica", "", 12)
-	pdf.Cell(leftValue, lineHeight, ": "+data.TanggalCuti)
+	pdf.Cell(leftValue, lineHeight, ": "+tanggalCutiFormatted)
 	pdf.Ln(lineHeight)
 
 	pdf.SetXY(18+indent, pdf.GetY())
 	pdf.Cell(leftLabel, lineHeight, "7) Alasan Cuti")
 	pdf.SetFont("Helvetica", "", 12)
-	pdf.MultiCell(0, lineHeight, ": "+data.AlasanCuti, "", "L", false)
+	pdf.MultiCell(0, lineHeight, ": "+alasanBersih, "", "L", false)
 	pdf.Ln(6)
 }
 
@@ -296,6 +339,8 @@ func addKeputusan2TTD(pdf *gofpdf.Fpdf, data PDFData) {
 	lineHeight := 6.0
 	indent := 8.0
 
+	mulaiTanggalFormatted := formatTanggalSingle(data.MulaiTanggal)
+
 	pdf.SetFont("Helvetica", "", 12)
 	pdf.SetXY(18+indent, pdf.GetY())
 	pdf.Cell(leftLabel, lineHeight, "Disetujui selama")
@@ -306,7 +351,7 @@ func addKeputusan2TTD(pdf *gofpdf.Fpdf, data PDFData) {
 	pdf.SetXY(18+indent, pdf.GetY())
 	pdf.Cell(leftLabel, lineHeight, "Mulai tanggal")
 	pdf.SetFont("Helvetica", "", 12)
-	pdf.Cell(leftValue, lineHeight, ": "+data.MulaiTanggal)
+	pdf.Cell(leftValue, lineHeight, ": "+mulaiTanggalFormatted)
 	pdf.Ln(lineHeight + 12)
 
 	pdf.SetX(145)
@@ -343,22 +388,7 @@ func addKeputusan2TTD(pdf *gofpdf.Fpdf, data PDFData) {
 	pdf.SetFont("Helvetica", "", 12)
 	pdf.CellFormat(40, 6, data.NamaPemohon, "", 0, "C", false, 0, "")
 
-	pdf.Ln(38)
-
-	yAfterTTD := pdf.GetY()
-
-	pdf.SetY(yAfterTTD)
-
-	pdf.SetFont("Helvetica", "I", 10)
-	pdf.CellFormat(0, 5, "Catatan:", "", 1, "L", false, 0, "")
-	pdf.SetFont("Helvetica", "I", 8)
-	if data.Jenis == "CUTI" {
-		pdf.CellFormat(0, 4.5, "1. Form cuti bisa dicetak di masing-masing unit.", "", 1, "L", false, 0, "")
-		pdf.CellFormat(0, 4.5, "2. Cuti yang tidak diketahui HRD KOPEGTEL Malang maka dianggap mangkir.", "", 1, "L", false, 0, "")
-	} else {
-		pdf.CellFormat(0, 4.5, "1. Form dispensasi bisa dicetak di masing-masing unit.", "", 1, "L", false, 0, "")
-		pdf.CellFormat(0, 4.5, "2. Dispensasi yang tidak diketahui HRD KOPEGTEL Malang maka dianggap mangkir.", "", 1, "L", false, 0, "")
-	}
+	pdf.SetY(y + 52)
 }
 
 func addKeputusan3TTD(pdf *gofpdf.Fpdf, data PDFData) {
@@ -371,6 +401,8 @@ func addKeputusan3TTD(pdf *gofpdf.Fpdf, data PDFData) {
 	lineHeight := 6.0
 	indent := 8.0
 
+	mulaiTanggalFormatted := formatTanggalSingle(data.MulaiTanggal)
+
 	pdf.SetFont("Helvetica", "", 12)
 	pdf.SetXY(18+indent, pdf.GetY())
 	pdf.Cell(leftLabel, lineHeight, "Disetujui selama")
@@ -381,7 +413,7 @@ func addKeputusan3TTD(pdf *gofpdf.Fpdf, data PDFData) {
 	pdf.SetXY(18+indent, pdf.GetY())
 	pdf.Cell(leftLabel, lineHeight, "Mulai tanggal")
 	pdf.SetFont("Helvetica", "", 12)
-	pdf.Cell(leftValue, lineHeight, ": "+data.MulaiTanggal)
+	pdf.Cell(leftValue, lineHeight, ": "+mulaiTanggalFormatted)
 	pdf.Ln(lineHeight + 12)
 
 	pdf.SetX(145)
@@ -431,12 +463,10 @@ func addKeputusan3TTD(pdf *gofpdf.Fpdf, data PDFData) {
 	pdf.SetFont("Helvetica", "", 12)
 	pdf.CellFormat(40, 6, data.NamaPemohon, "", 0, "C", false, 0, "")
 
-	pdf.Ln(38)
+	pdf.SetY(y + 52)
+}
 
-	yAfterTTD := pdf.GetY()
-
-	pdf.SetY(yAfterTTD)
-
+func addCatatan(pdf *gofpdf.Fpdf, data PDFData) {
 	pdf.SetFont("Helvetica", "I", 10)
 	pdf.CellFormat(0, 5, "Catatan:", "", 1, "L", false, 0, "")
 	pdf.SetFont("Helvetica", "I", 8)
@@ -463,6 +493,7 @@ func GeneratePDFCuti(data PDFData) ([]byte, error) {
 	} else {
 		addKeputusan3TTD(pdf, data)
 	}
+	addCatatan(pdf, data)
 	addFooter(pdf)
 
 	var buf bytes.Buffer
@@ -487,6 +518,7 @@ func GeneratePDFDispensasi(data PDFData) ([]byte, error) {
 	} else {
 		addKeputusan3TTD(pdf, data)
 	}
+	addCatatan(pdf, data)
 	addFooter(pdf)
 
 	var buf bytes.Buffer
