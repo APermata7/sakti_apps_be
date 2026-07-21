@@ -70,9 +70,9 @@ func (u *PresensiUsecase) CheckIn(ctx context.Context, karyawanID string, req do
 	isOutside := distance > float64(config.RadiusKantor)
 	log.Printf("Jarak: %f meter, Radius: %d meter, Di luar radius: %t", distance, config.RadiusKantor, isOutside)
 
-	locationStatus := "di_dalam_radius"
+	locationStatusMasuk := "di_dalam_radius"
 	if isOutside {
-		locationStatus = "di_luar_radius"
+		locationStatusMasuk = "di_luar_radius"
 	}
 
 	jamMasuk := time.Now()
@@ -89,20 +89,21 @@ func (u *PresensiUsecase) CheckIn(ctx context.Context, karyawanID string, req do
 	log.Printf("Jam masuk: %s, Jam masuk resmi: %s, Status: %s", jamMasukStr, jamMasukResmi.Format("15:04:05"), status)
 
 	presensi := &domain.Presensi{
-		KaryawanID:      karyawanID,
-		KantorID:        config.KantorID,
-		Tanggal:         jamMasuk,
-		JamMasuk:        jamMasukStr,
-		Status:          status,
-		LintangMasuk:    req.Latitude,
-		BujurMasuk:      req.Longitude,
-		ValidasiWajah:   faceMatch,
-		FaceSimilarity:  similarity,
-		URLFoto:         req.SelfieURL,
-		AlasanTerlambat: nil,
-		DistanceMeter:   distance,
-		IsOutsideRadius: isOutside,
-		LocationStatus:  locationStatus,
+		KaryawanID:           karyawanID,
+		KantorID:             config.KantorID,
+		Tanggal:              jamMasuk,
+		JamMasuk:             jamMasukStr,
+		Status:               status,
+		LintangMasuk:         req.Latitude,
+		BujurMasuk:           req.Longitude,
+		ValidasiWajah:        faceMatch,
+		FaceSimilarity:       similarity,
+		URLFoto:              req.SelfieURL,
+		AlasanTerlambat:      nil,
+		DistanceMeter:        distance,
+		IsOutsideRadius:      isOutside,
+		LocationStatusMasuk:  locationStatusMasuk,
+		LocationStatusKeluar: nil,
 	}
 
 	log.Printf("Menyimpan data presensi")
@@ -113,25 +114,25 @@ func (u *PresensiUsecase) CheckIn(ctx context.Context, karyawanID string, req do
 	log.Printf("Presensi berhasil disimpan dengan ID: %s", presensi.ID)
 
 	if u.RiwayatRepo != nil {
-		detail := "Check-in pada " + jamMasukStr + " dengan status " + status + " di lokasi " + locationStatus
+		detail := "Check-in pada " + jamMasukStr + " dengan status " + status + " di lokasi " + locationStatusMasuk
 		u.RiwayatRepo.CreateRiwayat(ctx, karyawanID, "check_in", detail)
 	}
 
 	return &domain.CheckInResponse{
-		ID:              presensi.ID,
-		KaryawanID:      presensi.KaryawanID,
-		Tanggal:         presensi.Tanggal.Format("2006-01-02"),
-		JamMasuk:        presensi.JamMasuk,
-		Status:          presensi.Status,
-		ValidasiWajah:   presensi.ValidasiWajah,
-		FaceSimilarity:  similarity,
-		URLFoto:         presensi.URLFoto,
-		DistanceMeter:   presensi.DistanceMeter,
-		IsOutsideRadius: presensi.IsOutsideRadius,
-		LocationStatus:  presensi.LocationStatus,
-		OfficeLatitude:  config.LatKantor,
-		OfficeLongitude: config.LongKantor,
-		OfficeRadius:    config.RadiusKantor,
+		ID:                   presensi.ID,
+		KaryawanID:           presensi.KaryawanID,
+		Tanggal:              presensi.Tanggal.Format("2006-01-02"),
+		JamMasuk:             presensi.JamMasuk,
+		Status:               presensi.Status,
+		ValidasiWajah:        presensi.ValidasiWajah,
+		FaceSimilarity:       similarity,
+		URLFoto:              presensi.URLFoto,
+		DistanceMeter:        presensi.DistanceMeter,
+		IsOutsideRadius:      presensi.IsOutsideRadius,
+		LocationStatusMasuk:  locationStatusMasuk,
+		OfficeLatitude:       config.LatKantor,
+		OfficeLongitude:      config.LongKantor,
+		OfficeRadius:         config.RadiusKantor,
 	}, nil
 }
 
@@ -207,13 +208,13 @@ func (u *PresensiUsecase) CheckOut(ctx context.Context, karyawanID string, req d
 	isOutside := distance > float64(config.RadiusKantor)
 	log.Printf("Jarak: %f meter, Radius: %d meter, Di luar radius: %t", distance, config.RadiusKantor, isOutside)
 
-	locationStatus := "di_dalam_radius"
+	locationStatusKeluar := "di_dalam_radius"
 	if isOutside {
-		locationStatus = "di_luar_radius"
+		locationStatusKeluar = "di_luar_radius"
 	}
 
 	log.Printf("Memperbarui data check-out")
-	if err := u.PresensiRepo.UpdateCheckOut(ctx, presensi.ID, jamKeluarStr, lembur, jamLembur, req.Latitude, req.Longitude, req.SelfieURL); err != nil {
+	if err := u.PresensiRepo.UpdateCheckOut(ctx, presensi.ID, jamKeluarStr, lembur, jamLembur, req.Latitude, req.Longitude, req.SelfieURL, distance, isOutside, &locationStatusKeluar); err != nil {
 		log.Printf("Error update check-out: %v", err)
 		return nil, err
 	}
@@ -224,21 +225,21 @@ func (u *PresensiUsecase) CheckOut(ctx context.Context, karyawanID string, req d
 		if lembur {
 			statusLembur = " dengan lembur " + strconv.FormatFloat(jamLembur, 'f', 1, 64) + " jam"
 		}
-		detail := "Check-out pada " + jamKeluarStr + statusLembur + " di lokasi " + locationStatus
+		detail := "Check-out pada " + jamKeluarStr + statusLembur + " di lokasi " + locationStatusKeluar
 		u.RiwayatRepo.CreateRiwayat(ctx, karyawanID, "check_out", detail)
 	}
 
 	return &domain.CheckOutResponse{
-		ID:              presensi.ID,
-		KaryawanID:      presensi.KaryawanID,
-		Tanggal:         presensi.Tanggal.Format("2006-01-02"),
-		JamMasuk:        presensi.JamMasuk,
-		JamKeluar:       jamKeluarStr,
-		Lembur:          lembur,
-		JamLembur:       jamLembur,
-		DistanceMeter:   distance,
-		IsOutsideRadius: isOutside,
-		LocationStatus:  locationStatus,
+		ID:                    presensi.ID,
+		KaryawanID:            presensi.KaryawanID,
+		Tanggal:               presensi.Tanggal.Format("2006-01-02"),
+		JamMasuk:              presensi.JamMasuk,
+		JamKeluar:             jamKeluarStr,
+		Lembur:                lembur,
+		JamLembur:             jamLembur,
+		DistanceMeter:         distance,
+		IsOutsideRadius:       isOutside,
+		LocationStatusKeluar:  locationStatusKeluar,
 	}, nil
 }
 
