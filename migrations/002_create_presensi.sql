@@ -18,7 +18,8 @@ CREATE TABLE presensi (
     jam_lembur DECIMAL(4, 2) DEFAULT 0,
     distance_meter DECIMAL(10, 2) DEFAULT 0,
     is_outside_radius BOOLEAN DEFAULT FALSE,
-    location_status VARCHAR(20) DEFAULT 'di_dalam_radius',
+    location_status_masuk VARCHAR(20) DEFAULT NULL,
+    location_status_keluar VARCHAR(20) DEFAULT NULL,
     dibuat_pada TIMESTAMP DEFAULT NOW(),
     diperbarui_pada TIMESTAMP DEFAULT NOW()
 );
