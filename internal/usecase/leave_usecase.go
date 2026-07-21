@@ -190,6 +190,11 @@ func (u *LeaveUsecase) CancelLeave(ctx context.Context, leaveID, karyawanID stri
 		return nil, err
 	}
 
+	if leave.MengurangiCuti {
+		tahun := leave.TanggalMulai.Year()
+		u.LeaveRepo.UpdateBalance(ctx, leave.KaryawanID, tahun)
+	}
+
 	if u.RiwayatRepo != nil {
 		detail := "Cuti dibatalkan oleh karyawan"
 		u.RiwayatRepo.CreateRiwayat(ctx, karyawanID, "cuti_dibatalkan", detail)
@@ -270,6 +275,11 @@ func (u *LeaveUsecase) FinalizeLeave(ctx context.Context, leaveID, hrdID, catata
 
 	if err := u.LeaveRepo.Finalize(ctx, leaveID, hrdID, catatan); err != nil {
 		return nil, err
+	}
+
+	if leave.MengurangiCuti {
+		tahun := leave.TanggalMulai.Year()
+		u.LeaveRepo.UpdateBalance(ctx, leave.KaryawanID, tahun)
 	}
 
 	if u.RiwayatRepo != nil {
@@ -541,4 +551,53 @@ func (u *LeaveUsecase) DownloadSuratCuti(ctx context.Context, leaveID string) ([
 	}
 
 	return pdfBytes, filename, nil
+}
+
+func (u *LeaveUsecase) GetBalance(ctx context.Context, karyawanID string, year int) (*domain.BalanceResponse, error) {
+	var tahun int
+	if year > 0 {
+		tahun = year
+	} else {
+		tahun = time.Now().Year()
+	}
+
+	balance, err := u.LeaveRepo.GetBalance(ctx, karyawanID, tahun)
+	if err != nil {
+		return nil, err
+	}
+
+	var sisaCutiTahunLalu int
+	var berlakuSampai string
+	sekarang := time.Now()
+	batasAkhirMaret := time.Date(sekarang.Year(), 3, 31, 23, 59, 59, 0, time.Local)
+
+	if sekarang.Before(batasAkhirMaret) || sekarang.Equal(batasAkhirMaret) {
+		balanceTahunLalu, err := u.LeaveRepo.GetBalance(ctx, karyawanID, tahun-1)
+		if err == nil && balanceTahunLalu != nil && balanceTahunLalu.SisaCuti > 0 {
+			sisaCutiTahunLalu = balanceTahunLalu.SisaCuti
+			berlakuSampai = "31 Maret " + strconv.Itoa(tahun)
+		}
+	}
+
+	if balance == nil {
+		return &domain.BalanceResponse{
+			Tahun:                        tahun,
+			JumlahCuti:                   12,
+			TelahDilaksanakan:            0,
+			AkanDilaksanakan:             0,
+			SisaCuti:                     12,
+			SisaCutiTahunLalu:            sisaCutiTahunLalu,
+			SisaCutiTahunLaluBerlakuSampai: berlakuSampai,
+		}, nil
+	}
+
+	return &domain.BalanceResponse{
+		Tahun:                        balance.Tahun,
+		JumlahCuti:                   balance.JumlahCuti,
+		TelahDilaksanakan:            balance.TelahDilaksanakan,
+		AkanDilaksanakan:             balance.AkanDilaksanakan,
+		SisaCuti:                     balance.SisaCuti,
+		SisaCutiTahunLalu:            sisaCutiTahunLalu,
+		SisaCutiTahunLaluBerlakuSampai: berlakuSampai,
+	}, nil
 }
