@@ -28,7 +28,7 @@ func (r *PresensiRepo) Create(ctx context.Context, p *domain.Presensi) error {
 			karyawan_id, kantor_id, tanggal, jam_masuk, status,
 			lintang_masuk, bujur_masuk,
 			validasi_wajah, face_similarity, url_foto, alasan_terlambat,
-			distance_meter, is_outside_radius, location_status,
+			distance_meter, is_outside_radius, location_status_masuk,
 			dibuat_pada, diperbarui_pada
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW())
 		RETURNING id
@@ -49,7 +49,7 @@ func (r *PresensiRepo) Create(ctx context.Context, p *domain.Presensi) error {
 		p.AlasanTerlambat,
 		p.DistanceMeter,
 		p.IsOutsideRadius,
-		p.LocationStatus,
+		p.LocationStatusMasuk,
 	).Scan(&id)
 
 	if err != nil {
@@ -69,7 +69,8 @@ func (r *PresensiRepo) GetToday(ctx context.Context, karyawanID string) (*domain
 		SELECT id, karyawan_id, kantor_id, tanggal, jam_masuk, jam_keluar, status,
 		       lintang_masuk, bujur_masuk, lintang_keluar, bujur_keluar,
 		       validasi_wajah, face_similarity, url_foto, alasan_terlambat,
-		       lembur, jam_lembur, distance_meter, is_outside_radius, location_status,
+		       lembur, jam_lembur, distance_meter, is_outside_radius, 
+		       location_status_masuk, location_status_keluar,
 		       dibuat_pada, diperbarui_pada
 		FROM presensi
 		WHERE karyawan_id = $1 AND tanggal = DATE(NOW() AT TIME ZONE 'Asia/Jakarta')
@@ -82,7 +83,8 @@ func (r *PresensiRepo) GetToday(ctx context.Context, karyawanID string) (*domain
 		&p.Status, &p.LintangMasuk, &p.BujurMasuk, &p.LintangKeluar,
 		&p.BujurKeluar, &p.ValidasiWajah, &p.FaceSimilarity, &p.URLFoto,
 		&p.AlasanTerlambat, &p.Lembur, &p.JamLembur, &p.DistanceMeter,
-		&p.IsOutsideRadius, &p.LocationStatus, &p.DibuatPada, &p.DiperbaruiPada,
+		&p.IsOutsideRadius, &p.LocationStatusMasuk, &p.LocationStatusKeluar,
+		&p.DibuatPada, &p.DiperbaruiPada,
 	)
 
 	if err != nil {
@@ -98,7 +100,7 @@ func (r *PresensiRepo) GetToday(ctx context.Context, karyawanID string) (*domain
 	return &p, nil
 }
 
-func (r *PresensiRepo) UpdateCheckOut(ctx context.Context, id string, jamKeluar string, lembur bool, jamLembur float64, lat, lon float64, selfieURL string) error {
+func (r *PresensiRepo) UpdateCheckOut(ctx context.Context, id string, jamKeluar string, lembur bool, jamLembur float64, lat, lon float64, selfieURL string, distanceMeter float64, isOutside bool, locationStatusKeluar *string) error {
 	log.Printf("UpdateCheckOut dimulai untuk ID: %s", id)
 
 	query := `
@@ -109,11 +111,14 @@ func (r *PresensiRepo) UpdateCheckOut(ctx context.Context, id string, jamKeluar 
 		    lintang_keluar = $5, 
 		    bujur_keluar = $6,
 		    url_foto = $7,
+		    distance_meter = $8,
+		    is_outside_radius = $9,
+		    location_status_keluar = $10,
 		    diperbarui_pada = NOW()
 		WHERE id = $1
 	`
 
-	result, err := r.DB.Exec(ctx, query, id, jamKeluar, lembur, jamLembur, lat, lon, selfieURL)
+	result, err := r.DB.Exec(ctx, query, id, jamKeluar, lembur, jamLembur, lat, lon, selfieURL, distanceMeter, isOutside, locationStatusKeluar)
 	if err != nil {
 		log.Printf("Error UpdateCheckOut: %v", err)
 		return err
@@ -194,7 +199,8 @@ func (r *PresensiRepo) GetHistory(ctx context.Context, karyawanID, startDate, en
 		SELECT id, karyawan_id, kantor_id, tanggal, jam_masuk, jam_keluar, status,
 		       lintang_masuk, bujur_masuk, lintang_keluar, bujur_keluar,
 		       validasi_wajah, face_similarity, url_foto, alasan_terlambat,
-		       lembur, jam_lembur, distance_meter, is_outside_radius, location_status,
+		       lembur, jam_lembur, distance_meter, is_outside_radius,
+		       location_status_masuk, location_status_keluar,
 		       dibuat_pada, diperbarui_pada
 	` + baseQuery + ` ORDER BY tanggal DESC LIMIT $` + strconv.Itoa(argIdx) + ` OFFSET $` + strconv.Itoa(argIdx+1)
 
@@ -213,7 +219,8 @@ func (r *PresensiRepo) GetHistory(ctx context.Context, karyawanID, startDate, en
 			&p.Status, &p.LintangMasuk, &p.BujurMasuk, &p.LintangKeluar,
 			&p.BujurKeluar, &p.ValidasiWajah, &p.FaceSimilarity, &p.URLFoto,
 			&p.AlasanTerlambat, &p.Lembur, &p.JamLembur, &p.DistanceMeter,
-			&p.IsOutsideRadius, &p.LocationStatus, &p.DibuatPada, &p.DiperbaruiPada,
+			&p.IsOutsideRadius, &p.LocationStatusMasuk, &p.LocationStatusKeluar,
+			&p.DibuatPada, &p.DiperbaruiPada,
 		)
 		if err != nil {
 			log.Printf("Error GetHistory scan: %v", err)
