@@ -102,6 +102,39 @@ func (h *LeaveHandler) GetStatus(c *fiber.Ctx) error {
 	})
 }
 
+func (h *LeaveHandler) GetBalance(c *fiber.Ctx) error {
+	userID := c.Locals("user_id").(string)
+
+	yearParam := c.Query("year")
+	var year int
+	var err error
+
+	if yearParam != "" {
+		year, err = strconv.Atoi(yearParam)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"success": false,
+				"message": "Format tahun tidak valid",
+			})
+		}
+	} else {
+		year = 0
+	}
+
+	balance, err := h.LeaveUsecase.GetBalance(c.Context(), userID, year)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": err.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    balance,
+	})
+}
+
 func (h *LeaveHandler) DownloadSuratCuti(c *fiber.Ctx) error {
 	leaveID := c.Params("id")
 	if leaveID == "" {
