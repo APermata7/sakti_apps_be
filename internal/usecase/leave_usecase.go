@@ -20,6 +20,16 @@ type LeaveUsecase struct {
 	RiwayatRepo  *repository.RiwayatRepo
 }
 
+type ApprovalFlow struct {
+	LangsungApprove bool
+	LangsungFinal   bool
+	ButuhAtasan     bool
+	ButuhHRD        bool
+	JumlahTTD       int
+	AtasanID        *string
+	HRDID           *string
+}
+
 func NewLeaveUsecase(
 	leaveRepo *repository.LeaveRepo,
 	karyawanRepo *repository.KaryawanRepo,
@@ -34,6 +44,69 @@ func NewLeaveUsecase(
 		ConfigRepo:   configRepo,
 		RiwayatRepo:  riwayatRepo,
 	}
+}
+
+func (u *LeaveUsecase) DetermineApprovalFlow(ctx context.Context, karyawan *domain.Karyawan) (*ApprovalFlow, error) {
+	flow := &ApprovalFlow{
+		LangsungApprove: false,
+		LangsungFinal:   false,
+		ButuhAtasan:     true,
+		ButuhHRD:        true,
+		JumlahTTD:       3,
+		AtasanID:        nil,
+		HRDID:           nil,
+	}
+
+	switch karyawan.Role {
+	case "admin":
+		flow.LangsungApprove = true
+		flow.LangsungFinal = true
+		flow.ButuhAtasan = false
+		flow.ButuhHRD = false
+		flow.JumlahTTD = 1
+
+	case "hrd":
+		flow.LangsungApprove = true
+		flow.LangsungFinal = true
+		flow.ButuhAtasan = true
+		flow.ButuhHRD = false
+		flow.JumlahTTD = 2
+
+		atasanList, _, err := u.KaryawanRepo.GetAll(ctx, 10, 0, "", "atasan", "aktif")
+		if err == nil && len(atasanList) > 0 {
+			for _, atasan := range atasanList {
+				if atasan.ID != karyawan.ID {
+					flow.AtasanID = &atasan.ID
+					break
+				}
+			}
+		}
+
+	case "atasan", "manager":
+		flow.LangsungApprove = true
+		flow.LangsungFinal = true
+		flow.ButuhAtasan = false
+		flow.ButuhHRD = true
+		flow.JumlahTTD = 2
+
+		hrdList, _, err := u.KaryawanRepo.GetAll(ctx, 10, 0, "", "hrd", "aktif")
+		if err == nil && len(hrdList) > 0 {
+			flow.HRDID = &hrdList[0].ID
+		}
+
+	default:
+		flow.LangsungApprove = false
+		flow.LangsungFinal = false
+		flow.ButuhAtasan = true
+		flow.ButuhHRD = true
+		flow.JumlahTTD = 3
+
+		if karyawan.AtasanLangsungID != nil {
+			flow.AtasanID = karyawan.AtasanLangsungID
+		}
+	}
+
+	return flow, nil
 }
 
 func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req domain.CreateCutiRequest) (*domain.PengajuanCuti, error) {
@@ -101,12 +174,9 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 		return nil, errors.New("kuota cuti tidak mencukupi")
 	}
 
-	langsungApprove := req.LangsungApprove
-	langsungFinal := false
-
-	if req.SubTipe == "dispensasi" {
-		langsungApprove = true
-		langsungFinal = true
+	flow, err := u.DetermineApprovalFlow(ctx, karyawan)
+	if err != nil {
+		return nil, err
 	}
 
 	judulDokumen := "PERMOHONAN/LAPORAN CUTI TAHUNAN"
@@ -115,7 +185,7 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 	}
 
 	status := "menunggu"
-	if langsungApprove {
+	if flow.LangsungApprove {
 		status = "disetujui"
 	}
 
@@ -129,15 +199,21 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 		Status:            status,
 		BackDate:          req.BackDate,
 		MengurangiCuti:    mengurangiCuti,
-		LangsungApprove:   langsungApprove,
-		LangsungFinal:     langsungFinal,
+		LangsungApprove:   flow.LangsungApprove,
+		LangsungFinal:     flow.LangsungFinal,
 		JudulDokumen:      judulDokumen,
 	}
 
-	if req.SubTipe == "dispensasi" {
-		hrd, err := u.KaryawanRepo.GetByRole(ctx, "hrd")
-		if err == nil && hrd != nil {
-			leave.DifinalisasiOleh = &hrd.ID
+	if flow.LangsungFinal {
+		if flow.HRDID != nil {
+			leave.DifinalisasiOleh = flow.HRDID
+		} else {
+			hrd, err := u.KaryawanRepo.GetByRole(ctx, "hrd")
+			if err == nil && hrd != nil {
+				leave.DifinalisasiOleh = &hrd.ID
+			}
+		}
+		if leave.DifinalisasiOleh != nil {
 			now := time.Now()
 			leave.TanggalDifinalisasi = &now
 		}
@@ -145,6 +221,11 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 
 	if err := u.LeaveRepo.Create(ctx, leave); err != nil {
 		return nil, err
+	}
+
+	if leave.MengurangiCuti {
+		tahun := leave.TanggalMulai.Year()
+		u.LeaveRepo.UpdateAkanDilaksanakan(ctx, karyawanID, tahun, totalHari)
 	}
 
 	if u.RiwayatRepo != nil {
@@ -316,50 +397,48 @@ func (u *LeaveUsecase) DownloadSuratCuti(ctx context.Context, leaveID string) ([
 		return nil, "", errors.New("karyawan tidak ditemukan")
 	}
 
-	var atasan *domain.Karyawan
-	if leave.DisetujuiOleh != nil {
-		atasan, _ = u.KaryawanRepo.GetByID(ctx, *leave.DisetujuiOleh)
+	flow, err := u.DetermineApprovalFlow(ctx, karyawan)
+	if err != nil {
+		return nil, "", err
 	}
 
-	if leave.SubTipe == "dispensasi" && atasan == nil {
-		if karyawan.AtasanLangsungID != nil {
+	var atasan *domain.Karyawan
+	if flow.ButuhAtasan {
+		if leave.DisetujuiOleh != nil {
+			atasan, _ = u.KaryawanRepo.GetByID(ctx, *leave.DisetujuiOleh)
+		}
+		if atasan == nil && flow.AtasanID != nil {
+			atasan, _ = u.KaryawanRepo.GetByID(ctx, *flow.AtasanID)
+		}
+		if atasan == nil && karyawan.AtasanLangsungID != nil {
 			atasan, _ = u.KaryawanRepo.GetByID(ctx, *karyawan.AtasanLangsungID)
 		}
-	}
-
-	if leave.SubTipe == "dispensasi" && atasan == nil {
-		atasanList, _, err := u.KaryawanRepo.GetAll(ctx, 10, 0, "", "atasan", "aktif")
-		if err == nil && len(atasanList) > 0 {
-			for _, calonAtasan := range atasanList {
-				if calonAtasan.ID != leave.KaryawanID {
-					atasan = &calonAtasan
-					break
-				}
-			}
-		}
-	}
-
-	if leave.SubTipe == "dispensasi" && atasan == nil {
-		allKaryawan, _, err := u.KaryawanRepo.GetAll(ctx, 100, 0, "", "", "")
-		if err == nil && len(allKaryawan) > 0 {
-			for _, calonAtasan := range allKaryawan {
-				if calonAtasan.ID != leave.KaryawanID && calonAtasan.Role != "hrd" && calonAtasan.Role != "admin" {
-					atasan = &calonAtasan
-					break
+		if atasan == nil {
+			atasanList, _, err := u.KaryawanRepo.GetAll(ctx, 10, 0, "", "atasan", "aktif")
+			if err == nil && len(atasanList) > 0 {
+				for _, calonAtasan := range atasanList {
+					if calonAtasan.ID != leave.KaryawanID {
+						atasan = &calonAtasan
+						break
+					}
 				}
 			}
 		}
 	}
 
 	var hrd *domain.Karyawan
-	if leave.DifinalisasiOleh != nil {
-		hrd, _ = u.KaryawanRepo.GetByID(ctx, *leave.DifinalisasiOleh)
-	}
-
-	if hrd == nil {
-		hrdList, _, err := u.KaryawanRepo.GetAll(ctx, 10, 0, "", "hrd", "aktif")
-		if err == nil && len(hrdList) > 0 {
-			hrd = &hrdList[0]
+	if flow.ButuhHRD {
+		if leave.DifinalisasiOleh != nil {
+			hrd, _ = u.KaryawanRepo.GetByID(ctx, *leave.DifinalisasiOleh)
+		}
+		if hrd == nil && flow.HRDID != nil {
+			hrd, _ = u.KaryawanRepo.GetByID(ctx, *flow.HRDID)
+		}
+		if hrd == nil {
+			hrdList, _, err := u.KaryawanRepo.GetAll(ctx, 10, 0, "", "hrd", "aktif")
+			if err == nil && len(hrdList) > 0 {
+				hrd = &hrdList[0]
+			}
 		}
 	}
 
@@ -370,40 +449,15 @@ func (u *LeaveUsecase) DownloadSuratCuti(ctx context.Context, leaveID string) ([
 	}
 
 	var ttdAtasanURL string
-	if leave.DisetujuiOleh != nil {
-		ttdAtasan, err := u.TTDRepo.GetByKaryawanID(ctx, *leave.DisetujuiOleh)
+	if atasan != nil {
+		ttdAtasan, err := u.TTDRepo.GetByKaryawanID(ctx, atasan.ID)
 		if err == nil && ttdAtasan != nil {
 			ttdAtasanURL = ttdAtasan.URLTandaTangan
 		}
 	}
 
-	if leave.SubTipe == "dispensasi" && ttdAtasanURL == "" {
-		if karyawan.AtasanLangsungID != nil {
-			ttdAtasan, err := u.TTDRepo.GetByKaryawanID(ctx, *karyawan.AtasanLangsungID)
-			if err == nil && ttdAtasan != nil {
-				ttdAtasanURL = ttdAtasan.URLTandaTangan
-			}
-		}
-	}
-
-	if leave.SubTipe == "dispensasi" && ttdAtasanURL == "" {
-		if atasan != nil {
-			ttdAtasan, err := u.TTDRepo.GetByKaryawanID(ctx, atasan.ID)
-			if err == nil && ttdAtasan != nil {
-				ttdAtasanURL = ttdAtasan.URLTandaTangan
-			}
-		}
-	}
-
 	var ttdHRDURL string
-	if leave.DifinalisasiOleh != nil {
-		ttdHRD, err := u.TTDRepo.GetByKaryawanID(ctx, *leave.DifinalisasiOleh)
-		if err == nil && ttdHRD != nil {
-			ttdHRDURL = ttdHRD.URLTandaTangan
-		}
-	}
-
-	if ttdHRDURL == "" && hrd != nil {
+	if hrd != nil {
 		ttdHRD, err := u.TTDRepo.GetByKaryawanID(ctx, hrd.ID)
 		if err == nil && ttdHRD != nil {
 			ttdHRDURL = ttdHRD.URLTandaTangan
@@ -461,12 +515,7 @@ func (u *LeaveUsecase) DownloadSuratCuti(ctx context.Context, leaveID string) ([
 		cutiDilaksanakan = 0
 	}
 
-	jumlahTTD := 3
-	if hrd == nil && atasan == nil {
-		jumlahTTD = 2
-	} else if hrd != nil && atasan == nil {
-		jumlahTTD = 2
-	}
+	jumlahTTD := flow.JumlahTTD
 
 	tanggalMulai := leave.TanggalMulai.Format("2006-01-02")
 	tanggalSelesai := leave.TanggalSelesai.Format("2006-01-02")
