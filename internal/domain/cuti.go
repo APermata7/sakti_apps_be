@@ -82,4 +82,5 @@ type LeaveWithKaryawanResponse struct {
 	KaryawanNama   string `json:"karyawan_nama"`
 	KaryawanDivisi string `json:"karyawan_divisi"`
 	KaryawanUnit   string `json:"karyawan_unit"`
+	SisaCuti       int    `json:"sisa_cuti"`
 }

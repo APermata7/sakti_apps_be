@@ -342,6 +342,7 @@ func (r *LeaveRepo) GetAllLeaves(ctx context.Context, atasanID string, role stri
 	query := `
 		FROM pengajuan_cuti pc
 		JOIN karyawan k ON pc.karyawan_id = k.id
+		LEFT JOIN sisa_cuti sc ON pc.karyawan_id = sc.karyawan_id AND sc.tahun = EXTRACT(YEAR FROM NOW())
 		WHERE 1=1
 	`
 	args := []interface{}{}
@@ -390,7 +391,8 @@ func (r *LeaveRepo) GetAllLeaves(ctx context.Context, atasanID string, role stri
 		       pc.disetujui_oleh, pc.tanggal_disetujui, pc.difinalisasi_oleh,
 		       pc.tanggal_difinalisasi, pc.url_pdf, pc.alasan_batal, pc.tanggal_dibatalkan,
 		       pc.dibuat_pada, pc.diperbarui_pada,
-		       k.nama_lengkap, k.divisi, k.unit
+		       k.nama_lengkap, k.divisi, k.unit,
+		       COALESCE(sc.sisa_cuti, 12) as sisa_cuti
 	` + query + ` ORDER BY pc.dibuat_pada DESC LIMIT $` + strconv.Itoa(argIdx) + ` OFFSET $` + strconv.Itoa(argIdx+1)
 
 	finalArgs := append(args, limit, offset)
@@ -410,6 +412,7 @@ func (r *LeaveRepo) GetAllLeaves(ctx context.Context, atasanID string, role stri
 			&l.TanggalDifinalisasi, &l.URLPDF, &l.AlasanBatal, &l.TanggalDibatalkan,
 			&l.DibuatPada, &l.DiperbaruiPada,
 			&l.KaryawanNama, &l.KaryawanDivisi, &l.KaryawanUnit,
+			&l.SisaCuti,
 		)
 		if err != nil {
 			return nil, 0, err
