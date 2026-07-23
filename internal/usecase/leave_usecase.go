@@ -650,3 +650,38 @@ func (u *LeaveUsecase) GetBalance(ctx context.Context, karyawanID string, year i
 		SisaCutiTahunLaluBerlakuSampai: berlakuSampai,
 	}, nil
 }
+
+func (u *LeaveUsecase) GetAllLeaves(ctx context.Context, userID string, role string, req domain.LeaveFilterRequest) ([]domain.LeaveWithKaryawanResponse, int, error) {
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 10
+	}
+	page := req.Page
+	if page <= 0 {
+		page = 1
+	}
+	offset := (page - 1) * limit
+
+	var atasanID string
+	if role == "atasan" {
+		karyawan, err := u.KaryawanRepo.GetByID(ctx, userID)
+		if err != nil || karyawan == nil {
+			return nil, 0, errors.New("karyawan tidak ditemukan")
+		}
+		atasanID = userID
+	}
+
+	return u.LeaveRepo.GetAllLeaves(ctx, atasanID, role, req.Status, req.SubTipe, req.StartDate, req.EndDate, limit, offset)
+}
+
+func (u *LeaveUsecase) GetApprovalList(ctx context.Context, atasanID string, limit int, page int) ([]domain.LeaveWithKaryawanResponse, int, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+	if page <= 0 {
+		page = 1
+	}
+	offset := (page - 1) * limit
+
+	return u.LeaveRepo.GetPendingLeavesByAtasan(ctx, atasanID, limit, offset)
+}

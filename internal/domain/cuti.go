@@ -67,3 +67,19 @@ type BalanceResponse struct {
 	SisaCutiTahunLalu            int    `json:"sisa_cuti_tahun_lalu"`
 	SisaCutiTahunLaluBerlakuSampai string `json:"sisa_cuti_tahun_lalu_berlaku_sampai,omitempty"`
 }
+
+type LeaveFilterRequest struct {
+	Status    string `json:"status"`
+	SubTipe   string `json:"sub_tipe"`
+	StartDate string `json:"start_date"`
+	EndDate   string `json:"end_date"`
+	Limit     int    `json:"limit"`
+	Page      int    `json:"page"`
+}
+
+type LeaveWithKaryawanResponse struct {
+	PengajuanCuti
+	KaryawanNama   string `json:"karyawan_nama"`
+	KaryawanDivisi string `json:"karyawan_divisi"`
+	KaryawanUnit   string `json:"karyawan_unit"`
+}

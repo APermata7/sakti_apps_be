@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"strconv"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -332,4 +333,93 @@ func (r *LeaveRepo) GetActiveLeaves(ctx context.Context, karyawanID string) ([]d
 		items = append(items, l)
 	}
 	return items, nil
+}
+
+func (r *LeaveRepo) GetAllLeaves(ctx context.Context, atasanID string, role string, status string, subTipe string, startDate string, endDate string, limit int, offset int) ([]domain.LeaveWithKaryawanResponse, int, error) {
+	var items []domain.LeaveWithKaryawanResponse
+	var total int
+
+	query := `
+		FROM pengajuan_cuti pc
+		JOIN karyawan k ON pc.karyawan_id = k.id
+		WHERE 1=1
+	`
+	args := []interface{}{}
+	argIdx := 1
+
+	if role == "atasan" && atasanID != "" {
+		query += ` AND k.atasan_langsung_id = $` + strconv.Itoa(argIdx)
+		args = append(args, atasanID)
+		argIdx++
+	}
+
+	if status != "" {
+		query += ` AND pc.status = $` + strconv.Itoa(argIdx)
+		args = append(args, status)
+		argIdx++
+	}
+
+	if subTipe != "" {
+		query += ` AND pc.sub_tipe = $` + strconv.Itoa(argIdx)
+		args = append(args, subTipe)
+		argIdx++
+	}
+
+	if startDate != "" {
+		query += ` AND pc.tanggal_mulai >= $` + strconv.Itoa(argIdx)
+		args = append(args, startDate)
+		argIdx++
+	}
+
+	if endDate != "" {
+		query += ` AND pc.tanggal_selesai <= $` + strconv.Itoa(argIdx)
+		args = append(args, endDate)
+		argIdx++
+	}
+
+	countQuery := `SELECT COUNT(*) ` + query
+	err := r.DB.QueryRow(ctx, countQuery, args...).Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	dataQuery := `
+		SELECT pc.id, pc.karyawan_id, pc.sub_tipe, pc.tanggal_mulai, pc.tanggal_selesai,
+		       pc.total_hari, pc.alasan, pc.status, pc.back_date, pc.mengurangi_cuti,
+		       pc.langsung_approve, pc.langsung_final, pc.judul_dokumen,
+		       pc.disetujui_oleh, pc.tanggal_disetujui, pc.difinalisasi_oleh,
+		       pc.tanggal_difinalisasi, pc.url_pdf, pc.alasan_batal, pc.tanggal_dibatalkan,
+		       pc.dibuat_pada, pc.diperbarui_pada,
+		       k.nama_lengkap, k.divisi, k.unit
+	` + query + ` ORDER BY pc.dibuat_pada DESC LIMIT $` + strconv.Itoa(argIdx) + ` OFFSET $` + strconv.Itoa(argIdx+1)
+
+	finalArgs := append(args, limit, offset)
+	rows, err := r.DB.Query(ctx, dataQuery, finalArgs...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var l domain.LeaveWithKaryawanResponse
+		err := rows.Scan(
+			&l.ID, &l.KaryawanID, &l.SubTipe, &l.TanggalMulai, &l.TanggalSelesai,
+			&l.TotalHari, &l.Alasan, &l.Status, &l.BackDate, &l.MengurangiCuti,
+			&l.LangsungApprove, &l.LangsungFinal, &l.JudulDokumen,
+			&l.DisetujuiOleh, &l.TanggalDisetujui, &l.DifinalisasiOleh,
+			&l.TanggalDifinalisasi, &l.URLPDF, &l.AlasanBatal, &l.TanggalDibatalkan,
+			&l.DibuatPada, &l.DiperbaruiPada,
+			&l.KaryawanNama, &l.KaryawanDivisi, &l.KaryawanUnit,
+		)
+		if err != nil {
+			return nil, 0, err
+		}
+		items = append(items, l)
+	}
+
+	return items, total, nil
+}
+
+func (r *LeaveRepo) GetPendingLeavesByAtasan(ctx context.Context, atasanID string, limit int, offset int) ([]domain.LeaveWithKaryawanResponse, int, error) {
+	return r.GetAllLeaves(ctx, atasanID, "atasan", "menunggu", "", "", "", limit, offset)
 }

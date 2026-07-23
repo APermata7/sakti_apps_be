@@ -126,6 +126,8 @@ func main() {
 	protected.Post("/leave/request", leaveHandler.CreateLeave)
 	protected.Get("/leave/status", leaveHandler.GetStatus)
 	protected.Get("/leave/balance", leaveHandler.GetBalance)
+	protected.Get("/leave/all", leaveHandler.GetAllLeaves)
+	protected.Get("/leave/approval/list", leaveHandler.GetApprovalList)
 	protected.Get("/leave/:id/download", leaveHandler.DownloadSuratCuti)
 	protected.Put("/leave/:id/cancel", leaveHandler.CancelLeave)
 	protected.Put("/leave/:id/approve", leaveHandler.ApproveLeave)
