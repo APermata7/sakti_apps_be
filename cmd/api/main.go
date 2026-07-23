@@ -69,7 +69,7 @@ func main() {
 	notificationUsecase := usecase.NewNotificationUsecase(fcmTokenRepo, notifikasiRepo, karyawanRepo)
 	liburUsecase := usecase.NewLiburUsecase(liburRepo)
 	konfigurasiUsecase := usecase.NewKonfigurasiUsecase(konfigurasiRepo)
-	adminUsecase := usecase.NewAdminUsecase(dbConn.Pool, karyawanRepo)
+	adminUsecase := usecase.NewAdminUsecase(dbConn.Pool, karyawanRepo, presensiRepo, leaveRepo)
 	ttdUsecase := usecase.NewTTDUsecase(ttdRepo)
 
 	authHandler := handler.NewAuthHandler(authUsecase)
@@ -153,6 +153,11 @@ func main() {
 	adminGroup.Get("/karyawan/:id", adminHandler.GetKaryawan)
 	adminGroup.Put("/karyawan/:id", adminHandler.UpdateKaryawan)
 	adminGroup.Delete("/karyawan/:id", adminHandler.DeleteKaryawan)
+
+	adminGroup.Get("/presensi", adminHandler.GetPresensiReport)
+	adminGroup.Get("/presensi/export", adminHandler.ExportPresensiCSV)
+	adminGroup.Get("/cuti", adminHandler.GetCutiReport)
+	adminGroup.Get("/cuti/export", adminHandler.ExportCutiCSV)
 
 	adminLibur := protected.Group("/admin/libur", middleware.RequireRole("admin"))
 	adminLibur.Post("/", liburHandler.Create)

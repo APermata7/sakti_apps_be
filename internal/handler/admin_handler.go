@@ -2,6 +2,7 @@ package handler
 
 import (
 	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -275,4 +276,120 @@ func (h *AdminHandler) DeleteKaryawan(c *fiber.Ctx) error {
 		"success": true,
 		"message": "Karyawan berhasil dinonaktifkan",
 	})
+}
+
+func (h *AdminHandler) GetPresensiReport(c *fiber.Ctx) error {
+	startDate := c.Query("start_date")
+	endDate := c.Query("end_date")
+	status := c.Query("status")
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+
+	if limit <= 0 {
+		limit = 10
+	}
+	if page <= 0 {
+		page = 1
+	}
+	offset := (page - 1) * limit
+
+	items, total, err := h.AdminUsecase.GetPresensiReport(c.Context(), startDate, endDate, status, limit, offset)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": err.Error(),
+		})
+	}
+
+	totalPages := (total + limit - 1) / limit
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data": fiber.Map{
+			"items": items,
+			"meta": fiber.Map{
+				"total":       total,
+				"page":        page,
+				"limit":       limit,
+				"total_pages": totalPages,
+			},
+		},
+	})
+}
+
+func (h *AdminHandler) ExportPresensiCSV(c *fiber.Ctx) error {
+	startDate := c.Query("start_date")
+	endDate := c.Query("end_date")
+	status := c.Query("status")
+
+	csvData, err := h.AdminUsecase.ExportPresensiCSV(c.Context(), startDate, endDate, status)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": err.Error(),
+		})
+	}
+
+	filename := "laporan_presensi_" + time.Now().Format("20060102_150405") + ".csv"
+	c.Set("Content-Type", "text/csv")
+	c.Set("Content-Disposition", "attachment; filename="+filename)
+	return c.Send(csvData)
+}
+
+func (h *AdminHandler) GetCutiReport(c *fiber.Ctx) error {
+	startDate := c.Query("start_date")
+	endDate := c.Query("end_date")
+	status := c.Query("status")
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+
+	if limit <= 0 {
+		limit = 10
+	}
+	if page <= 0 {
+		page = 1
+	}
+	offset := (page - 1) * limit
+
+	items, total, err := h.AdminUsecase.GetCutiReport(c.Context(), startDate, endDate, status, limit, offset)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": err.Error(),
+		})
+	}
+
+	totalPages := (total + limit - 1) / limit
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data": fiber.Map{
+			"items": items,
+			"meta": fiber.Map{
+				"total":       total,
+				"page":        page,
+				"limit":       limit,
+				"total_pages": totalPages,
+			},
+		},
+	})
+}
+
+func (h *AdminHandler) ExportCutiCSV(c *fiber.Ctx) error {
+	startDate := c.Query("start_date")
+	endDate := c.Query("end_date")
+	status := c.Query("status")
+
+	csvData, err := h.AdminUsecase.ExportCutiCSV(c.Context(), startDate, endDate, status)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": err.Error(),
+		})
+	}
+
+	filename := "laporan_cuti_" + time.Now().Format("20060102_150405") + ".csv"
+	c.Set("Content-Type", "text/csv")
+	c.Set("Content-Disposition", "attachment; filename="+filename)
+	return c.Send(csvData)
 }

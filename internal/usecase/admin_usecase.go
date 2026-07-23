@@ -3,10 +3,13 @@ package usecase
 import (
 	"bytes"
 	"context"
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"os"
+	"strconv"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -17,26 +20,48 @@ import (
 type AdminUsecase struct {
 	DB           *pgxpool.Pool
 	KaryawanRepo *repository.KaryawanRepo
+	PresensiRepo *repository.PresensiRepo
+	LeaveRepo    *repository.LeaveRepo
 	SupabaseURL  string
 	AnonKey      string
 }
 
-func NewAdminUsecase(db *pgxpool.Pool, karyawanRepo *repository.KaryawanRepo) *AdminUsecase {
+func NewAdminUsecase(db *pgxpool.Pool, karyawanRepo *repository.KaryawanRepo, presensiRepo *repository.PresensiRepo, leaveRepo *repository.LeaveRepo) *AdminUsecase {
 	return &AdminUsecase{
 		DB:           db,
 		KaryawanRepo: karyawanRepo,
+		PresensiRepo: presensiRepo,
+		LeaveRepo:    leaveRepo,
 		SupabaseURL:  os.Getenv("SUPABASE_URL"),
 		AnonKey:      os.Getenv("SUPABASE_ANON_KEY"),
 	}
 }
 
 type DashboardStats struct {
-	TotalKaryawan     int `json:"total_karyawan"`
-	KaryawanAktif     int `json:"karyawan_aktif"`
-	PresensiHariIni   int `json:"presensi_hari_ini"`
-	PresensiTerlambat int `json:"presensi_terlambat"`
-	CutiPending       int `json:"cuti_pending"`
-	TotalCutiTahun    int `json:"total_cuti_tahun"`
+	TotalKaryawan      int            `json:"total_karyawan"`
+	KaryawanAktif      int            `json:"karyawan_aktif"`
+	TotalTerlambat     int            `json:"total_terlambat"`
+	TotalLembur        int            `json:"total_lembur"`
+	TotalCutiDisetujui int            `json:"total_cuti_disetujui"`
+	KaryawanPerDept    []DeptStat     `json:"karyawan_per_dept"`
+	PresensiMasuk      []StatusStat   `json:"presensi_masuk"`
+	PresensiKeluar     []StatusStat   `json:"presensi_keluar"`
+	TotalPengajuanCuti []CutiStat     `json:"total_pengajuan_cuti"`
+}
+
+type DeptStat struct {
+	Departemen string `json:"departemen"`
+	Total      int    `json:"total"`
+}
+
+type StatusStat struct {
+	Status string `json:"status"`
+	Total  int    `json:"total"`
+}
+
+type CutiStat struct {
+	Status string `json:"status"`
+	Total  int    `json:"total"`
 }
 
 func (u *AdminUsecase) GetDashboardStats(ctx context.Context) (*DashboardStats, error) {
@@ -48,17 +73,97 @@ func (u *AdminUsecase) GetDashboardStats(ctx context.Context) (*DashboardStats, 
 	queryAktif := `SELECT COUNT(*) FROM karyawan WHERE status_karyawan = 'aktif'`
 	u.DB.QueryRow(ctx, queryAktif).Scan(&stats.KaryawanAktif)
 
-	queryPresensi := `SELECT COUNT(*) FROM presensi WHERE tanggal = CURRENT_DATE`
-	u.DB.QueryRow(ctx, queryPresensi).Scan(&stats.PresensiHariIni)
+	monthStart := time.Now().AddDate(0, 0, -30)
+	queryTerlambat := `SELECT COUNT(*) FROM presensi WHERE tanggal >= $1 AND status = 'terlambat'`
+	u.DB.QueryRow(ctx, queryTerlambat, monthStart).Scan(&stats.TotalTerlambat)
 
-	queryTerlambat := `SELECT COUNT(*) FROM presensi WHERE tanggal = CURRENT_DATE AND status = 'terlambat'`
-	u.DB.QueryRow(ctx, queryTerlambat).Scan(&stats.PresensiTerlambat)
+	queryLembur := `SELECT COUNT(*) FROM presensi WHERE tanggal >= $1 AND lembur = true`
+	u.DB.QueryRow(ctx, queryLembur, monthStart).Scan(&stats.TotalLembur)
 
-	queryPending := `SELECT COUNT(*) FROM pengajuan_cuti WHERE status = 'menunggu'`
-	u.DB.QueryRow(ctx, queryPending).Scan(&stats.CutiPending)
+	queryCutiDisetujui := `SELECT COUNT(*) FROM pengajuan_cuti WHERE status = 'disetujui' AND EXTRACT(MONTH FROM dibuat_pada) = EXTRACT(MONTH FROM CURRENT_DATE)`
+	u.DB.QueryRow(ctx, queryCutiDisetujui).Scan(&stats.TotalCutiDisetujui)
 
-	queryTotalCuti := `SELECT COALESCE(SUM(total_hari), 0) FROM pengajuan_cuti WHERE status = 'disetujui' AND EXTRACT(YEAR FROM dibuat_pada) = EXTRACT(YEAR FROM CURRENT_DATE)`
-	u.DB.QueryRow(ctx, queryTotalCuti).Scan(&stats.TotalCutiTahun)
+	deptQuery := `
+		SELECT 
+			CASE 
+				WHEN divisi IS NOT NULL AND unit IS NOT NULL THEN divisi || ' - ' || unit 
+				WHEN divisi IS NOT NULL THEN divisi 
+				ELSE 'Tidak Ada' 
+			END as departemen,
+			COUNT(*) as total
+		FROM karyawan 
+		WHERE status_karyawan = 'aktif'
+		GROUP BY departemen
+		ORDER BY total DESC
+	`
+	rows, err := u.DB.Query(ctx, deptQuery)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var dept DeptStat
+			rows.Scan(&dept.Departemen, &dept.Total)
+			stats.KaryawanPerDept = append(stats.KaryawanPerDept, dept)
+		}
+	}
+
+	masukQuery := `
+		SELECT 
+			CASE 
+				WHEN jam_masuk IS NULL THEN 'Belum Presensi'
+				WHEN status = 'terlambat' THEN 'Masuk Terlambat'
+				ELSE 'Masuk Tepat Waktu'
+			END as status,
+			COUNT(*) as total
+		FROM presensi 
+		WHERE tanggal = CURRENT_DATE
+		GROUP BY status
+	`
+	rows, err = u.DB.Query(ctx, masukQuery)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var stat StatusStat
+			rows.Scan(&stat.Status, &stat.Total)
+			stats.PresensiMasuk = append(stats.PresensiMasuk, stat)
+		}
+	}
+
+	keluarQuery := `
+		SELECT 
+			CASE 
+				WHEN jam_keluar IS NULL THEN 'Belum Presensi'
+				WHEN lembur = true THEN 'Presensi Lembur'
+				ELSE 'Presensi Keluar'
+			END as status,
+			COUNT(*) as total
+		FROM presensi 
+		WHERE tanggal = CURRENT_DATE
+		GROUP BY status
+	`
+	rows, err = u.DB.Query(ctx, keluarQuery)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var stat StatusStat
+			rows.Scan(&stat.Status, &stat.Total)
+			stats.PresensiKeluar = append(stats.PresensiKeluar, stat)
+		}
+	}
+
+	cutiQuery := `
+		SELECT status, COUNT(*) as total
+		FROM pengajuan_cuti
+		GROUP BY status
+	`
+	rows, err = u.DB.Query(ctx, cutiQuery)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var stat CutiStat
+			rows.Scan(&stat.Status, &stat.Total)
+			stats.TotalPengajuanCuti = append(stats.TotalPengajuanCuti, stat)
+		}
+	}
 
 	return &stats, nil
 }
@@ -81,9 +186,9 @@ func (u *AdminUsecase) CreateKaryawan(ctx context.Context, req domain.CreateKary
 	}
 
 	supabaseReq := map[string]interface{}{
-		"email":          req.Email,
-		"password":       req.Password,
-		"user_metadata":  userMetadata,
+		"email":         req.Email,
+		"password":      req.Password,
+		"user_metadata": userMetadata,
 	}
 
 	jsonBody, _ := json.Marshal(supabaseReq)
@@ -242,4 +347,221 @@ func (u *AdminUsecase) DeleteKaryawan(ctx context.Context, id string) error {
 	}
 
 	return u.KaryawanRepo.Delete(ctx, id)
+}
+
+type PresensiReportItem struct {
+	ID                   string  `json:"id"`
+	KaryawanNama         string  `json:"karyawan_nama"`
+	Tanggal              string  `json:"tanggal"`
+	JamMasuk             string  `json:"jam_masuk"`
+	StatusMasuk          string  `json:"status_masuk"`
+	JamKeluar            string  `json:"jam_keluar"`
+	StatusKeluar         string  `json:"status_keluar"`
+	JenisCuti            string  `json:"jenis_cuti"`
+	LocationStatusMasuk  string  `json:"location_status_masuk"`
+	LocationStatusKeluar string  `json:"location_status_keluar"`
+}
+
+func (u *AdminUsecase) GetPresensiReport(ctx context.Context, startDate, endDate, status string, limit, offset int) ([]PresensiReportItem, int, error) {
+	var items []PresensiReportItem
+	var total int
+
+	query := `
+		FROM presensi p
+		JOIN karyawan k ON p.karyawan_id = k.id
+		WHERE 1=1
+	`
+	args := []interface{}{}
+	argIdx := 1
+
+	if startDate != "" {
+		query += ` AND p.tanggal >= $` + strconv.Itoa(argIdx)
+		args = append(args, startDate)
+		argIdx++
+	}
+	if endDate != "" {
+		query += ` AND p.tanggal <= $` + strconv.Itoa(argIdx)
+		args = append(args, endDate)
+		argIdx++
+	}
+	if status != "" {
+		query += ` AND p.status = $` + strconv.Itoa(argIdx)
+		args = append(args, status)
+		argIdx++
+	}
+
+	countQuery := `SELECT COUNT(*) ` + query
+	err := u.DB.QueryRow(ctx, countQuery, args...).Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	dataQuery := `
+		SELECT p.id, k.nama_lengkap, p.tanggal, 
+		       COALESCE(p.jam_masuk, '') as jam_masuk,
+		       COALESCE(p.status, '') as status_masuk,
+		       COALESCE(p.jam_keluar, '') as jam_keluar,
+		       CASE 
+		           WHEN p.jam_keluar IS NULL THEN 'Belum Presensi'
+		           WHEN p.lembur = true THEN 'Presensi Lembur'
+		           ELSE 'Presensi Keluar'
+		       END as status_keluar,
+		       '' as jenis_cuti,
+		       COALESCE(p.location_status_masuk, '') as location_status_masuk,
+		       COALESCE(p.location_status_keluar, '') as location_status_keluar
+	` + query + ` ORDER BY p.tanggal DESC LIMIT $` + strconv.Itoa(argIdx) + ` OFFSET $` + strconv.Itoa(argIdx+1)
+
+	finalArgs := append(args, limit, offset)
+	rows, err := u.DB.Query(ctx, dataQuery, finalArgs...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var item PresensiReportItem
+		err := rows.Scan(
+			&item.ID, &item.KaryawanNama, &item.Tanggal,
+			&item.JamMasuk, &item.StatusMasuk,
+			&item.JamKeluar, &item.StatusKeluar,
+			&item.JenisCuti, &item.LocationStatusMasuk, &item.LocationStatusKeluar,
+		)
+		if err != nil {
+			return nil, 0, err
+		}
+		items = append(items, item)
+	}
+
+	return items, total, nil
+}
+
+func (u *AdminUsecase) ExportPresensiCSV(ctx context.Context, startDate, endDate, status string) ([]byte, error) {
+	items, _, err := u.GetPresensiReport(ctx, startDate, endDate, status, 10000, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	var buf bytes.Buffer
+	writer := csv.NewWriter(&buf)
+	writer.Write([]string{"ID", "Nama Karyawan", "Tanggal", "Jam Masuk", "Status Masuk", "Jam Keluar", "Status Keluar", "Jenis Cuti", "Status Lokasi Masuk", "Status Lokasi Keluar"})
+
+	for _, item := range items {
+		row := []string{
+			item.ID,
+			item.KaryawanNama,
+			item.Tanggal,
+			item.JamMasuk,
+			item.StatusMasuk,
+			item.JamKeluar,
+			item.StatusKeluar,
+			item.JenisCuti,
+			item.LocationStatusMasuk,
+			item.LocationStatusKeluar,
+		}
+		writer.Write(row)
+	}
+	writer.Flush()
+	return buf.Bytes(), nil
+}
+
+type CutiReportItem struct {
+	ID           string `json:"id"`
+	KaryawanNama string `json:"karyawan_nama"`
+	SubTipe      string `json:"sub_tipe"`
+	Status       string `json:"status"`
+	TanggalMulai string `json:"tanggal_mulai"`
+	TanggalSelesai string `json:"tanggal_selesai"`
+	TotalHari    int    `json:"total_hari"`
+	SisaCuti     int    `json:"sisa_cuti"`
+}
+
+func (u *AdminUsecase) GetCutiReport(ctx context.Context, startDate, endDate, status string, limit, offset int) ([]CutiReportItem, int, error) {
+	var items []CutiReportItem
+	var total int
+
+	query := `
+		FROM pengajuan_cuti pc
+		JOIN karyawan k ON pc.karyawan_id = k.id
+		LEFT JOIN sisa_cuti sc ON pc.karyawan_id = sc.karyawan_id AND sc.tahun = EXTRACT(YEAR FROM NOW())
+		WHERE 1=1
+	`
+	args := []interface{}{}
+	argIdx := 1
+
+	if startDate != "" {
+		query += ` AND pc.tanggal_mulai >= $` + strconv.Itoa(argIdx)
+		args = append(args, startDate)
+		argIdx++
+	}
+	if endDate != "" {
+		query += ` AND pc.tanggal_selesai <= $` + strconv.Itoa(argIdx)
+		args = append(args, endDate)
+		argIdx++
+	}
+	if status != "" {
+		query += ` AND pc.status = $` + strconv.Itoa(argIdx)
+		args = append(args, status)
+		argIdx++
+	}
+
+	countQuery := `SELECT COUNT(*) ` + query
+	err := u.DB.QueryRow(ctx, countQuery, args...).Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	dataQuery := `
+		SELECT pc.id, k.nama_lengkap, pc.sub_tipe, pc.status,
+		       pc.tanggal_mulai, pc.tanggal_selesai, pc.total_hari,
+		       COALESCE(sc.sisa_cuti, 12) as sisa_cuti
+	` + query + ` ORDER BY pc.dibuat_pada DESC LIMIT $` + strconv.Itoa(argIdx) + ` OFFSET $` + strconv.Itoa(argIdx+1)
+
+	finalArgs := append(args, limit, offset)
+	rows, err := u.DB.Query(ctx, dataQuery, finalArgs...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var item CutiReportItem
+		err := rows.Scan(
+			&item.ID, &item.KaryawanNama, &item.SubTipe, &item.Status,
+			&item.TanggalMulai, &item.TanggalSelesai, &item.TotalHari,
+			&item.SisaCuti,
+		)
+		if err != nil {
+			return nil, 0, err
+		}
+		items = append(items, item)
+	}
+
+	return items, total, nil
+}
+
+func (u *AdminUsecase) ExportCutiCSV(ctx context.Context, startDate, endDate, status string) ([]byte, error) {
+	items, _, err := u.GetCutiReport(ctx, startDate, endDate, status, 10000, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	var buf bytes.Buffer
+	writer := csv.NewWriter(&buf)
+	writer.Write([]string{"ID", "Nama Karyawan", "Jenis Cuti", "Status", "Tanggal Mulai", "Tanggal Selesai", "Jumlah Hari", "Kuota Tersedia"})
+
+	for _, item := range items {
+		row := []string{
+			item.ID,
+			item.KaryawanNama,
+			item.SubTipe,
+			item.Status,
+			item.TanggalMulai,
+			item.TanggalSelesai,
+			strconv.Itoa(item.TotalHari),
+			strconv.Itoa(item.SisaCuti),
+		}
+		writer.Write(row)
+	}
+	writer.Flush()
+	return buf.Bytes(), nil
 }
