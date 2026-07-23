@@ -378,6 +378,10 @@ func (r *LeaveRepo) GetAllLeaves(ctx context.Context, atasanID string, role stri
 		argIdx++
 	}
 
+	if role == "hrd" {
+		query += ` AND pc.difinalisasi_oleh IS NULL`
+	}
+
 	countQuery := `SELECT COUNT(*) ` + query
 	err := r.DB.QueryRow(ctx, countQuery, args...).Scan(&total)
 	if err != nil {

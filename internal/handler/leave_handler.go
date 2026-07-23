@@ -362,3 +362,40 @@ func (h *LeaveHandler) GetApprovalList(c *fiber.Ctx) error {
 		},
 	})
 }
+
+func (h *LeaveHandler) GetFinalizationList(c *fiber.Ctx) error {
+	role := c.Locals("role").(string)
+
+	if role != "hrd" && role != "admin" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"message": "Akses ditolak. Hanya HRD dan Admin yang dapat mengakses",
+		})
+	}
+
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+
+	items, total, err := h.LeaveUsecase.GetFinalizationList(c.Context(), limit, page)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": err.Error(),
+		})
+	}
+
+	totalPages := (total + limit - 1) / limit
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data": fiber.Map{
+			"items": items,
+			"meta": fiber.Map{
+				"total":       total,
+				"page":        page,
+				"limit":       limit,
+				"total_pages": totalPages,
+			},
+		},
+	})
+}

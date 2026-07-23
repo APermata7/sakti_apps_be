@@ -685,3 +685,15 @@ func (u *LeaveUsecase) GetApprovalList(ctx context.Context, atasanID string, lim
 
 	return u.LeaveRepo.GetPendingLeavesByAtasan(ctx, atasanID, limit, offset)
 }
+
+func (u *LeaveUsecase) GetFinalizationList(ctx context.Context, limit int, page int) ([]domain.LeaveWithKaryawanResponse, int, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+	if page <= 0 {
+		page = 1
+	}
+	offset := (page - 1) * limit
+
+	return u.LeaveRepo.GetAllLeaves(ctx, "", "hrd", "disetujui", "", "", "", limit, offset)
+}
