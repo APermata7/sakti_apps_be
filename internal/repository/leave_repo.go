@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -244,6 +245,36 @@ func (r *LeaveRepo) GetBalance(ctx context.Context, karyawanID string, year int)
 	return &b, nil
 }
 
+func (r *LeaveRepo) GetBalanceWithCarryOver(ctx context.Context, karyawanID string, year int) (*domain.SisaCuti, error) {
+	now := time.Now()
+	bulan := int(now.Month())
+
+	balance, err := r.GetBalance(ctx, karyawanID, year)
+	if err != nil {
+		return nil, err
+	}
+
+	if balance == nil {
+		balance = &domain.SisaCuti{
+			KaryawanID:        karyawanID,
+			Tahun:             year,
+			JumlahCuti:        12,
+			TelahDilaksanakan: 0,
+			AkanDilaksanakan:  0,
+			SisaCuti:          12,
+		}
+	}
+
+	if bulan >= 1 && bulan <= 3 {
+		balanceTahunLalu, err := r.GetBalance(ctx, karyawanID, year-1)
+		if err == nil && balanceTahunLalu != nil && balanceTahunLalu.SisaCuti > 0 {
+			balance.JumlahCuti = 12 + balanceTahunLalu.SisaCuti
+		}
+	}
+
+	return balance, nil
+}
+
 func (r *LeaveRepo) UpdateAkanDilaksanakan(ctx context.Context, karyawanID string, tahun int, totalHari int) error {
 	query := `
 		UPDATE sisa_cuti 
@@ -267,6 +298,15 @@ func (r *LeaveRepo) UpdateBalance(ctx context.Context, karyawanID string, tahun 
 			  AND EXTRACT(YEAR FROM tanggal_mulai) = $2
 			  AND tanggal_mulai <= CURRENT_DATE
 		),
+		akan_dilaksanakan = (
+			SELECT COALESCE(SUM(total_hari), 0)
+			FROM pengajuan_cuti
+			WHERE karyawan_id = $1
+			  AND status IN ('menunggu', 'disetujui')
+			  AND mengurangi_cuti = true
+			  AND EXTRACT(YEAR FROM tanggal_mulai) = $2
+			  AND tanggal_mulai > CURRENT_DATE
+		),
 		sisa_cuti = jumlah_cuti - (
 			SELECT COALESCE(SUM(total_hari), 0)
 			FROM pengajuan_cuti
@@ -274,6 +314,7 @@ func (r *LeaveRepo) UpdateBalance(ctx context.Context, karyawanID string, tahun 
 			  AND status = 'disetujui'
 			  AND mengurangi_cuti = true
 			  AND EXTRACT(YEAR FROM tanggal_mulai) = $2
+			  AND tanggal_mulai <= CURRENT_DATE
 		),
 		diperbarui_pada = NOW()
 		WHERE karyawan_id = $1 AND tahun = $2

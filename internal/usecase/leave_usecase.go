@@ -151,7 +151,7 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 		}
 	}
 
-	balance, err := u.LeaveRepo.GetBalance(ctx, karyawanID, time.Now().Year())
+	balance, err := u.LeaveRepo.GetBalanceWithCarryOver(ctx, karyawanID, time.Now().Year())
 	if err != nil {
 		return nil, errors.New("gagal mendapatkan kuota cuti")
 	}
@@ -309,6 +309,11 @@ func (u *LeaveUsecase) ApproveLeave(ctx context.Context, leaveID, managerID stri
 		return nil, err
 	}
 
+	if leave.MengurangiCuti {
+		tahun := leave.TanggalMulai.Year()
+		u.LeaveRepo.UpdateBalance(ctx, leave.KaryawanID, tahun)
+	}
+
 	if u.RiwayatRepo != nil {
 		karyawan, _ := u.KaryawanRepo.GetByID(ctx, managerID)
 		namaAtasan := "atasan"
@@ -336,6 +341,11 @@ func (u *LeaveUsecase) RejectLeave(ctx context.Context, leaveID, managerID, alas
 
 	if err := u.LeaveRepo.Reject(ctx, leaveID, managerID, alasan); err != nil {
 		return nil, err
+	}
+
+	if leave.MengurangiCuti {
+		tahun := leave.TanggalMulai.Year()
+		u.LeaveRepo.UpdateBalance(ctx, leave.KaryawanID, tahun)
 	}
 
 	if u.RiwayatRepo != nil {
@@ -619,7 +629,7 @@ func (u *LeaveUsecase) GetBalance(ctx context.Context, karyawanID string, year i
 		tahun = time.Now().Year()
 	}
 
-	balance, err := u.LeaveRepo.GetBalance(ctx, karyawanID, tahun)
+	balance, err := u.LeaveRepo.GetBalanceWithCarryOver(ctx, karyawanID, tahun)
 	if err != nil {
 		return nil, err
 	}
