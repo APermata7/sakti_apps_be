@@ -675,11 +675,16 @@ func (u *LeaveUsecase) GetBalance(ctx context.Context, karyawanID string, year i
 			TelahDilaksanakan:            0,
 			AkanDilaksanakan:             0,
 			SisaCuti:                     12,
-			KuotaPengajuanTersedia:       12,
+			SisaCutiTahunIni:             12,
 			SisaCutiTahunLalu:            sisaCutiTahunLalu,
+			TotalCutiTersedia:            12 + sisaCutiTahunLalu,
+			KuotaPengajuanTersedia:       12 + sisaCutiTahunLalu,
 			SisaCutiTahunLaluBerlakuSampai: berlakuSampai,
 		}, nil
 	}
+
+	sisaCutiTahunIni := balance.SisaCuti
+	totalCutiTersedia := sisaCutiTahunIni + sisaCutiTahunLalu
 
 	return &domain.BalanceResponse{
 		Tahun:                        balance.Tahun,
@@ -687,8 +692,10 @@ func (u *LeaveUsecase) GetBalance(ctx context.Context, karyawanID string, year i
 		TelahDilaksanakan:            balance.TelahDilaksanakan,
 		AkanDilaksanakan:             balance.AkanDilaksanakan,
 		SisaCuti:                     balance.SisaCuti,
-		KuotaPengajuanTersedia:       balance.SisaCuti - balance.AkanDilaksanakan,
+		SisaCutiTahunIni:             sisaCutiTahunIni,
 		SisaCutiTahunLalu:            sisaCutiTahunLalu,
+		TotalCutiTersedia:            totalCutiTersedia,
+		KuotaPengajuanTersedia:       totalCutiTersedia - balance.AkanDilaksanakan,
 		SisaCutiTahunLaluBerlakuSampai: berlakuSampai,
 	}, nil
 }
