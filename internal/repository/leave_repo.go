@@ -289,7 +289,8 @@ func (r *LeaveRepo) UpdateAkanDilaksanakan(ctx context.Context, karyawanID strin
 func (r *LeaveRepo) UpdateBalance(ctx context.Context, karyawanID string, tahun int) error {
 	query := `
 		UPDATE sisa_cuti 
-		SET telah_dilaksanakan = (
+		SET jumlah_cuti = sisa_cuti,
+		    telah_dilaksanakan = (
 			SELECT COALESCE(SUM(total_hari), 0)
 			FROM pengajuan_cuti
 			WHERE karyawan_id = $1
@@ -297,8 +298,8 @@ func (r *LeaveRepo) UpdateBalance(ctx context.Context, karyawanID string, tahun 
 			  AND difinalisasi_oleh IS NOT NULL
 			  AND mengurangi_cuti = true
 			  AND EXTRACT(YEAR FROM tanggal_mulai) = $2
-		),
-		akan_dilaksanakan = (
+		    ),
+		    akan_dilaksanakan = (
 			SELECT COALESCE(SUM(total_hari), 0)
 			FROM pengajuan_cuti
 			WHERE karyawan_id = $1
@@ -311,8 +312,8 @@ func (r *LeaveRepo) UpdateBalance(ctx context.Context, karyawanID string, tahun 
 					  AND difinalisasi_oleh IS NULL
 				  )
 			  )
-		),
-		sisa_cuti = jumlah_cuti - (
+		    ),
+		    sisa_cuti = jumlah_cuti - (
 			SELECT COALESCE(SUM(total_hari), 0)
 			FROM pengajuan_cuti
 			WHERE karyawan_id = $1
@@ -320,8 +321,8 @@ func (r *LeaveRepo) UpdateBalance(ctx context.Context, karyawanID string, tahun 
 			  AND difinalisasi_oleh IS NOT NULL
 			  AND mengurangi_cuti = true
 			  AND EXTRACT(YEAR FROM tanggal_mulai) = $2
-		),
-		diperbarui_pada = NOW()
+		    ),
+		    diperbarui_pada = NOW()
 		WHERE karyawan_id = $1 AND tahun = $2
 	`
 	_, err := r.DB.Exec(ctx, query, karyawanID, tahun)
