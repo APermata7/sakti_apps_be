@@ -267,6 +267,15 @@ func (u *LeaveUsecase) CancelLeave(ctx context.Context, leaveID, karyawanID stri
 		return nil, errors.New("pengajuan tidak bisa dibatalkan")
 	}
 
+	sekarang := time.Now()
+	tanggalMulai := leave.TanggalMulai
+	batasBatal := time.Date(tanggalMulai.Year(), tanggalMulai.Month(), tanggalMulai.Day(), 0, 0, 0, 0, time.Local).Add(-24 * time.Hour)
+	batasBatal = time.Date(batasBatal.Year(), batasBatal.Month(), batasBatal.Day(), 23, 59, 59, 0, time.Local)
+
+	if sekarang.After(batasBatal) {
+		return nil, errors.New("pembatalan cuti hanya dapat dilakukan maksimal H-24 jam sebelum tanggal mulai cuti")
+	}
+
 	if err := u.LeaveRepo.UpdateStatus(ctx, leaveID, "dibatalkan"); err != nil {
 		return nil, err
 	}
