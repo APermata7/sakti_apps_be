@@ -19,6 +19,26 @@ func NewKaryawanRepo(db *pgxpool.Pool) *KaryawanRepo {
 	return &KaryawanRepo{DB: db}
 }
 
+func getDepartemen(divisi *string, unit *string) string {
+	divisiVal := ""
+	unitVal := ""
+	if divisi != nil {
+		divisiVal = *divisi
+	}
+	if unit != nil {
+		unitVal = *unit
+	}
+
+	if divisiVal != "" && unitVal != "" && divisiVal != unitVal {
+		return divisiVal + " - " + unitVal
+	} else if divisiVal != "" {
+		return divisiVal
+	} else if unitVal != "" {
+		return unitVal
+	}
+	return "-"
+}
+
 func (r *KaryawanRepo) GetByID(ctx context.Context, id string) (*domain.Karyawan, error) {
 	query := `
 		SELECT id, nama_lengkap, email, nomor_telepon, foto_url, 
@@ -52,6 +72,8 @@ func (r *KaryawanRepo) GetByID(ctx context.Context, id string) (*domain.Karyawan
 		}
 		return nil, err
 	}
+
+	k.Departemen = getDepartemen(k.Divisi, k.Unit)
 
 	return &k, nil
 }
@@ -90,6 +112,8 @@ func (r *KaryawanRepo) GetByEmail(ctx context.Context, email string) (*domain.Ka
 		return nil, err
 	}
 
+	k.Departemen = getDepartemen(k.Divisi, k.Unit)
+
 	return &k, nil
 }
 
@@ -127,6 +151,8 @@ func (r *KaryawanRepo) GetByRole(ctx context.Context, role string) (*domain.Kary
 		}
 		return nil, err
 	}
+
+	k.Departemen = getDepartemen(k.Divisi, k.Unit)
 
 	return &k, nil
 }
@@ -265,6 +291,7 @@ func (r *KaryawanRepo) GetAll(ctx context.Context, limit, offset int, search, ro
 		if err != nil {
 			return nil, 0, err
 		}
+		k.Departemen = getDepartemen(k.Divisi, k.Unit)
 		karyawanList = append(karyawanList, k)
 	}
 
