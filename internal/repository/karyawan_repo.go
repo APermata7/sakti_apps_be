@@ -43,7 +43,7 @@ func (r *KaryawanRepo) GetByID(ctx context.Context, id string) (*domain.Karyawan
 	query := `
 		SELECT id, nama_lengkap, email, nomor_telepon, foto_url, 
 		       role, level_jabatan, atasan_langsung_id, 
-		       divisi, unit, status_karyawan, dibuat_pada, diperbarui_pada
+		       divisi, unit, status_karyawan, telegram_chat_id, dibuat_pada, diperbarui_pada
 		FROM karyawan
 		WHERE id = $1
 	`
@@ -62,6 +62,7 @@ func (r *KaryawanRepo) GetByID(ctx context.Context, id string) (*domain.Karyawan
 		&k.Divisi,
 		&k.Unit,
 		&k.StatusKaryawan,
+		&k.TelegramChatID,
 		&k.DibuatPada,
 		&k.DiperbaruiPada,
 	)
@@ -82,7 +83,7 @@ func (r *KaryawanRepo) GetByEmail(ctx context.Context, email string) (*domain.Ka
 	query := `
 		SELECT id, nama_lengkap, email, nomor_telepon, foto_url, 
 		       role, level_jabatan, atasan_langsung_id, 
-		       divisi, unit, status_karyawan, dibuat_pada, diperbarui_pada
+		       divisi, unit, status_karyawan, telegram_chat_id, dibuat_pada, diperbarui_pada
 		FROM karyawan
 		WHERE email = $1
 	`
@@ -101,6 +102,7 @@ func (r *KaryawanRepo) GetByEmail(ctx context.Context, email string) (*domain.Ka
 		&k.Divisi,
 		&k.Unit,
 		&k.StatusKaryawan,
+		&k.TelegramChatID,
 		&k.DibuatPada,
 		&k.DiperbaruiPada,
 	)
@@ -121,7 +123,7 @@ func (r *KaryawanRepo) GetByRole(ctx context.Context, role string) (*domain.Kary
 	query := `
 		SELECT id, nama_lengkap, email, nomor_telepon, foto_url, 
 		       role, level_jabatan, atasan_langsung_id, 
-		       divisi, unit, status_karyawan, dibuat_pada, diperbarui_pada
+		       divisi, unit, status_karyawan, telegram_chat_id, dibuat_pada, diperbarui_pada
 		FROM karyawan
 		WHERE role = $1 AND status_karyawan = 'aktif'
 		LIMIT 1
@@ -141,6 +143,7 @@ func (r *KaryawanRepo) GetByRole(ctx context.Context, role string) (*domain.Kary
 		&k.Divisi,
 		&k.Unit,
 		&k.StatusKaryawan,
+		&k.TelegramChatID,
 		&k.DibuatPada,
 		&k.DiperbaruiPada,
 	)
@@ -162,8 +165,8 @@ func (r *KaryawanRepo) Create(ctx context.Context, k *domain.Karyawan) error {
 		INSERT INTO karyawan (
 			id, nama_lengkap, email, nomor_telepon, foto_url, 
 			role, level_jabatan, atasan_langsung_id, 
-			divisi, unit, status_karyawan, dibuat_pada, diperbarui_pada
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
+			divisi, unit, status_karyawan, telegram_chat_id, dibuat_pada, diperbarui_pada
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
 		ON CONFLICT (id) DO UPDATE SET
 			nama_lengkap = EXCLUDED.nama_lengkap,
 			email = EXCLUDED.email,
@@ -175,6 +178,7 @@ func (r *KaryawanRepo) Create(ctx context.Context, k *domain.Karyawan) error {
 			divisi = EXCLUDED.divisi,
 			unit = EXCLUDED.unit,
 			status_karyawan = EXCLUDED.status_karyawan,
+			telegram_chat_id = EXCLUDED.telegram_chat_id,
 			diperbarui_pada = NOW()
 	`
 
@@ -190,6 +194,7 @@ func (r *KaryawanRepo) Create(ctx context.Context, k *domain.Karyawan) error {
 		k.Divisi,
 		k.Unit,
 		k.StatusKaryawan,
+		k.TelegramChatID,
 	)
 
 	return err
@@ -200,7 +205,7 @@ func (r *KaryawanRepo) Update(ctx context.Context, k *domain.Karyawan) error {
 		UPDATE karyawan 
 		SET nama_lengkap = $2, nomor_telepon = $3, foto_url = $4,
 		    role = $5, level_jabatan = $6, atasan_langsung_id = $7,
-		    divisi = $8, unit = $9, status_karyawan = $10, diperbarui_pada = NOW()
+		    divisi = $8, unit = $9, status_karyawan = $10, telegram_chat_id = $11, diperbarui_pada = NOW()
 		WHERE id = $1
 	`
 
@@ -215,6 +220,7 @@ func (r *KaryawanRepo) Update(ctx context.Context, k *domain.Karyawan) error {
 		k.Divisi,
 		k.Unit,
 		k.StatusKaryawan,
+		k.TelegramChatID,
 	)
 
 	return err
@@ -259,7 +265,7 @@ func (r *KaryawanRepo) GetAll(ctx context.Context, limit, offset int, search, ro
 	query := `
 		SELECT id, nama_lengkap, email, nomor_telepon, foto_url, 
 		       role, level_jabatan, atasan_langsung_id, 
-		       divisi, unit, status_karyawan, dibuat_pada, diperbarui_pada
+		       divisi, unit, status_karyawan, telegram_chat_id, dibuat_pada, diperbarui_pada
 		FROM karyawan
 	` + whereClause + fmt.Sprintf(" ORDER BY dibuat_pada DESC LIMIT $%d OFFSET $%d", argIdx, argIdx+1)
 
@@ -285,6 +291,7 @@ func (r *KaryawanRepo) GetAll(ctx context.Context, limit, offset int, search, ro
 			&k.Divisi,
 			&k.Unit,
 			&k.StatusKaryawan,
+			&k.TelegramChatID,
 			&k.DibuatPada,
 			&k.DiperbaruiPada,
 		)

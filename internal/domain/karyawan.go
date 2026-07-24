@@ -15,6 +15,7 @@ type Karyawan struct {
 	Unit             *string    `json:"unit"`
 	StatusKaryawan   string     `json:"status_karyawan"`
 	Departemen       string     `json:"departemen"`
+	TelegramChatID   *string    `json:"telegram_chat_id"`
 	DibuatPada       time.Time  `json:"dibuat_pada"`
 	DiperbaruiPada   time.Time  `json:"diperbarui_pada"`
 }
