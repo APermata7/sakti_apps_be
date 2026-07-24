@@ -170,8 +170,10 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 		mengurangiCuti = false
 	}
 
-	if mengurangiCuti && totalHari > balance.SisaCuti {
-		return nil, errors.New("kuota cuti tidak mencukupi")
+	kuotaTersedia := balance.SisaCuti - balance.AkanDilaksanakan
+
+	if mengurangiCuti && totalHari > kuotaTersedia {
+		return nil, errors.New("jumlah hari cuti melebihi kuota cuti yang tersedia")
 	}
 
 	flow, err := u.DetermineApprovalFlow(ctx, karyawan)
@@ -673,6 +675,7 @@ func (u *LeaveUsecase) GetBalance(ctx context.Context, karyawanID string, year i
 			TelahDilaksanakan:            0,
 			AkanDilaksanakan:             0,
 			SisaCuti:                     12,
+			KuotaPengajuanTersedia:       12,
 			SisaCutiTahunLalu:            sisaCutiTahunLalu,
 			SisaCutiTahunLaluBerlakuSampai: berlakuSampai,
 		}, nil
@@ -684,6 +687,7 @@ func (u *LeaveUsecase) GetBalance(ctx context.Context, karyawanID string, year i
 		TelahDilaksanakan:            balance.TelahDilaksanakan,
 		AkanDilaksanakan:             balance.AkanDilaksanakan,
 		SisaCuti:                     balance.SisaCuti,
+		KuotaPengajuanTersedia:       balance.SisaCuti - balance.AkanDilaksanakan,
 		SisaCutiTahunLalu:            sisaCutiTahunLalu,
 		SisaCutiTahunLaluBerlakuSampai: berlakuSampai,
 	}, nil

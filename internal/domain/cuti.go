@@ -64,6 +64,7 @@ type BalanceResponse struct {
 	TelahDilaksanakan            int    `json:"telah_dilaksanakan"`
 	AkanDilaksanakan             int    `json:"akan_dilaksanakan"`
 	SisaCuti                     int    `json:"sisa_cuti"`
+	KuotaPengajuanTersedia       int    `json:"kuota_pengajuan_tersedia"`
 	SisaCutiTahunLalu            int    `json:"sisa_cuti_tahun_lalu"`
 	SisaCutiTahunLaluBerlakuSampai string `json:"sisa_cuti_tahun_lalu_berlaku_sampai,omitempty"`
 }
