@@ -64,9 +64,9 @@ func main() {
 
 	authUsecase := usecase.NewAuthUsecase(karyawanRepo, riwayatRepo)
 	presensiUsecase := usecase.NewPresensiUsecase(presensiRepo, karyawanRepo, configRepo, riwayatRepo)
-	leaveUsecase := usecase.NewLeaveUsecase(leaveRepo, karyawanRepo, ttdRepo, konfigurasiRepo, riwayatRepo)
-	riwayatUsecase := usecase.NewRiwayatUsecase(riwayatRepo)
 	notificationUsecase := usecase.NewNotificationUsecase(fcmTokenRepo, notifikasiRepo, karyawanRepo)
+	leaveUsecase := usecase.NewLeaveUsecase(leaveRepo, karyawanRepo, ttdRepo, konfigurasiRepo, riwayatRepo, notificationUsecase)
+	riwayatUsecase := usecase.NewRiwayatUsecase(riwayatRepo)
 	liburUsecase := usecase.NewLiburUsecase(liburRepo)
 	konfigurasiUsecase := usecase.NewKonfigurasiUsecase(konfigurasiRepo)
 	adminUsecase := usecase.NewAdminUsecase(dbConn.Pool, karyawanRepo, presensiRepo, leaveRepo)
