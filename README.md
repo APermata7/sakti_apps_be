@@ -11,13 +11,14 @@ Backend Service untuk Sistem Presensi dan Manajemen Kepegawaian KOPEGTEL Malang.
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Go-1.25+-00ADD8?style=for-the-badge&logo=go" alt="Go">
+  <img src="https://img.shields.io/badge/Go-1.21+-00ADD8?style=for-the-badge&logo=go" alt="Go">
   &nbsp;
   <img src="https://img.shields.io/badge/Fiber-v2-00ADD8?style=for-the-badge" alt="Fiber">
   &nbsp;
   <img src="https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?style=for-the-badge&logo=supabase" alt="Supabase">
   &nbsp;
-  <img src="https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker" alt="Docker">
+  <img src="https://img.shields.io/badge/Cloudinary-Cloud-3448C5?style=for-the-badge&logo=cloudinary" alt="Cloudinary">
+  &nbsp;
 </p>
 
 ---
@@ -56,7 +57,7 @@ Pengembangan backend ini bertujuan untuk:
 | Role | Hak Akses |
 |------|-----------|
 | **Admin** | Akses penuh ke semua fitur dan data |
-| **Atasan** | Melihat dan menyetujui pengajuan bawahan |
+| **Atasan** | Melihat, menyetujui, dan menolak pengajuan bawahan |
 | **HRD** | Mengelola data karyawan, cuti, dan finalisasi |
 | **Karyawan** | Presensi, pengajuan cuti, dan data pribadi |
 
@@ -66,10 +67,11 @@ Pengembangan backend ini bertujuan untuk:
 
 - CRUD Data Karyawan
 - Profil Pengguna
-- Divisi & Unit
+- Divisi & Unit (digabung menjadi Departemen di tampilan)
 - Level Jabatan (staff, officer, spv, ka_unit, manager, gm, hrd)
 - Status Karyawan (aktif / nonaktif)
 - Atasan Langsung
+- Tanda Tangan Digital (TTD)
 
 ---
 
@@ -79,21 +81,20 @@ Fitur presensi meliputi:
 
 - **Check In** dengan validasi:
   - Validasi Geofencing (radius kantor)
-  - Validasi Face Recognition (FaceNet)
+  - Validasi Face Recognition (MobileFaceNet)
   - Deteksi keterlambatan berdasarkan jam kerja
+  - Status lokasi (di_dalam_radius / di_luar_radius)
 - **Check Out** dengan validasi:
   - Validasi Geofencing
   - Perhitungan lembur otomatis
-- Riwayat Presensi dengan filter
+  - Status lokasi keluar
+- Riwayat Presensi dengan filter tanggal dan status
 - Status Kehadiran hari ini
 
 **Status Presensi:**
 - Tepat Waktu
 - Terlambat
-- Izin
-- Sakit
-- Cuti
-- Lembur
+- Belum Presensi
 
 ---
 
@@ -104,8 +105,8 @@ Jenis pengajuan yang didukung:
 | Jenis | Deskripsi | Proses |
 |-------|-----------|--------|
 | **Cuti** | Mengurangi saldo cuti tahunan | Atasan → HRD |
-| **Dispensasi** | Tidak mengurangi saldo cuti | Atasan → HRD |
-| **Cuti Darurat** | Dapat diajukan hari yang sama | HRD |
+| **Dispensasi** | Tidak mengurangi saldo cuti, maksimal 2 hari | Langsung Final (Auto) |
+| **Sakit** | Mengurangi saldo cuti tahunan | Atasan → HRD |
 
 **Status Pengajuan:**
 - Menunggu
@@ -114,18 +115,25 @@ Jenis pengajuan yang didukung:
 - Dibatalkan
 - Difinalisasi (HRD)
 
+**Aturan Bisnis:**
+- Cuti hanya bisa dibatalkan maksimal H-24 jam
+- Kuota cuti = sisa cuti tahun ini + sisa cuti tahun lalu (berlaku sampai 31 Maret)
+- Karyawan dengan role atasan/manager langsung auto approve
+- Karyawan dengan role HRD langsung auto final
+
 ---
 
-### 📄 Generate Dokumen
+### 📄 Generate Dokumen PDF
 
 Sistem dapat menghasilkan dokumen PDF:
 
 - **Surat Cuti** (2 atau 3 Tanda Tangan)
-  - 3 TTD: Pemohon + Atasan + HRD
-  - 2 TTD: Pemohon + HRD
+  - 3 TTD: Pemohon + Atasan + HRD (karyawan biasa)
+  - 2 TTD: Pemohon + HRD (atasan/manager)
+  - 2 TTD: Pemohon + Atasan (HRD)
 - **Surat Dispensasi** (2 atau 3 Tanda Tangan)
-- **Rekap Presensi**
-- **Rekap Pengajuan**
+- Format tanggal Indonesia (contoh: 24 Juli 2026)
+- Logo Perusahaan dari konfigurasi
 
 ---
 
@@ -133,49 +141,45 @@ Sistem dapat menghasilkan dokumen PDF:
 
 **Jenis Notifikasi:**
 - In-App Notification
-- WhatsApp API
+- Telegram Bot (untuk atasan)
 
 **Trigger Notifikasi:**
-- Pengajuan dibuat
-- Pengajuan disetujui atasan
-- Pengajuan ditolak
-- Pengajuan difinalisasi HRD
-- Reminder presensi
+- Pengajuan cuti baru → Atasan
+- Pengajuan disetujui atasan → Karyawan
+- Pengajuan ditolak → Karyawan
+- Pengajuan difinalisasi HRD → Karyawan
+- Pembatalan cuti → Atasan
 
 ---
 
 ### 📊 Dashboard & Pelaporan
 
-**Statistik Dashboard:**
+**Dashboard Admin:**
 - Total Karyawan
 - Karyawan Aktif
-- Presensi Hari Ini
-- Presensi Terlambat
-- Cuti Pending
-- Total Cuti Tahun Berjalan
+- Total Terlambat (Bulan ini)
+- Total Lembur (Bulan ini)
+- Total Cuti Disetujui (Bulan ini)
+- Grafik Karyawan per Departemen (Divisi-Unit)
+- Grafik Presensi Masuk (Tepat Waktu, Terlambat, Belum Presensi)
+- Grafik Presensi Keluar (Presensi Keluar, Presensi Lembur, Belum Presensi)
+- Grafik Total Pengajuan Cuti (Disetujui, Ditolak, Menunggu, Dibatalkan)
 
-**Laporan Tersedia:**
-- Rekap Presensi
-- Rekap Keterlambatan
-- Rekap Cuti
-- Rekap Lembur
-
-**Format Ekspor:**
-- CSV
-- PDF
+**Laporan Admin:**
+- Laporan Presensi (filter tanggal, status)
+- Laporan Cuti (filter tanggal, status)
+- Export ke CSV
 
 ---
 
-### 📝 Audit Log
+### 📝 Riwayat & Log Aktivitas
 
 Seluruh aktivitas penting dicatat:
 
 - Login / Logout
-- Perubahan Data Karyawan
-- Approval / Reject Pengajuan
-- Finalisasi HRD
-- Generate Laporan
-- Hapus Data
+- Check-in / Check-out
+- Pengajuan Cuti (diajukan, disetujui, ditolak, dibatalkan, difinalisasi)
+- Perubahan Password
 
 ---
 
@@ -183,7 +187,7 @@ Seluruh aktivitas penting dicatat:
 
 | Komponen | Teknologi |
 |----------|------------|
-| Bahasa Pemrograman | Go 1.25+ |
+| Bahasa Pemrograman | Go 1.21+ |
 | Framework | Fiber v2 |
 | Database | PostgreSQL |
 | Database Cloud | Supabase |
@@ -193,9 +197,8 @@ Seluruh aktivitas penting dicatat:
 | Storage | Supabase Storage |
 | Image Storage | Cloudinary |
 | PDF Generator | gofpdf/v2 |
-| Face Recognition | FaceNet (TFLite/ONNX) |
-| Notification | FCM + WhatsApp API |
-| Deployment | Docker |
+| Face Recognition | MobileFaceNet (InsightFace) |
+| Notification | FCM + Telegram Bot |
 
 ---
 
@@ -208,19 +211,19 @@ Request
 
 ↓
 
-Handler
+Handler (HTTP Layer)
 
 ↓
 
-Usecase
+Usecase (Business Logic)
 
 ↓
 
-Repository
+Repository (Data Access)
 
 ↓
 
-Database
+Database (Supabase PostgreSQL)
 
 ↓
 
@@ -255,7 +258,7 @@ sakti-backend
 │   └── utils/
 │
 ├── pkg/
-│   ├── database/
+│   ├── db/
 │   └── logger/
 │
 ├── migrations/
@@ -316,22 +319,6 @@ http://localhost:8080
 
 ---
 
-## 🐳 Menjalankan Menggunakan Docker
-
-Build image
-
-```bash
-docker build -t sakti-backend .
-```
-
-Menjalankan container
-
-```bash
-docker run -p 8080:8080 sakti-backend
-```
-
----
-
 ## 📡 Modul API
 
 Backend menyediakan beberapa kelompok endpoint:
@@ -339,11 +326,12 @@ Backend menyediakan beberapa kelompok endpoint:
 | Modul | Deskripsi | Endpoint Prefix |
 |-------|-----------|-----------------|
 | **Authentication** | Login, logout, profile, change password, forgot/reset password | `/api/auth/*` |
-| **Attendance** | Check-in, check-out, today, history, update alasan terlambat | `/api/attendance/*` |
-| **Leave** | Create, status, download surat, cancel, approve, reject, finalize | `/api/leave/*` |
-| **Admin** | Dashboard, CRUD karyawan, CRUD libur, konfigurasi kerja | `/api/admin/*` |
+| **Attendance** | Check-in, check-out, today, history, update alasan terlambat, work-config | `/api/attendance/*` |
+| **Leave** | Create, status, balance, all, approval list, finalization list, download surat, cancel, approve, reject, finalize | `/api/leave/*` |
+| **Admin** | Dashboard, CRUD karyawan, laporan presensi, laporan cuti, export CSV | `/api/admin/*` |
+| **Config** | Konfigurasi kerja (jam kerja, radius, logo) | `/api/admin/konfigurasi/*` |
+| **Holiday** | CRUD hari libur, cek hari libur (public) | `/api/admin/libur/*`, `/api/libur/*` |
 | **Notification** | Get notifications, unread count, mark read, mark all read | `/api/notifikasi/*` |
+| **TTD** | Upload, get, update, delete tanda tangan digital | `/api/ttd/*` |
 | **Riwayat** | Riwayat aktivitas user | `/api/riwayat` |
-| **Libur** | Cek hari libur (public) | `/api/libur/check` |
 | **Upload** | Upload file, image, TTD | `/upload/*` |
----
