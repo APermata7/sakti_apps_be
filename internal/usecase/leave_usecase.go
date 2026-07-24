@@ -695,7 +695,7 @@ func (u *LeaveUsecase) GetBalance(ctx context.Context, karyawanID string, year i
 		SisaCutiTahunIni:             sisaCutiTahunIni,
 		SisaCutiTahunLalu:            sisaCutiTahunLalu,
 		TotalCutiTersedia:            totalCutiTersedia,
-		KuotaPengajuanTersedia:       totalCutiTersedia - balance.TelahDilaksanakan - balance.AkanDilaksanakan,
+		KuotaPengajuanTersedia:       totalCutiTersedia - balance.AkanDilaksanakan,
 		SisaCutiTahunLaluBerlakuSampai: berlakuSampai,
 	}, nil
 }
