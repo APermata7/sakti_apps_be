@@ -294,27 +294,32 @@ func (r *LeaveRepo) UpdateBalance(ctx context.Context, karyawanID string, tahun 
 			FROM pengajuan_cuti
 			WHERE karyawan_id = $1
 			  AND status = 'disetujui'
+			  AND difinalisasi_oleh IS NOT NULL
 			  AND mengurangi_cuti = true
 			  AND EXTRACT(YEAR FROM tanggal_mulai) = $2
-			  AND tanggal_mulai <= CURRENT_DATE
 		),
 		akan_dilaksanakan = (
 			SELECT COALESCE(SUM(total_hari), 0)
 			FROM pengajuan_cuti
 			WHERE karyawan_id = $1
-			  AND status IN ('menunggu', 'disetujui')
 			  AND mengurangi_cuti = true
 			  AND EXTRACT(YEAR FROM tanggal_mulai) = $2
-			  AND tanggal_mulai > CURRENT_DATE
+			  AND (
+				  status = 'menunggu'
+				  OR (
+					  status = 'disetujui'
+					  AND difinalisasi_oleh IS NULL
+				  )
+			  )
 		),
 		sisa_cuti = jumlah_cuti - (
 			SELECT COALESCE(SUM(total_hari), 0)
 			FROM pengajuan_cuti
 			WHERE karyawan_id = $1
 			  AND status = 'disetujui'
+			  AND difinalisasi_oleh IS NOT NULL
 			  AND mengurangi_cuti = true
 			  AND EXTRACT(YEAR FROM tanggal_mulai) = $2
-			  AND tanggal_mulai <= CURRENT_DATE
 		),
 		diperbarui_pada = NOW()
 		WHERE karyawan_id = $1 AND tahun = $2
