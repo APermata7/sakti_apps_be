@@ -263,11 +263,18 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 		}
 	}
 
-	telegram := utils.NewTelegramBot()
+	telegram := utils.NewTelegramBot(u.KaryawanRepo.DB)
 	if telegram != nil && karyawan.AtasanLangsungID != nil {
 		atasan, _ := u.KaryawanRepo.GetByID(ctx, *karyawan.AtasanLangsungID)
 		if atasan != nil && atasan.TelegramChatID != nil && *atasan.TelegramChatID != "" {
-			go telegram.SendCreateLeaveNotification(*atasan.TelegramChatID, karyawan.NamaLengkap, strconv.Itoa(totalHari), req.Alasan)
+			go telegram.SendCreateLeaveNotification(
+				*atasan.TelegramChatID,
+				atasan.ID,
+				karyawan.NamaLengkap,
+				strconv.Itoa(totalHari),
+				req.Alasan,
+				leave.ID,
+			)
 		}
 	}
 
@@ -355,11 +362,16 @@ func (u *LeaveUsecase) CancelLeave(ctx context.Context, leaveID, karyawanID stri
 			}
 		}
 
-		telegram := utils.NewTelegramBot()
+		telegram := utils.NewTelegramBot(u.KaryawanRepo.DB)
 		if telegram != nil && leave.DisetujuiOleh != nil {
 			atasan, _ := u.KaryawanRepo.GetByID(ctx, *leave.DisetujuiOleh)
 			if atasan != nil && atasan.TelegramChatID != nil && *atasan.TelegramChatID != "" {
-				go telegram.SendCancelLeaveNotification(*atasan.TelegramChatID, karyawan.NamaLengkap, "Dibatalkan oleh karyawan")
+				go telegram.SendCancelLeaveNotification(
+					*atasan.TelegramChatID,
+					atasan.ID,
+					karyawan.NamaLengkap,
+					leaveID,
+				)
 			}
 		}
 	}
