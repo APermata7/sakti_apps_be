@@ -99,7 +99,7 @@ func (t *TelegramBot) SaveNotification(karyawanID, judul, pesan, referensiID, re
 
 	_, err := t.DB.Exec(context.Background(), query,
 		karyawanID,
-		"pengajuan_cuti",
+		"pengajuan",
 		"telegram",
 		judul,
 		pesan,
@@ -138,7 +138,7 @@ func (t *TelegramBot) SendCreateLeaveNotification(chatID, karyawanID, karyawanNa
 		"Pengajuan Cuti Baru",
 		karyawanNama+" mengajukan cuti "+totalHari+" hari",
 		leaveID,
-		"pengajuan_cuti",
+		"pengajuan",
 	)
 }
 
@@ -168,7 +168,7 @@ func (t *TelegramBot) SendCancelLeaveNotification(chatID, karyawanID, karyawanNa
 		"Pengajuan Cuti Dibatalkan",
 		"Pengajuan cuti "+karyawanNama+" telah dibatalkan",
 		leaveID,
-		"pengajuan_cuti",
+		"pengajuan",
 	)
 }
 

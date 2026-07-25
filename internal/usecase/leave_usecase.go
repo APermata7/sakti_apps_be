@@ -241,7 +241,7 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 	if u.NotificationUsecase != nil {
 		go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
 			KaryawanID:    karyawanID,
-			Jenis:         "cuti_diajukan",
+			Jenis:         "pengajuan",
 			Judul:         "Pengajuan Cuti Berhasil",
 			Pesan:         "Pengajuan cuti " + req.SubTipe + " " + strconv.Itoa(totalHari) + " hari berhasil diajukan",
 			ReferensiID:   leave.ID,
@@ -253,7 +253,7 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 			if atasan != nil {
 				go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
 					KaryawanID:    atasan.ID,
-					Jenis:         "cuti_menunggu_approval",
+					Jenis:         "pengajuan",
 					Judul:         "Pengajuan Cuti Baru",
 					Pesan:         karyawan.NamaLengkap + " mengajukan cuti " + strconv.Itoa(totalHari) + " hari",
 					ReferensiID:   leave.ID,
@@ -340,7 +340,7 @@ func (u *LeaveUsecase) CancelLeave(ctx context.Context, leaveID, karyawanID stri
 		if u.NotificationUsecase != nil {
 			go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
 				KaryawanID:    leave.KaryawanID,
-				Jenis:         "cuti_dibatalkan",
+				Jenis:         "penolakan",
 				Judul:         "Pengajuan Cuti Dibatalkan",
 				Pesan:         "Pengajuan cuti Anda telah dibatalkan",
 				ReferensiID:   leaveID,
@@ -352,7 +352,7 @@ func (u *LeaveUsecase) CancelLeave(ctx context.Context, leaveID, karyawanID stri
 				if atasan != nil {
 					go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
 						KaryawanID:    atasan.ID,
-						Jenis:         "cuti_dibatalkan",
+						Jenis:         "penolakan",
 						Judul:         "Pengajuan Cuti Dibatalkan",
 						Pesan:         "Pengajuan cuti " + karyawan.NamaLengkap + " telah dibatalkan",
 						ReferensiID:   leaveID,
@@ -415,7 +415,7 @@ func (u *LeaveUsecase) ApproveLeave(ctx context.Context, leaveID, managerID stri
 		if karyawan != nil {
 			go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
 				KaryawanID:    leave.KaryawanID,
-				Jenis:         "cuti_disetujui",
+				Jenis:         "persetujuan",
 				Judul:         "Pengajuan Cuti Disetujui",
 				Pesan:         "Pengajuan cuti Anda telah disetujui oleh atasan",
 				ReferensiID:   leaveID,
@@ -463,7 +463,7 @@ func (u *LeaveUsecase) RejectLeave(ctx context.Context, leaveID, managerID, alas
 		if karyawan != nil {
 			go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
 				KaryawanID:    leave.KaryawanID,
-				Jenis:         "cuti_ditolak",
+				Jenis:         "penolakan",
 				Judul:         "Pengajuan Cuti Ditolak",
 				Pesan:         "Pengajuan cuti Anda ditolak dengan alasan: " + alasan,
 				ReferensiID:   leaveID,
@@ -511,7 +511,7 @@ func (u *LeaveUsecase) FinalizeLeave(ctx context.Context, leaveID, hrdID, catata
 		if karyawan != nil {
 			go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
 				KaryawanID:    leave.KaryawanID,
-				Jenis:         "cuti_difinalisasi",
+				Jenis:         "persetujuan",
 				Judul:         "Pengajuan Cuti Difinalisasi",
 				Pesan:         "Pengajuan cuti Anda telah difinalisasi oleh HRD",
 				ReferensiID:   leaveID,
