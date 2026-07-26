@@ -69,7 +69,7 @@ func (u *LeaveUsecase) DetermineApprovalFlow(ctx context.Context, karyawan *doma
 		flow.JumlahTTD = 1
 
 	case "hrd":
-		flow.LangsungApprove = true
+		flow.LangsungApprove = false
 		flow.LangsungFinal = true
 		flow.ButuhAtasan = true
 		flow.ButuhHRD = false
@@ -87,7 +87,7 @@ func (u *LeaveUsecase) DetermineApprovalFlow(ctx context.Context, karyawan *doma
 
 	case "atasan", "manager":
 		flow.LangsungApprove = true
-		flow.LangsungFinal = true
+		flow.LangsungFinal = false
 		flow.ButuhAtasan = false
 		flow.ButuhHRD = true
 		flow.JumlahTTD = 2
