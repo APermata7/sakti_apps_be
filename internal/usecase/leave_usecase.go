@@ -762,7 +762,7 @@ func (u *LeaveUsecase) GetBalance(ctx context.Context, karyawanID string, year i
 		tahun = time.Now().Year()
 	}
 
-	balance, err := u.LeaveRepo.GetBalanceWithCarryOver(ctx, karyawanID, tahun)
+	balance, err := u.LeaveRepo.GetBalance(ctx, karyawanID, tahun)
 	if err != nil {
 		return nil, err
 	}
@@ -772,25 +772,28 @@ func (u *LeaveUsecase) GetBalance(ctx context.Context, karyawanID string, year i
 	sekarang := time.Now()
 	batasAkhirMaret := time.Date(sekarang.Year(), 3, 31, 23, 59, 59, 0, time.Local)
 
+	jumlahCuti := 12
+
 	if sekarang.Before(batasAkhirMaret) || sekarang.Equal(batasAkhirMaret) {
 		balanceTahunLalu, err := u.LeaveRepo.GetBalance(ctx, karyawanID, tahun-1)
 		if err == nil && balanceTahunLalu != nil && balanceTahunLalu.SisaCuti > 0 {
 			sisaCutiTahunLalu = balanceTahunLalu.SisaCuti
 			berlakuSampai = "31 Maret " + strconv.Itoa(tahun)
+			jumlahCuti = 12 + sisaCutiTahunLalu
 		}
 	}
 
 	if balance == nil {
 		return &domain.BalanceResponse{
 			Tahun:                        tahun,
-			JumlahCuti:                   12,
+			JumlahCuti:                   jumlahCuti,
 			TelahDilaksanakan:            0,
 			AkanDilaksanakan:             0,
-			SisaCuti:                     12,
+			SisaCuti:                     jumlahCuti,
 			SisaCutiTahunIni:             12,
 			SisaCutiTahunLalu:            sisaCutiTahunLalu,
-			TotalCutiTersedia:            12 + sisaCutiTahunLalu,
-			KuotaPengajuanTersedia:       12 + sisaCutiTahunLalu,
+			TotalCutiTersedia:            jumlahCuti,
+			KuotaPengajuanTersedia:       jumlahCuti,
 			SisaCutiTahunLaluBerlakuSampai: berlakuSampai,
 		}, nil
 	}
@@ -798,9 +801,19 @@ func (u *LeaveUsecase) GetBalance(ctx context.Context, karyawanID string, year i
 	sisaCutiTahunIni := balance.SisaCuti
 	totalCutiTersedia := sisaCutiTahunIni + sisaCutiTahunLalu
 
+	if sekarang.Before(batasAkhirMaret) || sekarang.Equal(batasAkhirMaret) {
+		if sisaCutiTahunLalu > 0 {
+			totalCutiTersedia = sisaCutiTahunIni + sisaCutiTahunLalu
+			jumlahCuti = 12 + sisaCutiTahunLalu
+		}
+	} else {
+		sisaCutiTahunLalu = 0
+		berlakuSampai = ""
+	}
+
 	return &domain.BalanceResponse{
 		Tahun:                        balance.Tahun,
-		JumlahCuti:                   totalCutiTersedia,
+		JumlahCuti:                   jumlahCuti,
 		TelahDilaksanakan:            balance.TelahDilaksanakan,
 		AkanDilaksanakan:             balance.AkanDilaksanakan,
 		SisaCuti:                     totalCutiTersedia,
