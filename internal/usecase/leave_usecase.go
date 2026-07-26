@@ -173,7 +173,7 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 		mengurangiCuti = false
 	}
 
-	kuotaTersedia := balance.SisaCuti - balance.AkanDilaksanakan
+	kuotaTersedia := balance.JumlahCuti - balance.TelahDilaksanakan - balance.AkanDilaksanakan
 
 	if mengurangiCuti && totalHari > kuotaTersedia {
 		return nil, errors.New("jumlah hari cuti melebihi kuota cuti yang tersedia")
