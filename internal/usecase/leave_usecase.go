@@ -395,24 +395,29 @@ func (u *LeaveUsecase) ApproveLeave(ctx context.Context, leaveID, managerID stri
 		return nil, err
 	}
 
+	karyawan, _ := u.KaryawanRepo.GetByID(ctx, leave.KaryawanID)
+	if karyawan != nil && karyawan.Role == "hrd" {
+		u.LeaveRepo.Finalize(ctx, leaveID, managerID, "Otomatis final dari atasan")
+	}
+
 	if leave.MengurangiCuti {
 		tahun := leave.TanggalMulai.Year()
 		u.LeaveRepo.UpdateBalance(ctx, leave.KaryawanID, tahun)
 	}
 
 	if u.RiwayatRepo != nil {
-		karyawan, _ := u.KaryawanRepo.GetByID(ctx, managerID)
+		karyawanAtasan, _ := u.KaryawanRepo.GetByID(ctx, managerID)
 		namaAtasan := "atasan"
-		if karyawan != nil {
-			namaAtasan = karyawan.NamaLengkap
+		if karyawanAtasan != nil {
+			namaAtasan = karyawanAtasan.NamaLengkap
 		}
 		detail := "Cuti disetujui oleh " + namaAtasan
 		u.RiwayatRepo.CreateRiwayat(ctx, leave.KaryawanID, "cuti_disetujui", detail)
 	}
 
 	if u.NotificationUsecase != nil {
-		karyawan, _ := u.KaryawanRepo.GetByID(ctx, leave.KaryawanID)
-		if karyawan != nil {
+		karyawanPemohon, _ := u.KaryawanRepo.GetByID(ctx, leave.KaryawanID)
+		if karyawanPemohon != nil {
 			go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
 				KaryawanID:    leave.KaryawanID,
 				Jenis:         "persetujuan",
