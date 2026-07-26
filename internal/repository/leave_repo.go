@@ -278,11 +278,24 @@ func (r *LeaveRepo) GetBalanceWithCarryOver(ctx context.Context, karyawanID stri
 func (r *LeaveRepo) UpdateAkanDilaksanakan(ctx context.Context, karyawanID string, tahun int, totalHari int) error {
 	query := `
 		UPDATE sisa_cuti 
-		SET akan_dilaksanakan = akan_dilaksanakan + $1,
-		    diperbarui_pada = NOW()
-		WHERE karyawan_id = $2 AND tahun = $3
+		SET akan_dilaksanakan = (
+			SELECT COALESCE(SUM(total_hari), 0)
+			FROM pengajuan_cuti
+			WHERE karyawan_id = $1
+			  AND mengurangi_cuti = true
+			  AND EXTRACT(YEAR FROM tanggal_mulai) = $2
+			  AND (
+				  status = 'menunggu'
+				  OR (
+					  status = 'disetujui'
+					  AND difinalisasi_oleh IS NULL
+				  )
+			  )
+		),
+		diperbarui_pada = NOW()
+		WHERE karyawan_id = $1 AND tahun = $2
 	`
-	_, err := r.DB.Exec(ctx, query, totalHari, karyawanID, tahun)
+	_, err := r.DB.Exec(ctx, query, karyawanID, tahun)
 	return err
 }
 
