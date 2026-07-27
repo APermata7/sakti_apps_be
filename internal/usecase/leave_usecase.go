@@ -391,11 +391,6 @@ func (u *LeaveUsecase) ApproveLeave(ctx context.Context, leaveID, managerID stri
 		return nil, err
 	}
 
-	if leave.MengurangiCuti {
-		tahun := leave.TanggalMulai.Year()
-		u.LeaveRepo.UpdateAkanDilaksanakan(ctx, leave.KaryawanID, tahun)
-	}
-
 	karyawan, _ := u.KaryawanRepo.GetByID(ctx, leave.KaryawanID)
 	if karyawan != nil && karyawan.Role == "hrd" {
 		return u.FinalizeLeave(ctx, leaveID, managerID, "Otomatis final dari atasan")
