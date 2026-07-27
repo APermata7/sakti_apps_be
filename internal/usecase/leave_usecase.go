@@ -230,7 +230,7 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 
 	if leave.MengurangiCuti {
 		tahun := leave.TanggalMulai.Year()
-		u.LeaveRepo.UpdateAkanDilaksanakan(ctx, karyawanID, tahun, totalHari)
+		u.LeaveRepo.UpdateAkanDilaksanakan(ctx, karyawanID, tahun)
 	}
 
 	if u.RiwayatRepo != nil {
@@ -298,27 +298,19 @@ func (u *LeaveUsecase) CancelLeave(ctx context.Context, leaveID, karyawanID stri
 		return nil, errors.New("anda tidak memiliki akses")
 	}
 
-	if leave.SubTipe != "dispensasi" {
-		if leave.DifinalisasiOleh == nil || leave.TanggalDifinalisasi == nil {
-			return nil, errors.New("pengajuan belum difinalisasi HRD, tidak dapat dibatalkan")
-		}
-	} else {
-		if leave.TanggalDifinalisasi == nil {
-			return nil, errors.New("pengajuan belum difinalisasi, tidak dapat dibatalkan")
-		}
-	}
-
-	if leave.Status != "disetujui" {
+	if leave.Status != "menunggu" && leave.Status != "disetujui" {
 		return nil, errors.New("pengajuan tidak bisa dibatalkan")
 	}
 
-	sekarang := time.Now()
-	tanggalMulai := leave.TanggalMulai
-	batasBatal := time.Date(tanggalMulai.Year(), tanggalMulai.Month(), tanggalMulai.Day(), 0, 0, 0, 0, time.Local).Add(-24 * time.Hour)
-	batasBatal = time.Date(batasBatal.Year(), batasBatal.Month(), batasBatal.Day(), 23, 59, 59, 0, time.Local)
+	if leave.Status == "disetujui" && leave.DifinalisasiOleh == nil {
+		sekarang := time.Now()
+		tanggalMulai := leave.TanggalMulai
+		batasBatal := time.Date(tanggalMulai.Year(), tanggalMulai.Month(), tanggalMulai.Day(), 0, 0, 0, 0, time.Local).Add(-24 * time.Hour)
+		batasBatal = time.Date(batasBatal.Year(), batasBatal.Month(), batasBatal.Day(), 23, 59, 59, 0, time.Local)
 
-	if sekarang.After(batasBatal) {
-		return nil, errors.New("pembatalan cuti hanya dapat dilakukan maksimal H-24 jam sebelum tanggal mulai cuti")
+		if sekarang.After(batasBatal) {
+			return nil, errors.New("pembatalan cuti hanya dapat dilakukan maksimal H-24 jam sebelum tanggal mulai cuti")
+		}
 	}
 
 	if err := u.LeaveRepo.UpdateStatus(ctx, leaveID, "dibatalkan"); err != nil {
@@ -327,7 +319,11 @@ func (u *LeaveUsecase) CancelLeave(ctx context.Context, leaveID, karyawanID stri
 
 	if leave.MengurangiCuti {
 		tahun := leave.TanggalMulai.Year()
-		u.LeaveRepo.UpdateBalance(ctx, leave.KaryawanID, tahun)
+		if leave.DifinalisasiOleh != nil {
+			u.LeaveRepo.UpdateBalance(ctx, leave.KaryawanID, tahun)
+		} else {
+			u.LeaveRepo.UpdateAkanDilaksanakan(ctx, leave.KaryawanID, tahun)
+		}
 	}
 
 	if u.RiwayatRepo != nil {
@@ -395,14 +391,14 @@ func (u *LeaveUsecase) ApproveLeave(ctx context.Context, leaveID, managerID stri
 		return nil, err
 	}
 
-	karyawan, _ := u.KaryawanRepo.GetByID(ctx, leave.KaryawanID)
-	if karyawan != nil && karyawan.Role == "hrd" {
-		u.LeaveRepo.Finalize(ctx, leaveID, managerID, "Otomatis final dari atasan")
-	}
-
 	if leave.MengurangiCuti {
 		tahun := leave.TanggalMulai.Year()
-		u.LeaveRepo.UpdateBalance(ctx, leave.KaryawanID, tahun)
+		u.LeaveRepo.UpdateAkanDilaksanakan(ctx, leave.KaryawanID, tahun)
+	}
+
+	karyawan, _ := u.KaryawanRepo.GetByID(ctx, leave.KaryawanID)
+	if karyawan != nil && karyawan.Role == "hrd" {
+		return u.FinalizeLeave(ctx, leaveID, managerID, "Otomatis final dari atasan")
 	}
 
 	if u.RiwayatRepo != nil {
@@ -450,7 +446,7 @@ func (u *LeaveUsecase) RejectLeave(ctx context.Context, leaveID, managerID, alas
 
 	if leave.MengurangiCuti {
 		tahun := leave.TanggalMulai.Year()
-		u.LeaveRepo.UpdateBalance(ctx, leave.KaryawanID, tahun)
+		u.LeaveRepo.UpdateAkanDilaksanakan(ctx, leave.KaryawanID, tahun)
 	}
 
 	if u.RiwayatRepo != nil {
