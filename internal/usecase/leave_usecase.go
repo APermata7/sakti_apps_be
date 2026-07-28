@@ -709,9 +709,12 @@ func (u *LeaveUsecase) DownloadSuratCuti(ctx context.Context, leaveID string) ([
 
 	jumlahTTD := flow.JumlahTTD
 	if leave.SubTipe == "dispensasi" {
-		if karyawan.Role == "admin" {
+		switch karyawan.Role {
+		case "admin":
 			jumlahTTD = 1
-		} else {
+		case "karyawan":
+			jumlahTTD = 3
+		default:
 			jumlahTTD = 2
 		}
 	}
