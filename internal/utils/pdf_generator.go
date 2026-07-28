@@ -359,8 +359,8 @@ func addKeputusan2TTD(pdf *gofpdf.Fpdf, data PDFData) {
 	pdf.Ln(4)
 
 	lebarKolom := 55.0
-	jarakKolom := 50.0
-	marginKanan := 30.0
+	jarakKolom := 45.0
+	marginKanan := 25.0
 	totalLebar := (lebarKolom * 2) + jarakKolom
 	xAwal := 210.0 - marginKanan - totalLebar
 
@@ -426,7 +426,7 @@ func addKeputusan3TTD(pdf *gofpdf.Fpdf, data PDFData) {
 	pdf.CellFormat(0, 6.5, fmt.Sprintf("Malang, %s", formatTanggalIndonesia(data.TanggalSekarang)), "", 1, "L", false, 0, "")
 	pdf.Ln(4)
 
-	x := 30.0
+	x := 35.0
 	y := pdf.GetY()
 
 	pdf.SetDrawColor(0, 0, 0)
@@ -443,7 +443,7 @@ func addKeputusan3TTD(pdf *gofpdf.Fpdf, data PDFData) {
 	pdf.SetFont("Helvetica", "", 12)
 	pdf.CellFormat(40, 6, data.NamaHRD, "", 0, "C", false, 0, "")
 
-	x += 50
+	x += 52
 	pdf.SetFont("Helvetica", "B", 12)
 	pdf.SetXY(x, y)
 	pdf.CellFormat(40, 6.5, "Menyetujui Atasan", "", 0, "C", false, 0, "")
@@ -456,7 +456,7 @@ func addKeputusan3TTD(pdf *gofpdf.Fpdf, data PDFData) {
 	pdf.SetFont("Helvetica", "", 12)
 	pdf.CellFormat(40, 6, data.NamaAtasan, "", 0, "C", false, 0, "")
 
-	x += 50
+	x += 52
 	pdf.SetFont("Helvetica", "B", 12)
 	pdf.SetXY(x, y)
 	pdf.CellFormat(40, 6.5, "Pemohon", "", 0, "C", false, 0, "")
