@@ -88,13 +88,6 @@ func (u *LeaveUsecase) DetermineApprovalFlow(ctx context.Context, karyawan *doma
 	}
 
 	switch karyawan.Role {
-	case "admin":
-		flow.LangsungApprove = true
-		flow.LangsungFinal = true
-		flow.ButuhAtasan = false
-		flow.ButuhHRD = false
-		flow.JumlahTTD = 1
-
 	case "hrd":
 		flow.LangsungApprove = false
 		flow.LangsungFinal = true
@@ -438,7 +431,7 @@ func (u *LeaveUsecase) ApproveLeave(ctx context.Context, leaveID, managerID stri
 
 	karyawan, _ := u.KaryawanRepo.GetByID(ctx, leave.KaryawanID)
 	if karyawan != nil && karyawan.Role == "hrd" {
-		return u.FinalizeLeave(ctx, leaveID, managerID, "Otomatis final dari atasan")
+		return u.FinalizeLeave(ctx, leaveID, managerID)
 	}
 
 	if u.RiwayatRepo != nil {
@@ -516,7 +509,7 @@ func (u *LeaveUsecase) RejectLeave(ctx context.Context, leaveID, managerID, alas
 	return u.LeaveRepo.GetByID(ctx, leaveID)
 }
 
-func (u *LeaveUsecase) FinalizeLeave(ctx context.Context, leaveID, hrdID, catatan string) (*domain.PengajuanCuti, error) {
+func (u *LeaveUsecase) FinalizeLeave(ctx context.Context, leaveID, hrdID string) (*domain.PengajuanCuti, error) {
 	leave, err := u.LeaveRepo.GetByID(ctx, leaveID)
 	if err != nil {
 		return nil, errors.New("pengajuan tidak ditemukan")
@@ -528,7 +521,7 @@ func (u *LeaveUsecase) FinalizeLeave(ctx context.Context, leaveID, hrdID, catata
 		return nil, errors.New("pengajuan belum disetujui atasan")
 	}
 
-	if err := u.LeaveRepo.Finalize(ctx, leaveID, hrdID, catatan); err != nil {
+	if err := u.LeaveRepo.Finalize(ctx, leaveID, hrdID); err != nil {
 		return nil, err
 	}
 
@@ -745,8 +738,6 @@ func (u *LeaveUsecase) DownloadSuratCuti(ctx context.Context, leaveID string) ([
 	jumlahTTD := flow.JumlahTTD
 	if leave.SubTipe == "dispensasi" {
 		switch karyawan.Role {
-		case "admin":
-			jumlahTTD = 1
 		case "karyawan":
 			jumlahTTD = 3
 		default:

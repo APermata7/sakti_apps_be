@@ -219,7 +219,7 @@ func (r *LeaveRepo) UpdateAlasanBatal(ctx context.Context, id, alasan string) er
 	return err
 }
 
-func (r *LeaveRepo) Finalize(ctx context.Context, id, hrdID, catatan string) error {
+func (r *LeaveRepo) Finalize(ctx context.Context, id, hrdID string) error {
 	query := `
 		UPDATE pengajuan_cuti 
 		SET difinalisasi_oleh = $1, 

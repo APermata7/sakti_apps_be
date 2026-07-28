@@ -262,12 +262,7 @@ func (h *LeaveHandler) FinalizeLeave(c *fiber.Ctx) error {
 
 	userID := c.Locals("user_id").(string)
 
-	var req domain.FinalizeCutiRequest
-	if err := c.BodyParser(&req); err != nil {
-		req.Catatan = ""
-	}
-
-	cuti, err := h.LeaveUsecase.FinalizeLeave(c.Context(), leaveID, userID, req.Catatan)
+	cuti, err := h.LeaveUsecase.FinalizeLeave(c.Context(), leaveID, userID)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
