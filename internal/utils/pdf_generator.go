@@ -443,7 +443,7 @@ func addKeputusan3TTD(pdf *gofpdf.Fpdf, data PDFData) {
 	pdf.SetFont("Helvetica", "", 12)
 	pdf.CellFormat(40, 6, data.NamaHRD, "", 0, "C", false, 0, "")
 
-	x += 52
+	x += 55
 	pdf.SetFont("Helvetica", "B", 12)
 	pdf.SetXY(x, y)
 	pdf.CellFormat(40, 6.5, "Menyetujui Atasan", "", 0, "C", false, 0, "")
@@ -456,7 +456,7 @@ func addKeputusan3TTD(pdf *gofpdf.Fpdf, data PDFData) {
 	pdf.SetFont("Helvetica", "", 12)
 	pdf.CellFormat(40, 6, data.NamaAtasan, "", 0, "C", false, 0, "")
 
-	x += 52
+	x += 55
 	pdf.SetFont("Helvetica", "B", 12)
 	pdf.SetXY(x, y)
 	pdf.CellFormat(40, 6.5, "Pemohon", "", 0, "C", false, 0, "")
