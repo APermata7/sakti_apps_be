@@ -520,236 +520,268 @@ func (u *LeaveUsecase) FinalizeLeave(ctx context.Context, leaveID, hrdID, catata
 }
 
 func (u *LeaveUsecase) DownloadSuratCuti(ctx context.Context, leaveID string) ([]byte, string, error) {
-    leave, err := u.LeaveRepo.GetByID(ctx, leaveID)
-    if err != nil {
-        return nil, "", err
-    }
-    if leave == nil {
-        return nil, "", errors.New("pengajuan tidak ditemukan")
-    }
+	leave, err := u.LeaveRepo.GetByID(ctx, leaveID)
+	if err != nil {
+		return nil, "", err
+	}
+	if leave == nil {
+		return nil, "", errors.New("pengajuan tidak ditemukan")
+	}
 
-    if leave.Status != "disetujui" && leave.Status != "dibatalkan" {
-        return nil, "", errors.New("pengajuan belum disetujui")
-    }
+	if leave.SubTipe == "dispensasi" {
+		if leave.Status != "disetujui" {
+			return nil, "", errors.New("surat dispensasi hanya dapat diunduh untuk pengajuan yang disetujui")
+		}
+	} else {
+		if leave.Status != "disetujui" && leave.Status != "dibatalkan" {
+			return nil, "", errors.New("pengajuan belum disetujui")
+		}
+	}
 
-    karyawan, err := u.KaryawanRepo.GetByID(ctx, leave.KaryawanID)
-    if err != nil {
-        return nil, "", err
-    }
-    if karyawan == nil {
-        return nil, "", errors.New("karyawan tidak ditemukan")
-    }
+	karyawan, err := u.KaryawanRepo.GetByID(ctx, leave.KaryawanID)
+	if err != nil {
+		return nil, "", err
+	}
+	if karyawan == nil {
+		return nil, "", errors.New("karyawan tidak ditemukan")
+	}
 
-    flow, err := u.DetermineApprovalFlow(ctx, karyawan)
-    if err != nil {
-        return nil, "", err
-    }
+	flow, err := u.DetermineApprovalFlow(ctx, karyawan)
+	if err != nil {
+		return nil, "", err
+	}
 
-    var atasan *domain.Karyawan
-    if flow.ButuhAtasan {
-        if leave.DisetujuiOleh != nil {
-            atasan, _ = u.KaryawanRepo.GetByID(ctx, *leave.DisetujuiOleh)
-        }
-        if atasan == nil && flow.AtasanID != nil {
-            atasan, _ = u.KaryawanRepo.GetByID(ctx, *flow.AtasanID)
-        }
-        if atasan == nil && karyawan.AtasanLangsungID != nil {
-            atasan, _ = u.KaryawanRepo.GetByID(ctx, *karyawan.AtasanLangsungID)
-        }
-        if atasan == nil {
-            atasanList, _, err := u.KaryawanRepo.GetAll(ctx, 10, 0, "", "atasan", "aktif")
-            if err == nil && len(atasanList) > 0 {
-                for _, calonAtasan := range atasanList {
-                    if calonAtasan.ID != leave.KaryawanID {
-                        atasan = &calonAtasan
-                        break
-                    }
-                }
-            }
-        }
-    }
+	var atasan *domain.Karyawan
+	if flow.ButuhAtasan {
+		if leave.DisetujuiOleh != nil {
+			atasan, _ = u.KaryawanRepo.GetByID(ctx, *leave.DisetujuiOleh)
+		}
+		if atasan == nil && flow.AtasanID != nil {
+			atasan, _ = u.KaryawanRepo.GetByID(ctx, *flow.AtasanID)
+		}
+		if atasan == nil && karyawan.AtasanLangsungID != nil {
+			atasan, _ = u.KaryawanRepo.GetByID(ctx, *karyawan.AtasanLangsungID)
+		}
+		if atasan == nil {
+			atasanList, _, err := u.KaryawanRepo.GetAll(ctx, 10, 0, "", "atasan", "aktif")
+			if err == nil && len(atasanList) > 0 {
+				for _, calonAtasan := range atasanList {
+					if calonAtasan.ID != leave.KaryawanID {
+						atasan = &calonAtasan
+						break
+					}
+				}
+			}
+		}
+	}
 
-    var hrd *domain.Karyawan
-    if flow.ButuhHRD {
-        if leave.DifinalisasiOleh != nil {
-            hrd, _ = u.KaryawanRepo.GetByID(ctx, *leave.DifinalisasiOleh)
-        }
-        if hrd == nil && flow.HRDID != nil {
-            hrd, _ = u.KaryawanRepo.GetByID(ctx, *flow.HRDID)
-        }
-        if hrd == nil {
-            hrdList, _, err := u.KaryawanRepo.GetAll(ctx, 10, 0, "", "hrd", "aktif")
-            if err == nil && len(hrdList) > 0 {
-                hrd = &hrdList[0]
-            }
-        }
-    }
+	if leave.SubTipe == "dispensasi" && atasan == nil {
+		atasanList, _, err := u.KaryawanRepo.GetAll(ctx, 10, 0, "", "atasan", "aktif")
+		if err == nil && len(atasanList) > 0 {
+			atasan = &atasanList[0]
+		}
+	}
 
-    var ttdKaryawanURL string
-    ttdKaryawan, err := u.TTDRepo.GetByKaryawanID(ctx, leave.KaryawanID)
-    if err == nil && ttdKaryawan != nil {
-        ttdKaryawanURL = ttdKaryawan.URLTandaTangan
-    }
+	var hrd *domain.Karyawan
+	if flow.ButuhHRD {
+		if leave.DifinalisasiOleh != nil {
+			hrd, _ = u.KaryawanRepo.GetByID(ctx, *leave.DifinalisasiOleh)
+		}
+		if hrd == nil && flow.HRDID != nil {
+			hrd, _ = u.KaryawanRepo.GetByID(ctx, *flow.HRDID)
+		}
+		if hrd == nil {
+			hrdList, _, err := u.KaryawanRepo.GetAll(ctx, 10, 0, "", "hrd", "aktif")
+			if err == nil && len(hrdList) > 0 {
+				hrd = &hrdList[0]
+			}
+		}
+	}
 
-    var ttdAtasanURL string
-    if atasan != nil {
-        ttdAtasan, err := u.TTDRepo.GetByKaryawanID(ctx, atasan.ID)
-        if err == nil && ttdAtasan != nil {
-            ttdAtasanURL = ttdAtasan.URLTandaTangan
-        }
-    }
+	if leave.SubTipe == "dispensasi" && hrd == nil {
+		hrdList, _, err := u.KaryawanRepo.GetAll(ctx, 10, 0, "", "hrd", "aktif")
+		if err == nil && len(hrdList) > 0 {
+			hrd = &hrdList[0]
+		}
+	}
 
-    var ttdHRDURL string
-    var namaHRD string
+	var ttdKaryawanURL string
+	ttdKaryawan, err := u.TTDRepo.GetByKaryawanID(ctx, leave.KaryawanID)
+	if err == nil && ttdKaryawan != nil {
+		ttdKaryawanURL = ttdKaryawan.URLTandaTangan
+	}
 
-    if karyawan.Role == "hrd" {
-        if atasan != nil {
-            namaHRD = atasan.NamaLengkap
-            ttdHRD, err := u.TTDRepo.GetByKaryawanID(ctx, atasan.ID)
-            if err == nil && ttdHRD != nil {
-                ttdHRDURL = ttdHRD.URLTandaTangan
-            }
-        }
-    } else if hrd != nil {
-        namaHRD = hrd.NamaLengkap
-        ttdHRD, err := u.TTDRepo.GetByKaryawanID(ctx, hrd.ID)
-        if err == nil && ttdHRD != nil {
-            ttdHRDURL = ttdHRD.URLTandaTangan
-        }
-    }
+	var ttdAtasanURL string
+	if atasan != nil {
+		ttdAtasan, err := u.TTDRepo.GetByKaryawanID(ctx, atasan.ID)
+		if err == nil && ttdAtasan != nil {
+			ttdAtasanURL = ttdAtasan.URLTandaTangan
+		}
+	}
 
-    config, err := u.ConfigRepo.GetActive(ctx)
-    if err != nil {
-        config = &domain.KonfigurasiKerja{}
-    }
-    logoURL := ""
-    if config.LogoKantor != nil {
-        logoURL = *config.LogoKantor
-    }
+	var ttdHRDURL string
+	var namaHRD string
 
-    balance, err := u.LeaveRepo.GetBalance(ctx, leave.KaryawanID, time.Now().Year())
-    if err != nil {
-        balance = &domain.SisaCuti{
-            JumlahCuti:        12,
-            TelahDilaksanakan: 0,
-            AkanDilaksanakan:  0,
-            SisaCuti:          12,
-        }
-    }
+	if karyawan.Role == "hrd" {
+		if atasan != nil {
+			namaHRD = atasan.NamaLengkap
+			ttdHRD, err := u.TTDRepo.GetByKaryawanID(ctx, atasan.ID)
+			if err == nil && ttdHRD != nil {
+				ttdHRDURL = ttdHRD.URLTandaTangan
+			}
+		}
+	} else if hrd != nil {
+		namaHRD = hrd.NamaLengkap
+		ttdHRD, err := u.TTDRepo.GetByKaryawanID(ctx, hrd.ID)
+		if err == nil && ttdHRD != nil {
+			ttdHRDURL = ttdHRD.URLTandaTangan
+		}
+	}
 
-    jenisPDF := "CUTI"
-    if leave.SubTipe == "dispensasi" {
-        jenisPDF = "DISPENSASI"
-    }
+	if leave.SubTipe == "dispensasi" && ttdHRDURL == "" {
+		hrdList, _, err := u.KaryawanRepo.GetAll(ctx, 10, 0, "", "hrd", "aktif")
+		if err == nil && len(hrdList) > 0 {
+			fallbackHRD := &hrdList[0]
+			namaHRD = fallbackHRD.NamaLengkap
+			ttdHRD, err := u.TTDRepo.GetByKaryawanID(ctx, fallbackHRD.ID)
+			if err == nil && ttdHRD != nil {
+				ttdHRDURL = ttdHRD.URLTandaTangan
+			}
+		}
+	}
 
-    namaAtasan := ""
-    if atasan != nil {
-        namaAtasan = atasan.NamaLengkap
-    }
+	config, err := u.ConfigRepo.GetActive(ctx)
+	if err != nil {
+		config = &domain.KonfigurasiKerja{}
+	}
+	logoURL := ""
+	if config.LogoKantor != nil {
+		logoURL = *config.LogoKantor
+	}
 
-    divisi := ""
-    if karyawan.Divisi != nil {
-        divisi = *karyawan.Divisi
-    }
-    unit := ""
-    if karyawan.Unit != nil {
-        unit = *karyawan.Unit
-    }
-    levelJabatan := ""
-    if karyawan.LevelJabatan != nil {
-        levelJabatan = *karyawan.LevelJabatan
-    }
+	balance, err := u.LeaveRepo.GetBalance(ctx, leave.KaryawanID, time.Now().Year())
+	if err != nil {
+		balance = &domain.SisaCuti{
+			JumlahCuti:        12,
+			TelahDilaksanakan: 0,
+			AkanDilaksanakan:  0,
+			SisaCuti:          12,
+		}
+	}
 
-    cutiDilaksanakan := balance.TelahDilaksanakan - leave.TotalHari
-    if cutiDilaksanakan < 0 {
-        cutiDilaksanakan = 0
-    }
+	jenisPDF := "CUTI"
+	if leave.SubTipe == "dispensasi" {
+		jenisPDF = "DISPENSASI"
+	}
 
-    jumlahTTD := flow.JumlahTTD
+	namaAtasan := ""
+	if atasan != nil {
+		namaAtasan = atasan.NamaLengkap
+	}
 
-    tanggalMulai := leave.TanggalMulai.Format("2006-01-02")
-    tanggalSelesai := leave.TanggalSelesai.Format("2006-01-02")
+	divisi := ""
+	if karyawan.Divisi != nil {
+		divisi = *karyawan.Divisi
+	}
+	unit := ""
+	if karyawan.Unit != nil {
+		unit = *karyawan.Unit
+	}
+	levelJabatan := ""
+	if karyawan.LevelJabatan != nil {
+		levelJabatan = *karyawan.LevelJabatan
+	}
 
-    logoPath, err := utils.DownloadImage(logoURL)
-    if err != nil {
-        log.Printf("Gagal download logo: %v", err)
-        logoPath = ""
-    }
-    defer utils.CleanupTempFiles(logoPath)
+	cutiDilaksanakan := balance.TelahDilaksanakan - leave.TotalHari
+	if cutiDilaksanakan < 0 {
+		cutiDilaksanakan = 0
+	}
 
-    ttdKaryawanPath, err := utils.DownloadImage(ttdKaryawanURL)
-    if err != nil {
-        log.Printf("Gagal download TTD karyawan: %v", err)
-        ttdKaryawanPath = ""
-    }
-    defer utils.CleanupTempFiles(ttdKaryawanPath)
+	jumlahTTD := flow.JumlahTTD
 
-    ttdAtasanPath, err := utils.DownloadImage(ttdAtasanURL)
-    if err != nil {
-        log.Printf("Gagal download TTD atasan: %v", err)
-        ttdAtasanPath = ""
-    }
-    defer utils.CleanupTempFiles(ttdAtasanPath)
+	tanggalMulai := leave.TanggalMulai.Format("2006-01-02")
+	tanggalSelesai := leave.TanggalSelesai.Format("2006-01-02")
 
-    ttdHRDPath, err := utils.DownloadImage(ttdHRDURL)
-    if err != nil {
-        log.Printf("Gagal download TTD HRD: %v", err)
-        ttdHRDPath = ""
-    }
-    defer utils.CleanupTempFiles(ttdHRDPath)
+	logoPath, err := utils.DownloadImage(logoURL)
+	if err != nil {
+		log.Printf("Gagal download logo: %v", err)
+		logoPath = ""
+	}
+	defer utils.CleanupTempFiles(logoPath)
 
-    pdfData := utils.PDFData{
-        CompanyName:    "KOPEGTEL MALANG",
-        CompanyAddress: "Jl. Ahmad Yani No.11, Blimbing, Kota Malang",
-        LogoPath:       logoPath,
-        TTDKaryawanURL: ttdKaryawanPath,
-        TTDAtasanURL:   ttdAtasanPath,
-        TTDHRDURL:      ttdHRDPath,
+	ttdKaryawanPath, err := utils.DownloadImage(ttdKaryawanURL)
+	if err != nil {
+		log.Printf("Gagal download TTD karyawan: %v", err)
+		ttdKaryawanPath = ""
+	}
+	defer utils.CleanupTempFiles(ttdKaryawanPath)
 
-        Jenis:       jenisPDF,
-        Nama:        karyawan.NamaLengkap,
-        Divisi:      divisi,
-        Unit:        unit,
-        Jabatan:     levelJabatan,
-        LamaCuti:    leave.TotalHari,
-        TanggalCuti: tanggalMulai + " s.d " + tanggalSelesai,
-        AlasanCuti:  leave.Alasan,
+	ttdAtasanPath, err := utils.DownloadImage(ttdAtasanURL)
+	if err != nil {
+		log.Printf("Gagal download TTD atasan: %v", err)
+		ttdAtasanPath = ""
+	}
+	defer utils.CleanupTempFiles(ttdAtasanPath)
 
-        JumlahCutiTahun:      12,
-        CutiDilaksanakan:     cutiDilaksanakan,
-        CutiAkanDilaksanakan: leave.TotalHari,
-        SisaCuti:             balance.SisaCuti,
+	ttdHRDPath, err := utils.DownloadImage(ttdHRDURL)
+	if err != nil {
+		log.Printf("Gagal download TTD HRD: %v", err)
+		ttdHRDPath = ""
+	}
+	defer utils.CleanupTempFiles(ttdHRDPath)
 
-        DisetujuiSelama: leave.TotalHari,
-        MulaiTanggal:    tanggalMulai,
-        Tahun:           time.Now().Year(),
-        TanggalSekarang: time.Now(),
+	pdfData := utils.PDFData{
+		CompanyName:    "KOPEGTEL MALANG",
+		CompanyAddress: "Jl. Ahmad Yani No.11, Blimbing, Kota Malang",
+		LogoPath:       logoPath,
+		TTDKaryawanURL: ttdKaryawanPath,
+		TTDAtasanURL:   ttdAtasanPath,
+		TTDHRDURL:      ttdHRDPath,
 
-        NamaPemohon: karyawan.NamaLengkap,
-        NamaAtasan:  namaAtasan,
-        NamaHRD:     namaHRD,
+		Jenis:       jenisPDF,
+		Nama:        karyawan.NamaLengkap,
+		Divisi:      divisi,
+		Unit:        unit,
+		Jabatan:     levelJabatan,
+		LamaCuti:    leave.TotalHari,
+		TanggalCuti: tanggalMulai + " s.d " + tanggalSelesai,
+		AlasanCuti:  leave.Alasan,
 
-        JumlahTTD: jumlahTTD,
-    }
+		JumlahCutiTahun:      12,
+		CutiDilaksanakan:     cutiDilaksanakan,
+		CutiAkanDilaksanakan: leave.TotalHari,
+		SisaCuti:             balance.SisaCuti,
 
-    pdfBytes, err := utils.GeneratePDF(pdfData)
-    if err != nil {
-        return nil, "", err
-    }
+		DisetujuiSelama: leave.TotalHari,
+		MulaiTanggal:    tanggalMulai,
+		Tahun:           time.Now().Year(),
+		TanggalSekarang: time.Now(),
 
-    filename := "surat_" + jenisPDF + "_" + karyawan.NamaLengkap + "_" + time.Now().Format("20060102") + ".pdf"
+		NamaPemohon: karyawan.NamaLengkap,
+		NamaAtasan:  namaAtasan,
+		NamaHRD:     namaHRD,
 
-    pdfURL, err := utils.UploadPDF(pdfBytes, filename)
-    if err != nil {
-        log.Printf("Gagal upload PDF ke Cloudinary: %v", err)
-    } else {
-        err = u.LeaveRepo.UpdatePDFURL(ctx, leaveID, pdfURL)
-        if err != nil {
-            log.Printf("Gagal simpan URL PDF: %v", err)
-        }
-    }
+		JumlahTTD: jumlahTTD,
+	}
 
-    return pdfBytes, filename, nil
+	pdfBytes, err := utils.GeneratePDF(pdfData)
+	if err != nil {
+		return nil, "", err
+	}
+
+	filename := "surat_" + jenisPDF + "_" + karyawan.NamaLengkap + "_" + time.Now().Format("20060102") + ".pdf"
+
+	pdfURL, err := utils.UploadPDF(pdfBytes, filename)
+	if err != nil {
+		log.Printf("Gagal upload PDF ke Cloudinary: %v", err)
+	} else {
+		err = u.LeaveRepo.UpdatePDFURL(ctx, leaveID, pdfURL)
+		if err != nil {
+			log.Printf("Gagal simpan URL PDF: %v", err)
+		}
+	}
+
+	return pdfBytes, filename, nil
 }
 
 func (u *LeaveUsecase) GetBalance(ctx context.Context, karyawanID string, year int) (*domain.BalanceResponse, error) {
