@@ -49,6 +49,33 @@ func NewLeaveUsecase(
 	}
 }
 
+func (u *LeaveUsecase) countWorkDaysWithHoliday(ctx context.Context, startDate, endDate time.Time) (int, error) {
+	days := 0
+	current := startDate
+
+	for current.Before(endDate) || current.Equal(endDate) {
+		weekday := current.Weekday()
+
+		isWeekend := weekday == time.Saturday || weekday == time.Sunday
+
+		isHoliday := false
+		if !isWeekend {
+			libur, err := u.LeaveRepo.GetLiburByDate(ctx, current)
+			if err == nil && libur != nil && libur.Aktif {
+				isHoliday = true
+			}
+		}
+
+		if !isWeekend && !isHoliday {
+			days++
+		}
+
+		current = current.AddDate(0, 0, 1)
+	}
+
+	return days, nil
+}
+
 func (u *LeaveUsecase) DetermineApprovalFlow(ctx context.Context, karyawan *domain.Karyawan) (*ApprovalFlow, error) {
 	flow := &ApprovalFlow{
 		LangsungApprove: false,
@@ -130,10 +157,14 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 	if err != nil {
 		return nil, errors.New("format tanggal selesai tidak valid (YYYY-MM-DD)")
 	}
-	totalHari := int(end.Sub(start).Hours()/24) + 1
+
+	totalHari, err := u.countWorkDaysWithHoliday(ctx, start, end)
+	if err != nil {
+		return nil, errors.New("gagal menghitung hari kerja")
+	}
 
 	if totalHari <= 0 {
-		return nil, errors.New("tanggal tidak valid")
+		return nil, errors.New("tanggal tidak valid (tidak ada hari kerja)")
 	}
 
 	if req.SubTipe == "dispensasi" && totalHari > 2 {

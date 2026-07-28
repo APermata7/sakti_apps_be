@@ -202,11 +202,10 @@ func (r *LeaveRepo) Finalize(ctx context.Context, id, hrdID, catatan string) err
 	query := `
 		UPDATE pengajuan_cuti 
 		SET difinalisasi_oleh = $1, tanggal_difinalisasi = NOW(),
-		    alasan = CONCAT(COALESCE(alasan, ''), ' | Catatan HRD: ', COALESCE($2, '')),
 		    diperbarui_pada = NOW()
-		WHERE id = $3 AND status = 'disetujui'
+		WHERE id = $2 AND status = 'disetujui'
 	`
-	_, err := r.DB.Exec(ctx, query, hrdID, catatan, id)
+	_, err := r.DB.Exec(ctx, query, hrdID, id)
 	return err
 }
 
@@ -273,6 +272,32 @@ func (r *LeaveRepo) GetBalanceWithCarryOver(ctx context.Context, karyawanID stri
 	}
 
 	return balance, nil
+}
+
+func (r *LeaveRepo) GetLiburByDate(ctx context.Context, tanggal time.Time) (*domain.Libur, error) {
+	query := `
+		SELECT id, nama, tanggal, aktif, dibuat_pada, diperbarui_pada
+		FROM libur
+		WHERE DATE(tanggal) = DATE($1)
+		LIMIT 1
+	`
+
+	var l domain.Libur
+	err := r.DB.QueryRow(ctx, query, tanggal).Scan(
+		&l.ID,
+		&l.Nama,
+		&l.Tanggal,
+		&l.Aktif,
+		&l.DibuatPada,
+		&l.DiperbaruiPada,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &l, nil
 }
 
 func (r *LeaveRepo) UpdateAkanDilaksanakan(ctx context.Context, karyawanID string, tahun int) error {
