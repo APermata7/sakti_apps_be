@@ -426,48 +426,53 @@ func addKeputusan3TTD(pdf *gofpdf.Fpdf, data PDFData) {
 	pdf.CellFormat(0, 6.5, fmt.Sprintf("Malang, %s", formatTanggalIndonesia(data.TanggalSekarang)), "", 1, "L", false, 0, "")
 	pdf.Ln(4)
 
-	x := 35.0
+	lebarKolom := 50.0
+	jarakKolom := 30.0
+	totalLebar := (lebarKolom * 3) + (jarakKolom * 2)
+	xAwal := (210.0 - totalLebar) / 2
+
+	x := xAwal
 	y := pdf.GetY()
 
 	pdf.SetDrawColor(0, 0, 0)
 
 	pdf.SetFont("Helvetica", "B", 12)
 	pdf.SetXY(x, y)
-	pdf.CellFormat(40, 6.5, "Mengetahui HRD", "", 0, "C", false, 0, "")
+	pdf.CellFormat(lebarKolom, 6.5, "Mengetahui HRD", "", 0, "C", false, 0, "")
 	pdf.SetXY(x, y+18)
-	pdf.CellFormat(40, 20, "", "B", 0, "C", false, 0, "")
+	pdf.CellFormat(lebarKolom, 20, "", "B", 0, "C", false, 0, "")
 	if data.TTDHRDURL != "" {
-		pdf.Image(data.TTDHRDURL, x+2, y+15, 40, 20, false, "", 0, "")
+		pdf.Image(data.TTDHRDURL, x+2, y+15, lebarKolom-4, 20, false, "", 0, "")
 	}
 	pdf.SetXY(x, y+40)
 	pdf.SetFont("Helvetica", "", 12)
-	pdf.CellFormat(40, 6, data.NamaHRD, "", 0, "C", false, 0, "")
+	pdf.CellFormat(lebarKolom, 6, data.NamaHRD, "", 0, "C", false, 0, "")
 
-	x += 55
+	x += lebarKolom + jarakKolom
 	pdf.SetFont("Helvetica", "B", 12)
 	pdf.SetXY(x, y)
-	pdf.CellFormat(40, 6.5, "Menyetujui Atasan", "", 0, "C", false, 0, "")
+	pdf.CellFormat(lebarKolom, 6.5, "Menyetujui Atasan", "", 0, "C", false, 0, "")
 	pdf.SetXY(x, y+18)
-	pdf.CellFormat(40, 20, "", "B", 0, "C", false, 0, "")
+	pdf.CellFormat(lebarKolom, 20, "", "B", 0, "C", false, 0, "")
 	if data.TTDAtasanURL != "" {
-		pdf.Image(data.TTDAtasanURL, x+2, y+15, 40, 20, false, "", 0, "")
+		pdf.Image(data.TTDAtasanURL, x+2, y+15, lebarKolom-4, 20, false, "", 0, "")
 	}
 	pdf.SetXY(x, y+40)
 	pdf.SetFont("Helvetica", "", 12)
-	pdf.CellFormat(40, 6, data.NamaAtasan, "", 0, "C", false, 0, "")
+	pdf.CellFormat(lebarKolom, 6, data.NamaAtasan, "", 0, "C", false, 0, "")
 
-	x += 55
+	x += lebarKolom + jarakKolom
 	pdf.SetFont("Helvetica", "B", 12)
 	pdf.SetXY(x, y)
-	pdf.CellFormat(40, 6.5, "Pemohon", "", 0, "C", false, 0, "")
+	pdf.CellFormat(lebarKolom, 6.5, "Pemohon", "", 0, "C", false, 0, "")
 	pdf.SetXY(x, y+18)
-	pdf.CellFormat(40, 20, "", "B", 0, "C", false, 0, "")
+	pdf.CellFormat(lebarKolom, 20, "", "B", 0, "C", false, 0, "")
 	if data.TTDKaryawanURL != "" {
-		pdf.Image(data.TTDKaryawanURL, x+2, y+15, 40, 20, false, "", 0, "")
+		pdf.Image(data.TTDKaryawanURL, x+2, y+15, lebarKolom-4, 20, false, "", 0, "")
 	}
 	pdf.SetXY(x, y+40)
 	pdf.SetFont("Helvetica", "", 12)
-	pdf.CellFormat(40, 6, data.NamaPemohon, "", 0, "C", false, 0, "")
+	pdf.CellFormat(lebarKolom, 6, data.NamaPemohon, "", 0, "C", false, 0, "")
 
 	pdf.SetY(y + 52)
 }
