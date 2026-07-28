@@ -426,8 +426,8 @@ func addKeputusan3TTD(pdf *gofpdf.Fpdf, data PDFData) {
 	pdf.CellFormat(0, 6.5, fmt.Sprintf("Malang, %s", formatTanggalIndonesia(data.TanggalSekarang)), "", 1, "L", false, 0, "")
 	pdf.Ln(4)
 
-	lebarKolom := 50.0
-	jarakKolom := 30.0
+	lebarKolom := 40.0
+	jarakKolom := 20.0
 	totalLebar := (lebarKolom * 3) + (jarakKolom * 2)
 	xAwal := (210.0 - totalLebar) / 2
 
