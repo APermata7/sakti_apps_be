@@ -358,6 +358,10 @@ func (u *LeaveUsecase) CancelLeave(ctx context.Context, leaveID, karyawanID stri
 		return nil, err
 	}
 
+	if err := u.LeaveRepo.UpdateAlasanBatal(ctx, leaveID, "Dibatalkan oleh karyawan"); err != nil {
+		log.Printf("Gagal update alasan batal: %v", err)
+	}
+
 	if leave.MengurangiCuti {
 		tahun := leave.TanggalMulai.Year()
 		if leave.DifinalisasiOleh != nil {

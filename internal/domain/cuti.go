@@ -23,6 +23,8 @@ type PengajuanCuti struct {
 	URLPDF              *string    `json:"url_pdf"`
 	AlasanBatal         *string    `json:"alasan_batal"`
 	TanggalDibatalkan   *time.Time `json:"tanggal_dibatalkan"`
+	AlasanDitolak       *string    `json:"alasan_ditolak"`
+	TanggalDitolak      *time.Time `json:"tanggal_ditolak"`
 	DibuatPada          time.Time  `json:"dibuat_pada"`
 	DiperbaruiPada      time.Time  `json:"diperbarui_pada"`
 }

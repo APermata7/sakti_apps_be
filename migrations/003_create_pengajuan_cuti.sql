@@ -19,6 +19,8 @@ CREATE TABLE pengajuan_cuti (
     url_pdf VARCHAR(500),
     alasan_batal TEXT,
     tanggal_dibatalkan TIMESTAMP,
+    alasan_ditolak TEXT,
+    tanggal_ditolak TIMESTAMP,
     dibuat_pada TIMESTAMP DEFAULT NOW(),
     diperbarui_pada TIMESTAMP DEFAULT NOW()
 );

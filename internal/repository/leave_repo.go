@@ -59,6 +59,7 @@ func (r *LeaveRepo) GetByID(ctx context.Context, id string) (*domain.PengajuanCu
 		       langsung_approve, langsung_final,
 		       judul_dokumen, disetujui_oleh, tanggal_disetujui, difinalisasi_oleh,
 		       tanggal_difinalisasi, url_pdf, alasan_batal, tanggal_dibatalkan,
+		       alasan_ditolak, tanggal_ditolak,
 		       dibuat_pada, diperbarui_pada
 		FROM pengajuan_cuti
 		WHERE id = $1
@@ -86,6 +87,8 @@ func (r *LeaveRepo) GetByID(ctx context.Context, id string) (*domain.PengajuanCu
 		&l.URLPDF,
 		&l.AlasanBatal,
 		&l.TanggalDibatalkan,
+		&l.AlasanDitolak,
+		&l.TanggalDitolak,
 		&l.DibuatPada,
 		&l.DiperbaruiPada,
 	)
@@ -124,6 +127,7 @@ func (r *LeaveRepo) GetByKaryawanID(ctx context.Context, karyawanID string, stat
 		       langsung_approve, langsung_final,
 		       judul_dokumen, disetujui_oleh, tanggal_disetujui, difinalisasi_oleh,
 		       tanggal_difinalisasi, url_pdf, alasan_batal, tanggal_dibatalkan,
+		       alasan_ditolak, tanggal_ditolak,
 		       dibuat_pada, diperbarui_pada
 	` + baseQuery + ` ORDER BY dibuat_pada DESC LIMIT $` + string(rune(argIdx+'0')) + ` OFFSET $` + string(rune(argIdx+1+'0'))
 
@@ -157,6 +161,8 @@ func (r *LeaveRepo) GetByKaryawanID(ctx context.Context, karyawanID string, stat
 			&l.URLPDF,
 			&l.AlasanBatal,
 			&l.TanggalDibatalkan,
+			&l.AlasanDitolak,
+			&l.TanggalDitolak,
 			&l.DibuatPada,
 			&l.DiperbaruiPada,
 		)
@@ -189,8 +195,11 @@ func (r *LeaveRepo) Approve(ctx context.Context, id, managerID string) error {
 func (r *LeaveRepo) Reject(ctx context.Context, id, managerID, alasan string) error {
 	query := `
 		UPDATE pengajuan_cuti 
-		SET status = 'ditolak', disetujui_oleh = $1, tanggal_disetujui = NOW(),
-		    alasan_batal = $2, tanggal_dibatalkan = NOW(),
+		SET status = 'ditolak', 
+		    disetujui_oleh = $1, 
+		    tanggal_disetujui = NOW(),
+		    alasan_ditolak = $2,
+		    tanggal_ditolak = NOW(),
 		    diperbarui_pada = NOW()
 		WHERE id = $3
 	`
@@ -198,10 +207,23 @@ func (r *LeaveRepo) Reject(ctx context.Context, id, managerID, alasan string) er
 	return err
 }
 
+func (r *LeaveRepo) UpdateAlasanBatal(ctx context.Context, id, alasan string) error {
+	query := `
+		UPDATE pengajuan_cuti 
+		SET alasan_batal = $1,
+		    tanggal_dibatalkan = NOW(),
+		    diperbarui_pada = NOW()
+		WHERE id = $2
+	`
+	_, err := r.DB.Exec(ctx, query, alasan, id)
+	return err
+}
+
 func (r *LeaveRepo) Finalize(ctx context.Context, id, hrdID, catatan string) error {
 	query := `
 		UPDATE pengajuan_cuti 
-		SET difinalisasi_oleh = $1, tanggal_difinalisasi = NOW(),
+		SET difinalisasi_oleh = $1, 
+		    tanggal_difinalisasi = NOW(),
 		    diperbarui_pada = NOW()
 		WHERE id = $2 AND status = 'disetujui'
 	`
@@ -373,6 +395,7 @@ func (r *LeaveRepo) GetActiveLeaves(ctx context.Context, karyawanID string) ([]d
 		       langsung_approve, langsung_final,
 		       judul_dokumen, disetujui_oleh, tanggal_disetujui, difinalisasi_oleh,
 		       tanggal_difinalisasi, url_pdf, alasan_batal, tanggal_dibatalkan,
+		       alasan_ditolak, tanggal_ditolak,
 		       dibuat_pada, diperbarui_pada
 		FROM pengajuan_cuti
 		WHERE karyawan_id = $1 AND status NOT IN ('ditolak', 'dibatalkan')
@@ -408,6 +431,8 @@ func (r *LeaveRepo) GetActiveLeaves(ctx context.Context, karyawanID string) ([]d
 			&l.URLPDF,
 			&l.AlasanBatal,
 			&l.TanggalDibatalkan,
+			&l.AlasanDitolak,
+			&l.TanggalDitolak,
 			&l.DibuatPada,
 			&l.DiperbaruiPada,
 		)
@@ -478,6 +503,7 @@ func (r *LeaveRepo) GetAllLeaves(ctx context.Context, atasanID string, role stri
 		       pc.langsung_approve, pc.langsung_final, pc.judul_dokumen,
 		       pc.disetujui_oleh, pc.tanggal_disetujui, pc.difinalisasi_oleh,
 		       pc.tanggal_difinalisasi, pc.url_pdf, pc.alasan_batal, pc.tanggal_dibatalkan,
+		       pc.alasan_ditolak, pc.tanggal_ditolak,
 		       pc.dibuat_pada, pc.diperbarui_pada,
 		       k.nama_lengkap, k.divisi, k.unit, k.role,
 		       COALESCE(sc.sisa_cuti, 12) as sisa_cuti
@@ -498,6 +524,7 @@ func (r *LeaveRepo) GetAllLeaves(ctx context.Context, atasanID string, role stri
 			&l.LangsungApprove, &l.LangsungFinal, &l.JudulDokumen,
 			&l.DisetujuiOleh, &l.TanggalDisetujui, &l.DifinalisasiOleh,
 			&l.TanggalDifinalisasi, &l.URLPDF, &l.AlasanBatal, &l.TanggalDibatalkan,
+			&l.AlasanDitolak, &l.TanggalDitolak,
 			&l.DibuatPada, &l.DiperbaruiPada,
 			&l.KaryawanNama, &l.KaryawanDivisi, &l.KaryawanUnit, &l.KaryawanRole,
 			&l.SisaCuti,
