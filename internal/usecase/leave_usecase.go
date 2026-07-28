@@ -301,14 +301,25 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 	if telegram != nil && karyawan.AtasanLangsungID != nil {
 		atasan, _ := u.KaryawanRepo.GetByID(ctx, *karyawan.AtasanLangsungID)
 		if atasan != nil && atasan.TelegramChatID != nil && *atasan.TelegramChatID != "" {
-			go telegram.SendCreateLeaveNotification(
-				*atasan.TelegramChatID,
-				atasan.ID,
-				karyawan.NamaLengkap,
-				strconv.Itoa(totalHari),
-				req.Alasan,
-				leave.ID,
-			)
+			if req.SubTipe == "dispensasi" {
+				go telegram.SendCreateDispensasiNotification(
+					*atasan.TelegramChatID,
+					atasan.ID,
+					karyawan.NamaLengkap,
+					strconv.Itoa(totalHari),
+					req.Alasan,
+					leave.ID,
+				)
+			} else {
+				go telegram.SendCreateLeaveNotification(
+					*atasan.TelegramChatID,
+					atasan.ID,
+					karyawan.NamaLengkap,
+					strconv.Itoa(totalHari),
+					req.Alasan,
+					leave.ID,
+				)
+			}
 		}
 	}
 

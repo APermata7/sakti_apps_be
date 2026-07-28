@@ -142,6 +142,33 @@ func (t *TelegramBot) SendCreateLeaveNotification(chatID, karyawanID, karyawanNa
 	)
 }
 
+func (t *TelegramBot) SendCreateDispensasiNotification(chatID, karyawanID, karyawanNama, totalHari, alasan, leaveID string) error {
+	text := fmt.Sprintf(
+		"<b>📋 Pengajuan Dispensasi Baru</b>\n\n"+
+			"Yth. Atasan,\n\n"+
+			"Seorang karyawan telah mengajukan dispensasi dan telah langsung disetujui. Berikut detail pengajuannya:\n\n"+
+			"👤 Karyawan : <b>%s</b>\n"+
+			"📅 Lama Dispensasi : <b>%s hari</b>\n"+
+			"📝 Alasan : %s\n\n"+
+			"Pengajuan ini sudah langsung difinalisasi dan tidak memerlukan proses persetujuan lebih lanjut.\n\n"+
+			"Terima kasih.",
+		karyawanNama, totalHari, alasan,
+	)
+
+	err := t.SendMessage(chatID, text)
+	if err != nil {
+		return err
+	}
+
+	return t.SaveNotification(
+		karyawanID,
+		"Pengajuan Dispensasi Baru",
+		karyawanNama+" mengajukan dispensasi "+totalHari+" hari",
+		leaveID,
+		"pengajuan",
+	)
+}
+
 func (t *TelegramBot) SendCancelLeaveNotification(chatID, karyawanID, karyawanNama, leaveID string) error {
 	sekarang := time.Now()
 	tanggal := sekarang.Format("02 January 2006")
