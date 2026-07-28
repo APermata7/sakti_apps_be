@@ -358,35 +358,40 @@ func addKeputusan2TTD(pdf *gofpdf.Fpdf, data PDFData) {
 	pdf.CellFormat(0, 6.5, fmt.Sprintf("Malang, %s", formatTanggalIndonesia(data.TanggalSekarang)), "", 1, "L", false, 0, "")
 	pdf.Ln(4)
 
-	x := 90.0
+	lebarKolom := 50.0
+	jarakKolom := 10.0
+	totalLebar := (lebarKolom * 2) + jarakKolom
+	xAwal := 210.0 - 18.0 - totalLebar
+
+	x := xAwal
 	y := pdf.GetY()
 
 	pdf.SetDrawColor(0, 0, 0)
 
 	pdf.SetFont("Helvetica", "B", 12)
 	pdf.SetXY(x, y)
-	pdf.CellFormat(45, 6.5, "Mengetahui HRD", "", 0, "C", false, 0, "")
+	pdf.CellFormat(lebarKolom, 6.5, "Mengetahui HRD", "", 0, "C", false, 0, "")
 	pdf.SetXY(x, y+18)
-	pdf.CellFormat(45, 20, "", "B", 0, "C", false, 0, "")
+	pdf.CellFormat(lebarKolom, 20, "", "B", 0, "C", false, 0, "")
 	if data.TTDHRDURL != "" {
-		pdf.Image(data.TTDHRDURL, x+2, y+15, 40, 20, false, "", 0, "")
+		pdf.Image(data.TTDHRDURL, x+2, y+15, lebarKolom-4, 20, false, "", 0, "")
 	}
 	pdf.SetXY(x, y+40)
 	pdf.SetFont("Helvetica", "", 12)
-	pdf.CellFormat(45, 6, data.NamaHRD, "", 0, "C", false, 0, "")
+	pdf.CellFormat(lebarKolom, 6, data.NamaHRD, "", 0, "C", false, 0, "")
 
-	x += 52
+	x += lebarKolom + jarakKolom
 	pdf.SetFont("Helvetica", "B", 12)
 	pdf.SetXY(x, y)
-	pdf.CellFormat(45, 6.5, "Pemohon", "", 0, "C", false, 0, "")
+	pdf.CellFormat(lebarKolom, 6.5, "Pemohon", "", 0, "C", false, 0, "")
 	pdf.SetXY(x, y+18)
-	pdf.CellFormat(45, 20, "", "B", 0, "C", false, 0, "")
+	pdf.CellFormat(lebarKolom, 20, "", "B", 0, "C", false, 0, "")
 	if data.TTDKaryawanURL != "" {
-		pdf.Image(data.TTDKaryawanURL, x+2, y+15, 40, 20, false, "", 0, "")
+		pdf.Image(data.TTDKaryawanURL, x+2, y+15, lebarKolom-4, 20, false, "", 0, "")
 	}
 	pdf.SetXY(x, y+40)
 	pdf.SetFont("Helvetica", "", 12)
-	pdf.CellFormat(45, 6, data.NamaPemohon, "", 0, "C", false, 0, "")
+	pdf.CellFormat(lebarKolom, 6, data.NamaPemohon, "", 0, "C", false, 0, "")
 
 	pdf.SetY(y + 52)
 }
