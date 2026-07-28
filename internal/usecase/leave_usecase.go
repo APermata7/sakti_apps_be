@@ -194,6 +194,12 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 		status = "disetujui"
 	}
 
+	if req.SubTipe == "dispensasi" {
+		status = "disetujui"
+		flow.LangsungApprove = true
+		flow.LangsungFinal = true
+	}
+
 	leave := &domain.PengajuanCuti{
 		KaryawanID:        karyawanID,
 		SubTipe:           req.SubTipe,
@@ -209,7 +215,7 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 		JudulDokumen:      judulDokumen,
 	}
 
-	if flow.LangsungFinal {
+	if flow.LangsungFinal || req.SubTipe == "dispensasi" {
 		if flow.HRDID != nil {
 			leave.DifinalisasiOleh = flow.HRDID
 		} else {
@@ -230,7 +236,11 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 
 	if leave.MengurangiCuti {
 		tahun := leave.TanggalMulai.Year()
-		u.LeaveRepo.UpdateAkanDilaksanakan(ctx, karyawanID, tahun)
+		if req.SubTipe == "dispensasi" {
+			u.LeaveRepo.UpdateBalance(ctx, karyawanID, tahun)
+		} else {
+			u.LeaveRepo.UpdateAkanDilaksanakan(ctx, karyawanID, tahun)
+		}
 	}
 
 	if u.RiwayatRepo != nil {
@@ -698,6 +708,13 @@ func (u *LeaveUsecase) DownloadSuratCuti(ctx context.Context, leaveID string) ([
 	}
 
 	jumlahTTD := flow.JumlahTTD
+	if leave.SubTipe == "dispensasi" {
+		if karyawan.Role == "admin" {
+			jumlahTTD = 1
+		} else {
+			jumlahTTD = 2
+		}
+	}
 
 	tanggalMulai := leave.TanggalMulai.Format("2006-01-02")
 	tanggalSelesai := leave.TanggalSelesai.Format("2006-01-02")
