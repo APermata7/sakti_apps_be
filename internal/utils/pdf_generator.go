@@ -359,8 +359,8 @@ func addKeputusan2TTD(pdf *gofpdf.Fpdf, data PDFData) {
 	pdf.Ln(4)
 
 	lebarKolom := 55.0
-	jarakKolom := 20.0
-	marginKanan := 20.0
+	jarakKolom := 50.0
+	marginKanan := 30.0
 	totalLebar := (lebarKolom * 2) + jarakKolom
 	xAwal := 210.0 - marginKanan - totalLebar
 
