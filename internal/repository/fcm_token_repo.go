@@ -19,17 +19,12 @@ func NewFCMTokenRepo(db *pgxpool.Pool) *FCMTokenRepo {
 
 func (r *FCMTokenRepo) SaveToken(ctx context.Context, token *domain.FCMToken) error {
 	query := `
-		INSERT INTO token_fcm (karyawan_id, fcm_token, device_id, device_type, is_active, dibuat_pada, diperbarui_pada)
-		VALUES ($1, $2, $3, $4, true, NOW(), NOW())
-		ON CONFLICT (karyawan_id, device_id) 
-		DO UPDATE SET fcm_token = $2, is_active = true, diperbarui_pada = NOW()
+		INSERT INTO token_fcm (karyawan_id, fcm_token, is_active, dibuat_pada, diperbarui_pada)
+		VALUES ($1, $2, true, NOW(), NOW())
+		ON CONFLICT (fcm_token) 
+		DO UPDATE SET karyawan_id = $1, is_active = true, diperbarui_pada = NOW()
 	`
-	_, err := r.DB.Exec(ctx, query,
-		token.KaryawanID,
-		token.FCMToken,
-		token.DeviceID,
-		token.DeviceType,
-	)
+	_, err := r.DB.Exec(ctx, query, token.KaryawanID, token.FCMToken)
 	return err
 }
 

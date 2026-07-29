@@ -105,9 +105,7 @@ func (h *NotificationHandler) MarkAllAsRead(c *fiber.Ctx) error {
 }
 
 type RegisterFCMTokenRequest struct {
-	FCMToken   string `json:"fcm_token"`
-	DeviceID   string `json:"device_id"`
-	DeviceType string `json:"device_type"`
+	FCMToken string `json:"fcm_token"`
 }
 
 func (h *NotificationHandler) RegisterFCMToken(c *fiber.Ctx) error {
@@ -128,14 +126,7 @@ func (h *NotificationHandler) RegisterFCMToken(c *fiber.Ctx) error {
 		})
 	}
 
-	if req.DeviceID == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"success": false,
-			"message": "Device ID wajib diisi",
-		})
-	}
-
-	err := h.NotifUsecase.RegisterFCMToken(c.Context(), userID, req.FCMToken, req.DeviceID, req.DeviceType)
+	err := h.NotifUsecase.RegisterFCMToken(c.Context(), userID, req.FCMToken)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"success": false,

@@ -3,14 +3,12 @@ package domain
 import "time"
 
 type FCMToken struct {
-	ID         string    `json:"id"`
-	KaryawanID string    `json:"karyawan_id"`
-	FCMToken   string    `json:"fcm_token"`
-	DeviceID   string    `json:"device_id"`
-	DeviceType string    `json:"device_type"`
-	IsActive   bool      `json:"is_active"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	ID          string    `json:"id"`
+	KaryawanID  string    `json:"karyawan_id"`
+	FCMToken    string    `json:"fcm_token"`
+	IsActive    bool      `json:"is_active"`
+	DibuatPada  time.Time `json:"dibuat_pada"`
+	DiperbaruiPada time.Time `json:"diperbarui_pada"`
 }
 
 type Notifikasi struct {

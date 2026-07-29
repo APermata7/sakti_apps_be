@@ -32,12 +32,10 @@ func NewNotificationUsecase(
 	}
 }
 
-func (u *NotificationUsecase) RegisterFCMToken(ctx context.Context, karyawanID, fcmToken, deviceID, deviceType string) error {
+func (u *NotificationUsecase) RegisterFCMToken(ctx context.Context, karyawanID, fcmToken string) error {
 	token := &domain.FCMToken{
 		KaryawanID: karyawanID,
 		FCMToken:   fcmToken,
-		DeviceID:   deviceID,
-		DeviceType: deviceType,
 		IsActive:   true,
 	}
 	return u.FCMTokenRepo.SaveToken(ctx, token)
