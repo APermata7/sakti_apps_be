@@ -142,6 +142,9 @@ func main() {
 	protected.Put("/notifikasi/:id/read", notificationHandler.MarkAsRead)
 	protected.Put("/notifikasi/read-all", notificationHandler.MarkAllAsRead)
 
+	protected.Post("/fcm/register", notificationHandler.RegisterFCMToken)
+	protected.Delete("/fcm/token", notificationHandler.DeactivateFCMToken)
+
 	protected.Post("/ttd/upload", ttdHandler.UploadTTD)
 	protected.Get("/ttd", ttdHandler.GetTTD)
 	protected.Put("/ttd", ttdHandler.UpdateTTD)

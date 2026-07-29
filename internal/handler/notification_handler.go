@@ -103,3 +103,83 @@ func (h *NotificationHandler) MarkAllAsRead(c *fiber.Ctx) error {
 		"message": "Semua notifikasi ditandai telah dibaca",
 	})
 }
+
+type RegisterFCMTokenRequest struct {
+	FCMToken   string `json:"fcm_token"`
+	DeviceID   string `json:"device_id"`
+	DeviceType string `json:"device_type"`
+}
+
+func (h *NotificationHandler) RegisterFCMToken(c *fiber.Ctx) error {
+	userID := c.Locals("user_id").(string)
+
+	var req RegisterFCMTokenRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Request tidak valid",
+		})
+	}
+
+	if req.FCMToken == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "FCM token wajib diisi",
+		})
+	}
+
+	if req.DeviceID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Device ID wajib diisi",
+		})
+	}
+
+	err := h.NotifUsecase.RegisterFCMToken(c.Context(), userID, req.FCMToken, req.DeviceID, req.DeviceType)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": err.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "FCM token berhasil disimpan",
+	})
+}
+
+func (h *NotificationHandler) DeactivateFCMToken(c *fiber.Ctx) error {
+	userID := c.Locals("user_id").(string)
+
+	var req struct {
+		FCMToken string `json:"fcm_token"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Request tidak valid",
+		})
+	}
+
+	if req.FCMToken == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "FCM token wajib diisi",
+		})
+	}
+
+	err := h.NotifUsecase.DeactivateFCMToken(c.Context(), userID, req.FCMToken)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": err.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "FCM token berhasil dinonaktifkan",
+	})
+}

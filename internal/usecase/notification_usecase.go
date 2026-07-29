@@ -32,6 +32,32 @@ func NewNotificationUsecase(
 	}
 }
 
+func (u *NotificationUsecase) RegisterFCMToken(ctx context.Context, karyawanID, fcmToken, deviceID, deviceType string) error {
+	token := &domain.FCMToken{
+		KaryawanID: karyawanID,
+		FCMToken:   fcmToken,
+		DeviceID:   deviceID,
+		DeviceType: deviceType,
+		IsActive:   true,
+	}
+	return u.FCMTokenRepo.SaveToken(ctx, token)
+}
+
+func (u *NotificationUsecase) DeactivateFCMToken(ctx context.Context, karyawanID, fcmToken string) error {
+	tokens, err := u.FCMTokenRepo.GetTokensByKaryawanID(ctx, karyawanID)
+	if err != nil {
+		return err
+	}
+
+	for _, token := range tokens {
+		if token == fcmToken {
+			return u.FCMTokenRepo.DeactivateToken(ctx, fcmToken)
+		}
+	}
+
+	return nil
+}
+
 func (u *NotificationUsecase) KirimNotifikasi(ctx context.Context, req domain.KirimNotifikasiRequest, chatID string) error {
 	notif := &domain.Notifikasi{
 		KaryawanID:    req.KaryawanID,
