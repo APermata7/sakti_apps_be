@@ -4,43 +4,88 @@ import (
 	"context"
 	"log"
 	"os"
+	"sync"
 
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/messaging"
 	"google.golang.org/api/option"
 )
 
-var FCMClient *messaging.Client
+var (
+	FCMClient *messaging.Client
+	fcmMutex  sync.RWMutex
+	fcmInit   sync.Once
+)
 
 func InitFCM() error {
-	credPath := os.Getenv("FCM_SERVICE_ACCOUNT")
-	if credPath == "" {
-		credPath = "firebase-service-account.json"
-	}
+	var initErr error
 
-	if _, err := os.Stat(credPath); os.IsNotExist(err) {
-		log.Printf("File service account tidak ditemukan: %s", credPath)
-		return nil
-	}
+	fcmInit.Do(func() {
+		fcmMutex.Lock()
+		defer fcmMutex.Unlock()
 
-	opt := option.WithCredentialsFile(credPath)
-	app, err := firebase.NewApp(context.Background(), nil, opt)
-	if err != nil {
-		return err
-	}
+		credPath := os.Getenv("FCM_SERVICE_ACCOUNT")
+		if credPath == "" {
+			credPath = "firebase-service-account.json"
+		}
 
-	client, err := app.Messaging(context.Background())
-	if err != nil {
-		return err
-	}
+		if _, err := os.Stat(credPath); os.IsNotExist(err) {
+			log.Printf("File service account tidak ditemukan: %s", credPath)
+			return
+		}
 
-	FCMClient = client
-	log.Println("FCM initialized successfully")
-	return nil
+		opt := option.WithCredentialsFile(credPath)
+		app, err := firebase.NewApp(context.Background(), nil, opt)
+		if err != nil {
+			initErr = err
+			log.Printf("FCM init error: %v", err)
+			return
+		}
+
+		client, err := app.Messaging(context.Background())
+		if err != nil {
+			initErr = err
+			log.Printf("FCM init error: %v", err)
+			return
+		}
+
+		FCMClient = client
+		log.Println("FCM initialized successfully")
+	})
+
+	return initErr
+}
+
+func GetFCMClient() *messaging.Client {
+	fcmMutex.RLock()
+	defer fcmMutex.RUnlock()
+	return FCMClient
+}
+
+func ensureFCMClient() bool {
+	if FCMClient == nil {
+		log.Println("FCMClient is nil, attempting to reinitialize...")
+		if err := InitFCM(); err != nil {
+			log.Printf("Failed to reinitialize FCM: %v", err)
+			return false
+		}
+		if FCMClient == nil {
+			log.Println("FCMClient still nil after reinitialization")
+			return false
+		}
+		log.Println("FCMClient reinitialized successfully")
+		return true
+	}
+	return true
 }
 
 func SendNotification(token, title, body string) error {
-	if FCMClient == nil {
+	if !ensureFCMClient() {
+		return nil
+	}
+
+	client := GetFCMClient()
+	if client == nil {
 		log.Println("FCMClient is nil, cannot send notification")
 		return nil
 	}
@@ -53,7 +98,7 @@ func SendNotification(token, title, body string) error {
 		Token: token,
 	}
 
-	_, err := FCMClient.Send(context.Background(), message)
+	_, err := client.Send(context.Background(), message)
 	if err != nil {
 		log.Printf("FCM send notification error: %v", err)
 		return err
@@ -64,7 +109,12 @@ func SendNotification(token, title, body string) error {
 }
 
 func SendNotificationWithData(token, title, body string, data map[string]string) error {
-	if FCMClient == nil {
+	if !ensureFCMClient() {
+		return nil
+	}
+
+	client := GetFCMClient()
+	if client == nil {
 		log.Println("FCMClient is nil, cannot send notification with data")
 		return nil
 	}
@@ -78,7 +128,7 @@ func SendNotificationWithData(token, title, body string, data map[string]string)
 		Token: token,
 	}
 
-	_, err := FCMClient.Send(context.Background(), message)
+	_, err := client.Send(context.Background(), message)
 	if err != nil {
 		log.Printf("FCM send notification with data error: %v", err)
 		return err
@@ -89,13 +139,18 @@ func SendNotificationWithData(token, title, body string, data map[string]string)
 }
 
 func SendMulticast(tokens []string, title, body string) error {
-	if FCMClient == nil {
-		log.Println("FCMClient is nil, cannot send multicast notification")
+	if !ensureFCMClient() {
 		return nil
 	}
 
 	if len(tokens) == 0 {
 		log.Println("No tokens to send multicast notification")
+		return nil
+	}
+
+	client := GetFCMClient()
+	if client == nil {
+		log.Println("FCMClient is nil, cannot send multicast notification")
 		return nil
 	}
 
@@ -109,7 +164,7 @@ func SendMulticast(tokens []string, title, body string) error {
 		Tokens: tokens,
 	}
 
-	response, err := FCMClient.SendMulticast(context.Background(), message)
+	response, err := client.SendMulticast(context.Background(), message)
 	if err != nil {
 		log.Printf("FCM send multicast error: %v", err)
 		return err
@@ -129,13 +184,18 @@ func SendMulticast(tokens []string, title, body string) error {
 }
 
 func SendMulticastWithData(tokens []string, title, body string, data map[string]string) error {
-	if FCMClient == nil {
-		log.Println("FCMClient is nil, cannot send multicast with data")
+	if !ensureFCMClient() {
 		return nil
 	}
 
 	if len(tokens) == 0 {
 		log.Println("No tokens to send multicast with data")
+		return nil
+	}
+
+	client := GetFCMClient()
+	if client == nil {
+		log.Println("FCMClient is nil, cannot send multicast with data")
 		return nil
 	}
 
@@ -150,7 +210,7 @@ func SendMulticastWithData(tokens []string, title, body string, data map[string]
 		Tokens: tokens,
 	}
 
-	response, err := FCMClient.SendMulticast(context.Background(), message)
+	response, err := client.SendMulticast(context.Background(), message)
 	if err != nil {
 		log.Printf("FCM send multicast with data error: %v", err)
 		return err
@@ -170,5 +230,7 @@ func SendMulticastWithData(tokens []string, title, body string, data map[string]
 }
 
 func IsFCMReady() bool {
+	fcmMutex.RLock()
+	defer fcmMutex.RUnlock()
 	return FCMClient != nil
 }
