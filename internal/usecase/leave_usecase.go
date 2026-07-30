@@ -483,6 +483,20 @@ func (u *LeaveUsecase) ApproveLeave(ctx context.Context, leaveID, managerID stri
 				ReferensiTipe: "pengajuan_cuti",
 			})
 		}
+
+		hrdList, _, err := u.KaryawanRepo.GetAll(ctx, 100, 0, "", "hrd", "aktif")
+		if err == nil && len(hrdList) > 0 {
+			for _, hrd := range hrdList {
+				go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
+					KaryawanID:    hrd.ID,
+					Jenis:         "persetujuan",
+					Judul:         "Pengajuan Cuti Menunggu Finalisasi",
+					Pesan:         "Pengajuan cuti oleh " + karyawanPemohon.NamaLengkap + " telah disetujui atasan, silakan finalisasi",
+					ReferensiID:   leaveID,
+					ReferensiTipe: "pengajuan_cuti",
+				})
+			}
+		}
 	}
 
 	return u.LeaveRepo.GetByID(ctx, leaveID)
