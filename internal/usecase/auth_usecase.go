@@ -17,6 +17,7 @@ import (
 type AuthUsecase struct {
 	KaryawanRepo *repository.KaryawanRepo
 	RiwayatRepo  *repository.RiwayatRepo
+	FCMTokenRepo *repository.FCMTokenRepo
 	SupabaseURL  string
 	AnonKey      string
 }
@@ -286,5 +287,20 @@ func (u *AuthUsecase) Logout(ctx context.Context, token string) error {
 	}
 
 	log.Printf("Logout berhasil")
+	return nil
+}
+
+func (u *AuthUsecase) DeactivateFCMToken(ctx context.Context, karyawanID, fcmToken string) error {
+	tokens, err := u.FCMTokenRepo.GetTokensByKaryawanID(ctx, karyawanID)
+	if err != nil {
+		return err
+	}
+
+	for _, token := range tokens {
+		if token == fcmToken {
+			return u.FCMTokenRepo.DeactivateToken(ctx, fcmToken)
+		}
+	}
+
 	return nil
 }

@@ -83,6 +83,13 @@ func (h *AuthHandler) GetProfile(c *fiber.Ctx) error {
 }
 
 func (h *AuthHandler) Logout(c *fiber.Ctx) error {
+	userID := c.Locals("user_id").(string)
+	fcmToken := c.Get("X-FCM-Token")
+
+	if fcmToken != "" {
+		go h.AuthUsecase.DeactivateFCMToken(c.Context(), userID, fcmToken)
+	}
+
 	return c.JSON(fiber.Map{
 		"success": true,
 		"message": "Logout berhasil",
