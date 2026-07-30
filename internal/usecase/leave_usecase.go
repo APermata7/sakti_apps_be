@@ -295,6 +295,22 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 				})
 			}
 		}
+
+		hrdList, _, err := u.KaryawanRepo.GetAll(ctx, 100, 0, "", "hrd", "aktif")
+		if err == nil && len(hrdList) > 0 {
+			for _, hrd := range hrdList {
+				if hrd.ID != karyawanID {
+					go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
+						KaryawanID:    hrd.ID,
+						Jenis:         "pengajuan",
+						Judul:         "Pengajuan Cuti Baru",
+						Pesan:         karyawan.NamaLengkap + " mengajukan cuti " + strconv.Itoa(totalHari) + " hari",
+						ReferensiID:   leave.ID,
+						ReferensiTipe: "pengajuan_cuti",
+					})
+				}
+			}
+		}
 	}
 
 	telegram := utils.NewTelegramBot(u.KaryawanRepo.DB)
