@@ -13,18 +13,32 @@ import (
 )
 
 type PresensiUsecase struct {
-	PresensiRepo *repository.PresensiRepo
-	KaryawanRepo *repository.KaryawanRepo
-	ConfigRepo   *repository.KonfigurasiRepo
-	RiwayatRepo  *repository.RiwayatRepo
+	PresensiRepo   *repository.PresensiRepo
+	KaryawanRepo   *repository.KaryawanRepo
+	ConfigRepo     *repository.KonfigurasiRepo
+	RiwayatRepo    *repository.RiwayatRepo
+	LeaveRepo      *repository.LeaveRepo
+	NotifikasiRepo *repository.NotifikasiRepo
+	FCMTokenRepo   *repository.FCMTokenRepo
 }
 
-func NewPresensiUsecase(presensiRepo *repository.PresensiRepo, karyawanRepo *repository.KaryawanRepo, configRepo *repository.KonfigurasiRepo, riwayatRepo *repository.RiwayatRepo) *PresensiUsecase {
+func NewPresensiUsecase(
+	presensiRepo *repository.PresensiRepo,
+	karyawanRepo *repository.KaryawanRepo,
+	configRepo *repository.KonfigurasiRepo,
+	riwayatRepo *repository.RiwayatRepo,
+	leaveRepo *repository.LeaveRepo,
+	notifikasiRepo *repository.NotifikasiRepo,
+	fcmTokenRepo *repository.FCMTokenRepo,
+) *PresensiUsecase {
 	return &PresensiUsecase{
-		PresensiRepo: presensiRepo,
-		KaryawanRepo: karyawanRepo,
-		ConfigRepo:   configRepo,
-		RiwayatRepo:  riwayatRepo,
+		PresensiRepo:   presensiRepo,
+		KaryawanRepo:   karyawanRepo,
+		ConfigRepo:     configRepo,
+		RiwayatRepo:    riwayatRepo,
+		LeaveRepo:      leaveRepo,
+		NotifikasiRepo: notifikasiRepo,
+		FCMTokenRepo:   fcmTokenRepo,
 	}
 }
 
@@ -341,5 +355,105 @@ func (u *PresensiUsecase) AutoClockOut(ctx context.Context) error {
 
 	rowsAffected := result.RowsAffected()
 	log.Printf("AutoClockOut selesai, baris terpengaruh: %d", rowsAffected)
+	return nil
+}
+
+func (u *PresensiUsecase) SendPresensiReminder(ctx context.Context) error {
+	now := time.Now()
+	weekday := now.Weekday()
+
+	if weekday == time.Saturday || weekday == time.Sunday {
+		return nil
+	}
+
+	libur, err := u.LeaveRepo.GetLiburByDate(ctx, now)
+	if err == nil && libur != nil && libur.Aktif {
+		return nil
+	}
+
+	config, err := u.ConfigRepo.GetActive(ctx)
+	if err != nil {
+		return err
+	}
+
+	karyawanCuti, err := u.LeaveRepo.GetActiveLeavesByDate(ctx, now)
+	if err != nil {
+		karyawanCuti = []string{}
+	}
+	karyawanCutiMap := make(map[string]bool)
+	for _, id := range karyawanCuti {
+		karyawanCutiMap[id] = true
+	}
+
+	jamSekarang := now.Format("15:04")
+
+	semuaKaryawan, _, err := u.KaryawanRepo.GetAll(ctx, 1000, 0, "", "", "aktif")
+	if err != nil {
+		return err
+	}
+
+	if jamSekarang >= config.JamMinimalMasuk {
+		for _, karyawan := range semuaKaryawan {
+			if karyawanCutiMap[karyawan.ID] {
+				continue
+			}
+			alreadyCheckedIn, _ := u.PresensiRepo.AlreadyCheckedIn(ctx, karyawan.ID, now)
+			if !alreadyCheckedIn {
+				go u.KirimInApp(ctx, domain.KirimNotifikasiRequest{
+					KaryawanID:    karyawan.ID,
+					Jenis:         "reminder",
+					Judul:         "Reminder Check-In",
+					Pesan:         "Jangan lupa melakukan check-in hari ini!",
+					ReferensiID:   "",
+					ReferensiTipe: "presensi",
+				})
+			}
+		}
+	}
+
+	if jamSekarang >= config.JamMinimalPulang {
+		for _, karyawan := range semuaKaryawan {
+			if karyawanCutiMap[karyawan.ID] {
+				continue
+			}
+			alreadyCheckedIn, _ := u.PresensiRepo.AlreadyCheckedIn(ctx, karyawan.ID, now)
+			alreadyCheckedOut, _ := u.PresensiRepo.AlreadyCheckedOut(ctx, karyawan.ID, now)
+			if alreadyCheckedIn && !alreadyCheckedOut {
+				go u.KirimInApp(ctx, domain.KirimNotifikasiRequest{
+					KaryawanID:    karyawan.ID,
+					Jenis:         "reminder",
+					Judul:         "Reminder Check-Out",
+					Pesan:         "Jangan lupa melakukan check-out hari ini!",
+					ReferensiID:   "",
+					ReferensiTipe: "presensi",
+				})
+			}
+		}
+	}
+
+	return nil
+}
+
+func (u *PresensiUsecase) KirimInApp(ctx context.Context, req domain.KirimNotifikasiRequest) error {
+	notif := &domain.Notifikasi{
+		KaryawanID:    req.KaryawanID,
+		Jenis:         req.Jenis,
+		Channel:       "inapp",
+		Judul:         req.Judul,
+		Pesan:         req.Pesan,
+		Dibaca:        false,
+		ReferensiID:   req.ReferensiID,
+		ReferensiTipe: req.ReferensiTipe,
+	}
+
+	if err := u.NotifikasiRepo.Create(ctx, notif); err != nil {
+		return err
+	}
+
+	tokens, _ := u.FCMTokenRepo.GetTokensByKaryawanID(ctx, req.KaryawanID)
+	if len(tokens) > 0 {
+		go utils.SendMulticast(tokens, req.Judul, req.Pesan)
+	}
+
 	return nil
 }

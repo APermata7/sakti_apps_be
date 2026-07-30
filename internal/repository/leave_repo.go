@@ -444,6 +444,31 @@ func (r *LeaveRepo) GetActiveLeaves(ctx context.Context, karyawanID string) ([]d
 	return items, nil
 }
 
+func (r *LeaveRepo) GetActiveLeavesByDate(ctx context.Context, tanggal time.Time) ([]string, error) {
+	query := `
+		SELECT DISTINCT karyawan_id
+		FROM pengajuan_cuti
+		WHERE status = 'disetujui'
+		AND tanggal_mulai <= $1 AND tanggal_selesai >= $1
+		AND mengurangi_cuti = true
+	`
+	rows, err := r.DB.Query(ctx, query, tanggal)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			continue
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
 func (r *LeaveRepo) GetAllLeaves(ctx context.Context, atasanID string, role string, status string, subTipe string, startDate string, endDate string, limit int, offset int) ([]domain.LeaveWithKaryawanResponse, int, error) {
 	var items []domain.LeaveWithKaryawanResponse
 	var total int

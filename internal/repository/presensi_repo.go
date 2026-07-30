@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"strconv"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -231,4 +232,18 @@ func (r *PresensiRepo) GetHistory(ctx context.Context, karyawanID, startDate, en
 
 	log.Printf("GetHistory berhasil, items: %d", len(items))
 	return items, total, nil
+}
+
+func (r *PresensiRepo) AlreadyCheckedIn(ctx context.Context, karyawanID string, tanggal time.Time) (bool, error) {
+	var count int
+	query := `SELECT COUNT(*) FROM presensi WHERE karyawan_id = $1 AND tanggal = $2 AND jam_masuk IS NOT NULL`
+	err := r.DB.QueryRow(ctx, query, karyawanID, tanggal).Scan(&count)
+	return count > 0, err
+}
+
+func (r *PresensiRepo) AlreadyCheckedOut(ctx context.Context, karyawanID string, tanggal time.Time) (bool, error) {
+	var count int
+	query := `SELECT COUNT(*) FROM presensi WHERE karyawan_id = $1 AND tanggal = $2 AND jam_keluar IS NOT NULL`
+	err := r.DB.QueryRow(ctx, query, karyawanID, tanggal).Scan(&count)
+	return count > 0, err
 }
