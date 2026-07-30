@@ -441,65 +441,67 @@ func (u *LeaveUsecase) CancelLeave(ctx context.Context, leaveID, karyawanID stri
 }
 
 func (u *LeaveUsecase) ApproveLeave(ctx context.Context, leaveID, managerID string) (*domain.PengajuanCuti, error) {
-	leave, err := u.LeaveRepo.GetByID(ctx, leaveID)
-	if err != nil {
-		return nil, errors.New("pengajuan tidak ditemukan")
-	}
-	if leave == nil {
-		return nil, errors.New("pengajuan tidak ditemukan")
-	}
-	if leave.Status != "menunggu" {
-		return nil, errors.New("pengajuan sudah diproses")
-	}
+    leave, err := u.LeaveRepo.GetByID(ctx, leaveID)
+    if err != nil {
+        return nil, errors.New("pengajuan tidak ditemukan")
+    }
+    if leave == nil {
+        return nil, errors.New("pengajuan tidak ditemukan")
+    }
+    if leave.Status != "menunggu" {
+        return nil, errors.New("pengajuan sudah diproses")
+    }
 
-	if err := u.LeaveRepo.Approve(ctx, leaveID, managerID); err != nil {
-		return nil, err
-	}
+    if err := u.LeaveRepo.Approve(ctx, leaveID, managerID); err != nil {
+        return nil, err
+    }
 
-	karyawan, _ := u.KaryawanRepo.GetByID(ctx, leave.KaryawanID)
-	if karyawan != nil && karyawan.Role == "hrd" {
-		return u.FinalizeLeave(ctx, leaveID, managerID)
-	}
+    karyawanPemohon, _ := u.KaryawanRepo.GetByID(ctx, leave.KaryawanID)
 
-	if u.RiwayatRepo != nil {
-		karyawanAtasan, _ := u.KaryawanRepo.GetByID(ctx, managerID)
-		namaAtasan := "atasan"
-		if karyawanAtasan != nil {
-			namaAtasan = karyawanAtasan.NamaLengkap
-		}
-		detail := "Cuti disetujui oleh " + namaAtasan
-		u.RiwayatRepo.CreateRiwayat(ctx, leave.KaryawanID, "cuti_disetujui", detail)
-	}
+    if u.NotificationUsecase != nil && karyawanPemohon != nil {
+        go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
+            KaryawanID:    leave.KaryawanID,
+            Jenis:         "persetujuan",
+            Judul:         "Pengajuan Cuti Disetujui",
+            Pesan:         "Pengajuan cuti Anda telah disetujui oleh atasan",
+            ReferensiID:   leaveID,
+            ReferensiTipe: "pengajuan_cuti",
+        })
+    }
 
-	if u.NotificationUsecase != nil {
-		karyawanPemohon, _ := u.KaryawanRepo.GetByID(ctx, leave.KaryawanID)
-		if karyawanPemohon != nil {
-			go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
-				KaryawanID:    leave.KaryawanID,
-				Jenis:         "persetujuan",
-				Judul:         "Pengajuan Cuti Disetujui",
-				Pesan:         "Pengajuan cuti Anda telah disetujui oleh atasan",
-				ReferensiID:   leaveID,
-				ReferensiTipe: "pengajuan_cuti",
-			})
-		}
+    if karyawanPemohon != nil && karyawanPemohon.Role != "hrd" {
+        if u.NotificationUsecase != nil {
+            hrdList, _, err := u.KaryawanRepo.GetAll(ctx, 100, 0, "", "hrd", "aktif")
+            if err == nil && len(hrdList) > 0 {
+                for _, hrd := range hrdList {
+                    go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
+                        KaryawanID:    hrd.ID,
+                        Jenis:         "persetujuan",
+                        Judul:         "Pengajuan Cuti Menunggu Finalisasi",
+                        Pesan:         "Pengajuan cuti oleh " + karyawanPemohon.NamaLengkap + " telah disetujui atasan, silakan finalisasi",
+                        ReferensiID:   leaveID,
+                        ReferensiTipe: "pengajuan_cuti",
+                    })
+                }
+            }
+        }
+    }
 
-		hrdList, _, err := u.KaryawanRepo.GetAll(ctx, 100, 0, "", "hrd", "aktif")
-		if err == nil && len(hrdList) > 0 {
-			for _, hrd := range hrdList {
-				go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
-					KaryawanID:    hrd.ID,
-					Jenis:         "persetujuan",
-					Judul:         "Pengajuan Cuti Menunggu Finalisasi",
-					Pesan:         "Pengajuan cuti oleh " + karyawanPemohon.NamaLengkap + " telah disetujui atasan, silakan finalisasi",
-					ReferensiID:   leaveID,
-					ReferensiTipe: "pengajuan_cuti",
-				})
-			}
-		}
-	}
+    if u.RiwayatRepo != nil {
+        karyawanAtasan, _ := u.KaryawanRepo.GetByID(ctx, managerID)
+        namaAtasan := "atasan"
+        if karyawanAtasan != nil {
+            namaAtasan = karyawanAtasan.NamaLengkap
+        }
+        detail := "Cuti disetujui oleh " + namaAtasan
+        u.RiwayatRepo.CreateRiwayat(ctx, leave.KaryawanID, "cuti_disetujui", detail)
+    }
 
-	return u.LeaveRepo.GetByID(ctx, leaveID)
+    if karyawanPemohon != nil && karyawanPemohon.Role == "hrd" {
+        return u.FinalizeLeave(ctx, leaveID, managerID)
+    }
+
+    return u.LeaveRepo.GetByID(ctx, leaveID)
 }
 
 func (u *LeaveUsecase) RejectLeave(ctx context.Context, leaveID, managerID, alasan string) (*domain.PengajuanCuti, error) {
