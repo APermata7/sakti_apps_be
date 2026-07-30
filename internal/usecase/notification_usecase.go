@@ -69,12 +69,27 @@ func (u *NotificationUsecase) KirimNotifikasi(ctx context.Context, req domain.Ki
 	}
 
 	if err := u.NotifikasiRepo.Create(ctx, notif); err != nil {
+		log.Printf("[KirimNotifikasi] Error create notification: %v", err)
 		return err
 	}
 
-	tokens, _ := u.FCMTokenRepo.GetTokensByKaryawanID(ctx, req.KaryawanID)
+	tokens, err := u.FCMTokenRepo.GetTokensByKaryawanID(ctx, req.KaryawanID)
+	if err != nil {
+		log.Printf("[KirimNotifikasi] Error get tokens: %v", err)
+	}
+
+	log.Printf("[KirimNotifikasi] Found %d tokens for karyawanID=%s", len(tokens), req.KaryawanID)
+
 	if len(tokens) > 0 {
-		go utils.SendMulticast(tokens, req.Judul, req.Pesan)
+		go func() {
+			log.Printf("[KirimNotifikasi] Calling SendMulticast with %d tokens", len(tokens))
+			err := utils.SendMulticast(tokens, req.Judul, req.Pesan)
+			if err != nil {
+				log.Printf("[KirimNotifikasi] SendMulticast error: %v", err)
+			}
+		}()
+	} else {
+		log.Printf("[KirimNotifikasi] No tokens found for karyawanID=%s", req.KaryawanID)
 	}
 
 	if chatID != "" && u.TelegramBot != nil {
@@ -90,6 +105,8 @@ func (u *NotificationUsecase) KirimNotifikasi(ctx context.Context, req domain.Ki
 }
 
 func (u *NotificationUsecase) KirimInApp(ctx context.Context, req domain.KirimNotifikasiRequest) error {
+	log.Printf("[KirimInApp] Start: karyawanID=%s, jenis=%s, judul=%s", req.KaryawanID, req.Jenis, req.Judul)
+
 	notif := &domain.Notifikasi{
 		KaryawanID:    req.KaryawanID,
 		Jenis:         req.Jenis,
@@ -102,12 +119,29 @@ func (u *NotificationUsecase) KirimInApp(ctx context.Context, req domain.KirimNo
 	}
 
 	if err := u.NotifikasiRepo.Create(ctx, notif); err != nil {
+		log.Printf("[KirimInApp] Error create notification: %v", err)
 		return err
 	}
 
-	tokens, _ := u.FCMTokenRepo.GetTokensByKaryawanID(ctx, req.KaryawanID)
+	log.Printf("[KirimInApp] Notification saved: id=%s", notif.ID)
+
+	tokens, err := u.FCMTokenRepo.GetTokensByKaryawanID(ctx, req.KaryawanID)
+	if err != nil {
+		log.Printf("[KirimInApp] Error get tokens: %v", err)
+	}
+
+	log.Printf("[KirimInApp] Found %d tokens for karyawanID=%s", len(tokens), req.KaryawanID)
+
 	if len(tokens) > 0 {
-		go utils.SendMulticast(tokens, req.Judul, req.Pesan)
+		go func() {
+			log.Printf("[KirimInApp] Calling SendMulticast with %d tokens", len(tokens))
+			err := utils.SendMulticast(tokens, req.Judul, req.Pesan)
+			if err != nil {
+				log.Printf("[KirimInApp] SendMulticast error: %v", err)
+			}
+		}()
+	} else {
+		log.Printf("[KirimInApp] No tokens found for karyawanID=%s", req.KaryawanID)
 	}
 
 	return nil

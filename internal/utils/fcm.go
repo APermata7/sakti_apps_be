@@ -41,6 +41,7 @@ func InitFCM() error {
 
 func SendNotification(token, title, body string) error {
 	if FCMClient == nil {
+		log.Println("FCMClient is nil, cannot send notification")
 		return nil
 	}
 
@@ -53,11 +54,18 @@ func SendNotification(token, title, body string) error {
 	}
 
 	_, err := FCMClient.Send(context.Background(), message)
-	return err
+	if err != nil {
+		log.Printf("FCM send notification error: %v", err)
+		return err
+	}
+
+	log.Printf("FCM notification sent to token: %s", token)
+	return nil
 }
 
 func SendNotificationWithData(token, title, body string, data map[string]string) error {
 	if FCMClient == nil {
+		log.Println("FCMClient is nil, cannot send notification with data")
 		return nil
 	}
 
@@ -71,13 +79,27 @@ func SendNotificationWithData(token, title, body string, data map[string]string)
 	}
 
 	_, err := FCMClient.Send(context.Background(), message)
-	return err
+	if err != nil {
+		log.Printf("FCM send notification with data error: %v", err)
+		return err
+	}
+
+	log.Printf("FCM notification with data sent to token: %s", token)
+	return nil
 }
 
 func SendMulticast(tokens []string, title, body string) error {
-	if FCMClient == nil || len(tokens) == 0 {
+	if FCMClient == nil {
+		log.Println("FCMClient is nil, cannot send multicast notification")
 		return nil
 	}
+
+	if len(tokens) == 0 {
+		log.Println("No tokens to send multicast notification")
+		return nil
+	}
+
+	log.Printf("Sending FCM multicast notification to %d devices", len(tokens))
 
 	message := &messaging.MulticastMessage{
 		Notification: &messaging.Notification{
@@ -87,14 +109,37 @@ func SendMulticast(tokens []string, title, body string) error {
 		Tokens: tokens,
 	}
 
-	_, err := FCMClient.SendMulticast(context.Background(), message)
-	return err
+	response, err := FCMClient.SendMulticast(context.Background(), message)
+	if err != nil {
+		log.Printf("FCM send multicast error: %v", err)
+		return err
+	}
+
+	log.Printf("FCM successCount: %d, failureCount: %d", response.SuccessCount, response.FailureCount)
+
+	if response.FailureCount > 0 {
+		for i, result := range response.Responses {
+			if result.Error != nil {
+				log.Printf("FCM failure for token index %d: %v", i, result.Error)
+			}
+		}
+	}
+
+	return nil
 }
 
 func SendMulticastWithData(tokens []string, title, body string, data map[string]string) error {
-	if FCMClient == nil || len(tokens) == 0 {
+	if FCMClient == nil {
+		log.Println("FCMClient is nil, cannot send multicast with data")
 		return nil
 	}
+
+	if len(tokens) == 0 {
+		log.Println("No tokens to send multicast with data")
+		return nil
+	}
+
+	log.Printf("Sending FCM multicast with data to %d devices", len(tokens))
 
 	message := &messaging.MulticastMessage{
 		Notification: &messaging.Notification{
@@ -105,8 +150,23 @@ func SendMulticastWithData(tokens []string, title, body string, data map[string]
 		Tokens: tokens,
 	}
 
-	_, err := FCMClient.SendMulticast(context.Background(), message)
-	return err
+	response, err := FCMClient.SendMulticast(context.Background(), message)
+	if err != nil {
+		log.Printf("FCM send multicast with data error: %v", err)
+		return err
+	}
+
+	log.Printf("FCM successCount: %d, failureCount: %d", response.SuccessCount, response.FailureCount)
+
+	if response.FailureCount > 0 {
+		for i, result := range response.Responses {
+			if result.Error != nil {
+				log.Printf("FCM failure for token index %d: %v", i, result.Error)
+			}
+		}
+	}
+
+	return nil
 }
 
 func IsFCMReady() bool {
