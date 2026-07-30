@@ -211,28 +211,31 @@ func SendMulticast(tokens []string, title, body string) error {
 
 	log.Printf("Sending FCM multicast notification to %d devices", len(tokens))
 
-	message := &messaging.MulticastMessage{
-		Notification: &messaging.Notification{
-			Title: title,
-			Body:  body,
-		},
-		Tokens: tokens,
-	}
+	successCount := 0
+	failureCount := 0
 
-	response, err := client.SendMulticast(context.Background(), message)
-	if err != nil {
-		log.Printf("FCM send multicast error: %v", err)
-		return err
-	}
-
-	log.Printf("FCM successCount: %d, failureCount: %d", response.SuccessCount, response.FailureCount)
-
-	if response.FailureCount > 0 {
-		for i, result := range response.Responses {
-			if result.Error != nil {
-				log.Printf("FCM failure for token index %d: %v", i, result.Error)
-			}
+	for i, token := range tokens {
+		message := &messaging.Message{
+			Notification: &messaging.Notification{
+				Title: title,
+				Body:  body,
+			},
+			Token: token,
 		}
+
+		_, err := client.Send(context.Background(), message)
+		if err != nil {
+			log.Printf("FCM send error for token %d: %v", i, err)
+			failureCount++
+		} else {
+			successCount++
+		}
+	}
+
+	log.Printf("FCM successCount: %d, failureCount: %d", successCount, failureCount)
+
+	if failureCount > 0 {
+		log.Printf("FCM some notifications failed to send")
 	}
 
 	return nil
@@ -257,29 +260,32 @@ func SendMulticastWithData(tokens []string, title, body string, data map[string]
 
 	log.Printf("Sending FCM multicast with data to %d devices", len(tokens))
 
-	message := &messaging.MulticastMessage{
-		Notification: &messaging.Notification{
-			Title: title,
-			Body:  body,
-		},
-		Data:   data,
-		Tokens: tokens,
-	}
+	successCount := 0
+	failureCount := 0
 
-	response, err := client.SendMulticast(context.Background(), message)
-	if err != nil {
-		log.Printf("FCM send multicast with data error: %v", err)
-		return err
-	}
-
-	log.Printf("FCM successCount: %d, failureCount: %d", response.SuccessCount, response.FailureCount)
-
-	if response.FailureCount > 0 {
-		for i, result := range response.Responses {
-			if result.Error != nil {
-				log.Printf("FCM failure for token index %d: %v", i, result.Error)
-			}
+	for i, token := range tokens {
+		message := &messaging.Message{
+			Notification: &messaging.Notification{
+				Title: title,
+				Body:  body,
+			},
+			Data:  data,
+			Token: token,
 		}
+
+		_, err := client.Send(context.Background(), message)
+		if err != nil {
+			log.Printf("FCM send with data error for token %d: %v", i, err)
+			failureCount++
+		} else {
+			successCount++
+		}
+	}
+
+	log.Printf("FCM successCount: %d, failureCount: %d", successCount, failureCount)
+
+	if failureCount > 0 {
+		log.Printf("FCM some notifications with data failed to send")
 	}
 
 	return nil
