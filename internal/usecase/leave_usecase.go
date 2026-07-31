@@ -889,7 +889,7 @@ func (u *LeaveUsecase) GetBalance(ctx context.Context, karyawanID string, year i
 	var sisaCutiTahunLalu int
 	var berlakuSampai string
 	sekarang := time.Now()
-	batasAkhirMaret := time.Date(sekarang.Year(), 8, 31, 23, 59, 59, 0, time.Local)
+	batasAkhirMaret := time.Date(sekarang.Year(), 3, 31, 23, 59, 59, 0, time.Local)
 
 	jumlahCuti := 12
 
