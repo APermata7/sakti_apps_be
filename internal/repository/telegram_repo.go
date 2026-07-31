@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -33,10 +34,12 @@ func (r *TelegramRepo) SaveVerification(ctx context.Context, code, chatID, usern
 }
 
 func (r *TelegramRepo) GetVerificationByCode(ctx context.Context, code string) (*domain.TelegramVerification, error) {
+	code = strings.ToLower(code)
+
 	query := `
 		SELECT id, code, chat_id, username, karyawan_id, created_at, expired_at, is_used, used_at
 		FROM telegram_verification
-		WHERE code = $1
+		WHERE LOWER(code) = $1
 	`
 
 	var v domain.TelegramVerification
@@ -62,10 +65,12 @@ func (r *TelegramRepo) GetVerificationByCode(ctx context.Context, code string) (
 }
 
 func (r *TelegramRepo) MarkVerificationAsUsed(ctx context.Context, code, karyawanID string) error {
+	code = strings.ToLower(code)
+
 	query := `
 		UPDATE telegram_verification
 		SET is_used = true, used_at = NOW(), karyawan_id = $2
-		WHERE code = $1 AND is_used = false
+		WHERE LOWER(code) = $1 AND is_used = false
 	`
 	_, err := r.DB.Exec(ctx, query, code, karyawanID)
 	if err != nil {

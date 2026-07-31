@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -47,6 +48,8 @@ func (u *TelegramUsecase) GenerateVerificationCode(ctx context.Context, chatID, 
 }
 
 func (u *TelegramUsecase) VerifyCode(ctx context.Context, code string) (string, error) {
+	code = strings.ToLower(code)
+
 	if code == "" {
 		return "", errors.New("kode verifikasi tidak valid")
 	}
@@ -71,6 +74,8 @@ func (u *TelegramUsecase) VerifyCode(ctx context.Context, code string) (string, 
 }
 
 func (u *TelegramUsecase) ConnectTelegram(ctx context.Context, karyawanID, code string) error {
+	code = strings.ToLower(code)
+
 	log.Printf("[Telegram] Connect started: karyawanID=%s, code=%s", karyawanID, code)
 
 	if code == "" {
