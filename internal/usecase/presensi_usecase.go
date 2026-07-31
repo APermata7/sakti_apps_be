@@ -42,6 +42,18 @@ func NewPresensiUsecase(
 	}
 }
 
+func formatTanggalIndonesia(t time.Time) string {
+	bulan := map[string]string{
+		"January": "Januari", "February": "Februari", "March": "Maret",
+		"April": "April", "May": "Mei", "June": "Juni",
+		"July": "Juli", "August": "Agustus", "September": "September",
+		"October": "Oktober", "November": "November", "December": "Desember",
+	}
+	bulanInggris := t.Format("January")
+	bulanIndo := bulan[bulanInggris]
+	return t.Format("02 " + bulanIndo + " 2006 | 15:04")
+}
+
 func (u *PresensiUsecase) CheckIn(ctx context.Context, karyawanID string, req domain.CheckInRequest) (*domain.CheckInResponse, error) {
 	log.Printf("CheckIn dimulai untuk karyawanID: %s", karyawanID)
 
@@ -392,6 +404,8 @@ func (u *PresensiUsecase) SendPresensiReminder(ctx context.Context) error {
 		return err
 	}
 
+	tanggalJam := formatTanggalIndonesia(now)
+
 	if jamSekarang >= config.JamMinimalMasuk {
 		for _, karyawan := range semuaKaryawan {
 			if karyawanCutiMap[karyawan.ID] {
@@ -399,11 +413,14 @@ func (u *PresensiUsecase) SendPresensiReminder(ctx context.Context) error {
 			}
 			alreadyCheckedIn, _ := u.PresensiRepo.AlreadyCheckedIn(ctx, karyawan.ID, now)
 			if !alreadyCheckedIn {
+				judul := "Presensi Masuk"
+				pesan := "Segera lakukan presensi masuk. Jika Anda melakukan presensi masuk setelah pukul 08.30 WIB presensi akan dihitung sebagai terlambat.\n\n" + tanggalJam
+
 				go u.KirimInApp(ctx, domain.KirimNotifikasiRequest{
 					KaryawanID:    karyawan.ID,
 					Jenis:         "reminder",
-					Judul:         "Reminder Check-In",
-					Pesan:         "Jangan lupa melakukan check-in hari ini!",
+					Judul:         judul,
+					Pesan:         pesan,
 					ReferensiID:   "",
 					ReferensiTipe: "presensi",
 				})
@@ -419,11 +436,14 @@ func (u *PresensiUsecase) SendPresensiReminder(ctx context.Context) error {
 			alreadyCheckedIn, _ := u.PresensiRepo.AlreadyCheckedIn(ctx, karyawan.ID, now)
 			alreadyCheckedOut, _ := u.PresensiRepo.AlreadyCheckedOut(ctx, karyawan.ID, now)
 			if alreadyCheckedIn && !alreadyCheckedOut {
+				judul := "Presensi Keluar"
+				pesan := "Segera lakukan presensi keluar. Lakukan presensi keluar sebelum pukul 17.00 WIB. Jika sedang lembur, lakukan presensi sesuai waktu Anda pulang.\n\n" + tanggalJam
+
 				go u.KirimInApp(ctx, domain.KirimNotifikasiRequest{
 					KaryawanID:    karyawan.ID,
 					Jenis:         "reminder",
-					Judul:         "Reminder Check-Out",
-					Pesan:         "Jangan lupa melakukan check-out hari ini!",
+					Judul:         judul,
+					Pesan:         pesan,
 					ReferensiID:   "",
 					ReferensiTipe: "presensi",
 				})
