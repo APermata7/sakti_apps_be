@@ -92,6 +92,7 @@ func main() {
 	adminHandler := handler.NewAdminHandler(adminUsecase)
 	ttdHandler := handler.NewTTDHandler(ttdUsecase)
 	telegramHandler := handler.NewTelegramHandler(telegramUsecase)
+	telegramWebhookHandler := handler.NewTelegramWebhookHandler(telegramUsecase)
 
 	app := fiber.New(fiber.Config{
 		AppName: os.Getenv("APP_NAME"),
@@ -121,6 +122,8 @@ func main() {
 	api.Post("/auth/reset-password", authHandler.ResetPassword)
 
 	api.Get("/libur/check", liburHandler.IsHoliday)
+
+	api.Post("/webhook/telegram", telegramWebhookHandler.Webhook)
 
 	protected := api.Group("/", middleware.AuthMiddleware())
 	protected.Get("/auth/me", authHandler.GetProfile)
