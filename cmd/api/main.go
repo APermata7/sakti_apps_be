@@ -202,6 +202,16 @@ func main() {
 	liburGroup.Get("/", liburHandler.GetAll)
 	liburGroup.Get("/:id", liburHandler.GetByID)
 
+	go func() {
+		for {
+			time.Sleep(1 * time.Hour)
+			ctx := context.Background()
+			if err := telegramUsecase.CleanupExpiredCodes(ctx); err != nil {
+				log.Printf("Cleanup expired codes failed: %v", err)
+			}
+		}
+	}()
+
 	port := os.Getenv("APP_PORT")
 	if port == "" {
 		port = "8080"

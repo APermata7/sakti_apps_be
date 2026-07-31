@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 
@@ -318,7 +319,7 @@ func (r *KaryawanRepo) ClearTelegramChatID(ctx context.Context, karyawanID strin
 }
 
 func (r *KaryawanRepo) GetTelegramStatus(ctx context.Context, karyawanID string) (string, error) {
-	var chatID string
+	var chatID sql.NullString
 	query := `SELECT telegram_chat_id FROM karyawan WHERE id = $1`
 	err := r.DB.QueryRow(ctx, query, karyawanID).Scan(&chatID)
 	if err != nil {
@@ -327,5 +328,8 @@ func (r *KaryawanRepo) GetTelegramStatus(ctx context.Context, karyawanID string)
 		}
 		return "", err
 	}
-	return chatID, nil
+	if chatID.Valid {
+		return chatID.String, nil
+	}
+	return "", nil
 }

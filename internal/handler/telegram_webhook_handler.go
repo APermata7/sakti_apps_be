@@ -40,15 +40,17 @@ type TelegramUpdate struct {
 func (h *TelegramWebhookHandler) Webhook(c *fiber.Ctx) error {
 	body := c.Body()
 	if len(body) == 0 {
-		log.Println("Empty webhook body")
+		log.Println("[Webhook] Empty body")
 		return c.Status(400).SendString("Bad Request")
 	}
 
 	var update TelegramUpdate
 	if err := json.Unmarshal(body, &update); err != nil {
-		log.Printf("Failed to parse webhook body: %v", err)
+		log.Printf("[Webhook] Parse error: %v", err)
 		return c.Status(400).SendString("Bad Request")
 	}
+
+	log.Printf("[Webhook] Received: text=%s, chat_id=%d", update.Message.Text, update.Message.Chat.ID)
 
 	if update.Message.Text == "/start" {
 		chatID := strconv.Itoa(update.Message.Chat.ID)
@@ -56,7 +58,7 @@ func (h *TelegramWebhookHandler) Webhook(c *fiber.Ctx) error {
 
 		code, err := h.TelegramUsecase.GenerateVerificationCode(c.Context(), chatID, username)
 		if err != nil {
-			log.Printf("Failed to generate verification code: %v", err)
+			log.Printf("[Webhook] Generate code error: %v", err)
 			return c.Status(500).SendString("Internal Server Error")
 		}
 
@@ -68,7 +70,7 @@ func (h *TelegramWebhookHandler) Webhook(c *fiber.Ctx) error {
 
 		token := os.Getenv("TELEGRAM_BOT_TOKEN")
 		if token == "" {
-			log.Println("TELEGRAM_BOT_TOKEN not found")
+			log.Println("[Webhook] TELEGRAM_BOT_TOKEN not found")
 			return c.Status(500).SendString("Internal Server Error")
 		}
 
@@ -82,12 +84,12 @@ func (h *TelegramWebhookHandler) Webhook(c *fiber.Ctx) error {
 
 		resp, err := http.Post(sendURL, "application/json", bytes.NewBuffer(jsonBody))
 		if err != nil {
-			log.Printf("Failed to send message to Telegram: %v", err)
+			log.Printf("[Webhook] Send message error: %v", err)
 			return c.Status(500).SendString("Internal Server Error")
 		}
 		defer resp.Body.Close()
 
-		log.Printf("Verification code sent to chat_id: %s", chatID)
+		log.Printf("[Webhook] Code sent to chat_id: %s, code: %s", chatID, code)
 	}
 
 	return c.Status(200).SendString("OK")
