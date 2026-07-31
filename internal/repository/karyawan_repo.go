@@ -304,3 +304,28 @@ func (r *KaryawanRepo) GetAll(ctx context.Context, limit, offset int, search, ro
 
 	return karyawanList, total, nil
 }
+
+func (r *KaryawanRepo) UpdateTelegramChatID(ctx context.Context, karyawanID, chatID string) error {
+	query := `UPDATE karyawan SET telegram_chat_id = $1, diperbarui_pada = NOW() WHERE id = $2`
+	_, err := r.DB.Exec(ctx, query, chatID, karyawanID)
+	return err
+}
+
+func (r *KaryawanRepo) ClearTelegramChatID(ctx context.Context, karyawanID string) error {
+	query := `UPDATE karyawan SET telegram_chat_id = NULL, diperbarui_pada = NOW() WHERE id = $1`
+	_, err := r.DB.Exec(ctx, query, karyawanID)
+	return err
+}
+
+func (r *KaryawanRepo) GetTelegramStatus(ctx context.Context, karyawanID string) (string, error) {
+	var chatID string
+	query := `SELECT telegram_chat_id FROM karyawan WHERE id = $1`
+	err := r.DB.QueryRow(ctx, query, karyawanID).Scan(&chatID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", nil
+		}
+		return "", err
+	}
+	return chatID, nil
+}

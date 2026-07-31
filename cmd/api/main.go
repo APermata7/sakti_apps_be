@@ -80,6 +80,8 @@ func main() {
 	adminUsecase := usecase.NewAdminUsecase(dbConn.Pool, karyawanRepo, presensiRepo, leaveRepo)
 	ttdUsecase := usecase.NewTTDUsecase(ttdRepo)
 
+	telegramUsecase := usecase.NewTelegramUsecase(karyawanRepo, dbConn.Pool)
+
 	authHandler := handler.NewAuthHandler(authUsecase)
 	presensiHandler := handler.NewPresensiHandler(presensiUsecase)
 	leaveHandler := handler.NewLeaveHandler(leaveUsecase)
@@ -89,6 +91,7 @@ func main() {
 	konfigurasiHandler := handler.NewKonfigurasiHandler(konfigurasiUsecase)
 	adminHandler := handler.NewAdminHandler(adminUsecase)
 	ttdHandler := handler.NewTTDHandler(ttdUsecase)
+	telegramHandler := handler.NewTelegramHandler(telegramUsecase)
 
 	app := fiber.New(fiber.Config{
 		AppName: os.Getenv("APP_NAME"),
@@ -152,6 +155,10 @@ func main() {
 
 	protected.Post("/fcm/register", notificationHandler.RegisterFCMToken)
 	protected.Delete("/fcm/token", notificationHandler.DeactivateFCMToken)
+
+	protected.Get("/telegram/status", telegramHandler.GetStatus)
+	protected.Post("/telegram/connect", telegramHandler.Connect)
+	protected.Delete("/telegram/disconnect", telegramHandler.Disconnect)
 
 	protected.Post("/ttd/upload", ttdHandler.UploadTTD)
 	protected.Get("/ttd", ttdHandler.GetTTD)
