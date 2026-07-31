@@ -54,7 +54,7 @@ func (h *TelegramWebhookHandler) Webhook(c *fiber.Ctx) error {
 		chatID := strconv.Itoa(update.Message.Chat.ID)
 		username := update.Message.From.Username
 
-		code, err := h.TelegramUsecase.GenerateVerificationCode(chatID, username)
+		code, err := h.TelegramUsecase.GenerateVerificationCode(c.Context(), chatID, username)
 		if err != nil {
 			log.Printf("Failed to generate verification code: %v", err)
 			return c.Status(500).SendString("Internal Server Error")

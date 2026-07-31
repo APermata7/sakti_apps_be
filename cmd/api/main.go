@@ -61,6 +61,7 @@ func main() {
 	liburRepo := repository.NewLiburRepo(dbConn.Pool)
 	konfigurasiRepo := repository.NewKonfigurasiRepo(dbConn.Pool)
 	ttdRepo := repository.NewTTDRepo(dbConn.Pool)
+	telegramRepo := repository.NewTelegramRepo(dbConn.Pool)
 
 	authUsecase := usecase.NewAuthUsecase(karyawanRepo, riwayatRepo)
 	presensiUsecase := usecase.NewPresensiUsecase(
@@ -79,8 +80,7 @@ func main() {
 	konfigurasiUsecase := usecase.NewKonfigurasiUsecase(konfigurasiRepo)
 	adminUsecase := usecase.NewAdminUsecase(dbConn.Pool, karyawanRepo, presensiRepo, leaveRepo)
 	ttdUsecase := usecase.NewTTDUsecase(ttdRepo)
-
-	telegramUsecase := usecase.NewTelegramUsecase(karyawanRepo, dbConn.Pool)
+	telegramUsecase := usecase.NewTelegramUsecase(karyawanRepo, telegramRepo, dbConn.Pool)
 
 	authHandler := handler.NewAuthHandler(authUsecase)
 	presensiHandler := handler.NewPresensiHandler(presensiUsecase)
