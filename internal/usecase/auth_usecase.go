@@ -15,19 +15,26 @@ import (
 )
 
 type AuthUsecase struct {
-	KaryawanRepo *repository.KaryawanRepo
-	RiwayatRepo  *repository.RiwayatRepo
-	FCMTokenRepo *repository.FCMTokenRepo
-	SupabaseURL  string
-	AnonKey      string
+	KaryawanRepo     *repository.KaryawanRepo
+	RiwayatRepo      *repository.RiwayatRepo
+	FCMTokenRepo     *repository.FCMTokenRepo
+	SupabaseURL      string
+	AnonKey          string
+	ResetPasswordURL string
 }
 
 func NewAuthUsecase(karyawanRepo *repository.KaryawanRepo, riwayatRepo *repository.RiwayatRepo) *AuthUsecase {
+	resetURL := os.Getenv("RESET_PASSWORD_URL")
+	if resetURL == "" {
+		resetURL = "sakti://reset-password"
+	}
+
 	return &AuthUsecase{
-		KaryawanRepo: karyawanRepo,
-		RiwayatRepo:  riwayatRepo,
-		SupabaseURL:  os.Getenv("SUPABASE_URL"),
-		AnonKey:      os.Getenv("SUPABASE_ANON_KEY"),
+		KaryawanRepo:     karyawanRepo,
+		RiwayatRepo:      riwayatRepo,
+		SupabaseURL:      os.Getenv("SUPABASE_URL"),
+		AnonKey:          os.Getenv("SUPABASE_ANON_KEY"),
+		ResetPasswordURL: resetURL,
 	}
 }
 
@@ -190,7 +197,7 @@ func (u *AuthUsecase) ChangePassword(ctx context.Context, userID, token, current
 }
 
 func (u *AuthUsecase) ForgotPassword(ctx context.Context, email string) error {
-	log.Printf("ForgotPassword: email=%s", email)
+	log.Printf("ForgotPassword: email=%s, redirectTo=%s", email, u.ResetPasswordURL)
 
 	karyawan, err := u.KaryawanRepo.GetByEmail(ctx, email)
 	if err != nil {
@@ -203,7 +210,8 @@ func (u *AuthUsecase) ForgotPassword(ctx context.Context, email string) error {
 	}
 
 	supabaseReq := map[string]string{
-		"email": email,
+		"email":      email,
+		"redirectTo": u.ResetPasswordURL,
 	}
 	jsonBody, _ := json.Marshal(supabaseReq)
 

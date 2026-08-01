@@ -31,6 +31,7 @@ type Config struct {
 
 	TelegramBotToken string
 	FrontendURL      string
+	ResetPasswordURL string
 
 	CORSAllowedOrigins string
 }
@@ -63,6 +64,7 @@ func LoadConfig() *Config {
 
 		TelegramBotToken: getEnv("TELEGRAM_BOT_TOKEN", ""),
 		FrontendURL:      getEnv("FRONTEND_URL", "http://localhost:65138/"),
+		ResetPasswordURL: getEnv("RESET_PASSWORD_URL", "sakti://reset-password"),
 
 		CORSAllowedOrigins: getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:54323"),
 	}
