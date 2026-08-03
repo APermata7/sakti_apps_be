@@ -6,6 +6,7 @@ import (
 	"sakti_apps_be/internal/domain"
 	"sakti_apps_be/internal/middleware"
 	"sakti_apps_be/internal/usecase"
+	"sakti_apps_be/internal/utils"
 )
 
 type AuthHandler struct {
@@ -122,13 +123,6 @@ func (h *AuthHandler) ChangePassword(c *fiber.Ctx) error {
 		})
 	}
 
-	if len(req.NewPassword) < 8 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"success": false,
-			"message": "Password minimal 8 karakter",
-		})
-	}
-
 	if req.NewPassword != req.ConfirmPassword {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
@@ -140,6 +134,14 @@ func (h *AuthHandler) ChangePassword(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
 			"message": "Password baru tidak boleh sama dengan password saat ini",
+		})
+	}
+
+	valid, msg := utils.ValidatePassword(req.NewPassword)
+	if !valid {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": msg,
 		})
 	}
 
@@ -210,17 +212,18 @@ func (h *AuthHandler) ResetPassword(c *fiber.Ctx) error {
 		})
 	}
 
-	if len(req.NewPassword) < 8 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"success": false,
-			"message": "Password minimal 8 karakter",
-		})
-	}
-
 	if req.NewPassword != req.ConfirmPassword {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
 			"message": "Konfirmasi password tidak sesuai",
+		})
+	}
+
+	valid, msg := utils.ValidatePassword(req.NewPassword)
+	if !valid {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": msg,
 		})
 	}
 
