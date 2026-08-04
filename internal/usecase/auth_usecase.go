@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -231,8 +232,16 @@ func (u *AuthUsecase) ForgotPassword(ctx context.Context, email string) error {
 	}
 	defer resp.Body.Close()
 
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("Read response body error: %v", err)
+	}
+
+	log.Printf("Recover response status: %d", resp.StatusCode)
+	log.Printf("Recover response body: %s", string(responseBody))
+
 	if resp.StatusCode != 200 {
-		log.Printf("ForgotPassword failed: status=%d", resp.StatusCode)
+		log.Printf("ForgotPassword failed: status=%d, body=%s", resp.StatusCode, string(responseBody))
 		return errors.New("gagal mengirim link reset")
 	}
 
@@ -264,8 +273,13 @@ func (u *AuthUsecase) ResetPassword(ctx context.Context, token, newPassword stri
 	}
 	defer resp.Body.Close()
 
+	responseBody, _ := io.ReadAll(resp.Body)
+
+	log.Printf("ResetPassword response status: %d", resp.StatusCode)
+	log.Printf("ResetPassword response body: %s", string(responseBody))
+
 	if resp.StatusCode != 200 {
-		log.Printf("ResetPassword failed: status=%d", resp.StatusCode)
+		log.Printf("ResetPassword failed: status=%d, body=%s", resp.StatusCode, string(responseBody))
 		return errors.New("token tidak valid atau sudah kadaluarsa")
 	}
 
@@ -290,6 +304,10 @@ func (u *AuthUsecase) Logout(ctx context.Context, token string) error {
 		return err
 	}
 	defer resp.Body.Close()
+
+	responseBody, _ := io.ReadAll(resp.Body)
+	log.Printf("Logout response status: %d", resp.StatusCode)
+	log.Printf("Logout response body: %s", string(responseBody))
 
 	if resp.StatusCode != 200 {
 		log.Printf("Logout failed: status=%d", resp.StatusCode)
