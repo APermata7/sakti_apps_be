@@ -5,9 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
 
@@ -210,15 +212,22 @@ func (u *AuthUsecase) ForgotPassword(ctx context.Context, email string) error {
 		return errors.New("email tidak ditemukan")
 	}
 
+	recoverURL := fmt.Sprintf(
+		"%s/auth/v1/recover?redirect_to=%s",
+		u.SupabaseURL,
+		url.QueryEscape(u.ResetPasswordURL),
+	)
+
+	log.Printf("Recover URL: %s", recoverURL)
+
 	supabaseReq := map[string]string{
-		"email":       email,
-		"redirect_to": u.ResetPasswordURL,
+		"email": email,
 	}
 	jsonBody, _ := json.Marshal(supabaseReq)
 
 	log.Printf("Supabase payload: %s", string(jsonBody))
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", u.SupabaseURL+"/auth/v1/recover", bytes.NewBuffer(jsonBody))
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", recoverURL, bytes.NewBuffer(jsonBody))
 	if err != nil {
 		return err
 	}
