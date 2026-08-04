@@ -210,10 +210,12 @@ func (u *AuthUsecase) ForgotPassword(ctx context.Context, email string) error {
 	}
 
 	supabaseReq := map[string]string{
-		"email":      email,
-		"redirectTo": u.ResetPasswordURL,
+		"email":       email,
+		"redirect_to": u.ResetPasswordURL,
 	}
 	jsonBody, _ := json.Marshal(supabaseReq)
+
+	log.Printf("Supabase payload: %s", string(jsonBody))
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", u.SupabaseURL+"/auth/v1/recover", bytes.NewBuffer(jsonBody))
 	if err != nil {
