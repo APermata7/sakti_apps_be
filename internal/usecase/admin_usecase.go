@@ -455,9 +455,9 @@ func (u *AdminUsecase) GetPresensiReport(ctx context.Context, startDate, endDate
 
     dataQuery := `
         SELECT p.id, k.nama_lengkap, p.tanggal, 
-               COALESCE(p.jam_masuk, '') as jam_masuk,
+               COALESCE(p.jam_masuk::TEXT, '') as jam_masuk,
                COALESCE(p.status, '') as status_masuk,
-               COALESCE(p.jam_keluar, '') as jam_keluar,
+               COALESCE(p.jam_keluar::TEXT, '') as jam_keluar,
                CASE 
                    WHEN p.jam_keluar IS NULL THEN 'Belum Presensi'
                    WHEN p.lembur = true THEN 'Presensi Lembur'
