@@ -242,6 +242,62 @@ func (h *LiburHandler) GetAktif(c *fiber.Ctx) error {
 	})
 }
 
+func (h *LiburHandler) GetActiveList(c *fiber.Ctx) error {
+	tahunStr := c.Query("tahun")
+	bulan := c.Query("bulan")
+	jenis := c.Query("jenis")
+
+	var tahun int
+	if tahunStr != "" {
+		t, err := strconv.Atoi(tahunStr)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"success": false,
+				"message": "Tahun tidak valid",
+			})
+		}
+		tahun = t
+	}
+
+	var items []domain.Libur
+	var err error
+
+	if tahun > 0 && bulan != "" {
+		items, err = h.LiburUsecase.GetByBulan(c.Context(), bulan)
+	} else if tahun > 0 {
+		items, err = h.LiburUsecase.GetByTahun(c.Context(), tahun)
+	} else if bulan != "" {
+		items, err = h.LiburUsecase.GetByBulan(c.Context(), bulan)
+	} else {
+		items, err = h.LiburUsecase.GetAktif(c.Context())
+	}
+
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": err.Error(),
+		})
+	}
+
+	if jenis != "" {
+		filtered := []domain.Libur{}
+		for _, item := range items {
+			if item.Jenis == jenis {
+				filtered = append(filtered, item)
+			}
+		}
+		items = filtered
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    items,
+		"meta": fiber.Map{
+			"total": len(items),
+		},
+	})
+}
+
 func (h *LiburHandler) Update(c *fiber.Ctx) error {
 	id := c.Params("id")
 
