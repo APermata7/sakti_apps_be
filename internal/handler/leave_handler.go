@@ -169,7 +169,14 @@ func (h *LeaveHandler) CancelLeave(c *fiber.Ctx) error {
 
 	userID := c.Locals("user_id").(string)
 
-	cuti, err := h.LeaveUsecase.CancelLeave(c.Context(), leaveID, userID)
+	var req struct {
+		AlasanBatal string `json:"alasan_batal"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		req.AlasanBatal = ""
+	}
+
+	cuti, err := h.LeaveUsecase.CancelLeave(c.Context(), leaveID, userID, req.AlasanBatal)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
