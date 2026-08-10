@@ -390,7 +390,7 @@ func (u *LeaveUsecase) GetStatus(ctx context.Context, karyawanID, status string,
 	return u.LeaveRepo.GetByKaryawanID(ctx, karyawanID, status, limit, offset)
 }
 
-func (u *LeaveUsecase) CancelLeave(ctx context.Context, leaveID, karyawanID string) (*domain.PengajuanCuti, error) {
+func (u *LeaveUsecase) CancelLeave(ctx context.Context, leaveID, karyawanID string, alasanBatal string) (*domain.PengajuanCuti, error) {
 	leave, err := u.LeaveRepo.GetByID(ctx, leaveID)
 	if err != nil {
 		return nil, errors.New("pengajuan tidak ditemukan")
@@ -421,11 +421,15 @@ func (u *LeaveUsecase) CancelLeave(ctx context.Context, leaveID, karyawanID stri
 		}
 	}
 
+	if alasanBatal == "" {
+		alasanBatal = "Dibatalkan oleh karyawan"
+	}
+
 	if err := u.LeaveRepo.UpdateStatus(ctx, leaveID, "dibatalkan"); err != nil {
 		return nil, err
 	}
 
-	if err := u.LeaveRepo.UpdateAlasanBatal(ctx, leaveID, "Dibatalkan oleh karyawan"); err != nil {
+	if err := u.LeaveRepo.UpdateAlasanBatal(ctx, leaveID, alasanBatal); err != nil {
 		log.Printf("Gagal update alasan batal: %v", err)
 	}
 
@@ -439,7 +443,7 @@ func (u *LeaveUsecase) CancelLeave(ctx context.Context, leaveID, karyawanID stri
 	}
 
 	if u.RiwayatRepo != nil {
-		detail := "Cuti dibatalkan oleh karyawan"
+		detail := "Cuti dibatalkan oleh karyawan dengan alasan: " + alasanBatal
 		u.RiwayatRepo.CreateRiwayat(ctx, karyawanID, "cuti_dibatalkan", detail)
 	}
 
@@ -461,7 +465,6 @@ func (u *LeaveUsecase) CancelLeave(ctx context.Context, leaveID, karyawanID stri
 				atasan, _ := u.KaryawanRepo.GetByID(ctx, *leave.DisetujuiOleh)
 				if atasan != nil {
 					tanggalCuti := formatTanggalCuti(leave.TanggalMulai, leave.TanggalSelesai)
-					alasanBatal := "Dibatalkan oleh karyawan"
 
 					judulBatalAtasan := "Pembatalan Cuti oleh " + karyawan.NamaLengkap
 					pesanBatalAtasan := karyawan.NamaLengkap + " telah melakukan pembatalan cuti " + leave.SubTipe + " pada tanggal " + tanggalCuti + " dengan alasan berupa \"" + alasanBatal + "\"."
@@ -487,6 +490,7 @@ func (u *LeaveUsecase) CancelLeave(ctx context.Context, leaveID, karyawanID stri
 					atasan.ID,
 					karyawan.NamaLengkap,
 					leaveID,
+					alasanBatal,
 				)
 			}
 		}

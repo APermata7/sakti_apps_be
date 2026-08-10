@@ -169,9 +169,13 @@ func (t *TelegramBot) SendCreateDispensasiNotification(chatID, karyawanID, karya
 	)
 }
 
-func (t *TelegramBot) SendCancelLeaveNotification(chatID, karyawanID, karyawanNama, leaveID string) error {
+func (t *TelegramBot) SendCancelLeaveNotification(chatID, karyawanID, karyawanNama, leaveID, alasanBatal string) error {
 	sekarang := time.Now()
 	tanggal := sekarang.Format("02 January 2006")
+
+	if alasanBatal == "" {
+		alasanBatal = "Dibatalkan oleh karyawan"
+	}
 
 	text := fmt.Sprintf(
 		"<b>📢 Pembatalan Pengajuan Cuti</b>\n\n"+
@@ -179,10 +183,10 @@ func (t *TelegramBot) SendCancelLeaveNotification(chatID, karyawanID, karyawanNa
 			"Pengajuan cuti berikut telah dibatalkan oleh karyawan:\n\n"+
 			"👤 Karyawan : <b>%s</b>\n"+
 			"📅 Tanggal Pembatalan : %s\n\n"+
-			"📝 Alasan : Dibatalkan oleh karyawan\n\n"+
+			"📝 Alasan : %s\n\n"+
 			"Tidak diperlukan proses persetujuan lebih lanjut.\n\n"+
 			"Pesan ini dikirim secara otomatis oleh Sistem SAKTI.",
-		karyawanNama, tanggal,
+		karyawanNama, tanggal, alasanBatal,
 	)
 
 	err := t.SendMessage(chatID, text)
@@ -193,7 +197,7 @@ func (t *TelegramBot) SendCancelLeaveNotification(chatID, karyawanID, karyawanNa
 	return t.SaveNotification(
 		karyawanID,
 		"Pengajuan Cuti Dibatalkan",
-		"Pengajuan cuti "+karyawanNama+" telah dibatalkan",
+		"Pengajuan cuti "+karyawanNama+" telah dibatalkan. Alasan: "+alasanBatal,
 		leaveID,
 		"pengajuan",
 	)
