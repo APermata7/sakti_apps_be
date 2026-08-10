@@ -115,6 +115,18 @@ func (t *TelegramBot) SaveNotification(karyawanID, judul, pesan, referensiID, re
 	return nil
 }
 
+func (t *TelegramBot) formatTanggalIndonesia(tgl time.Time) string {
+	bulan := map[string]string{
+		"January": "Januari", "February": "Februari", "March": "Maret",
+		"April": "April", "May": "Mei", "June": "Juni",
+		"July": "Juli", "August": "Agustus", "September": "September",
+		"October": "Oktober", "November": "November", "December": "Desember",
+	}
+	bulanInggris := tgl.Format("January")
+	bulanIndo := bulan[bulanInggris]
+	return tgl.Format("02 " + bulanIndo + " 2006")
+}
+
 func (t *TelegramBot) SendCreateLeaveNotification(chatID, karyawanID, karyawanNama, totalHari, alasan, leaveID string) error {
 	text := fmt.Sprintf(
 		"<b>📋 Pengajuan Cuti Baru</b>\n\n"+
@@ -171,7 +183,7 @@ func (t *TelegramBot) SendCreateDispensasiNotification(chatID, karyawanID, karya
 
 func (t *TelegramBot) SendCancelLeaveNotification(chatID, karyawanID, karyawanNama, leaveID, alasanBatal string) error {
 	sekarang := time.Now()
-	tanggal := sekarang.Format("02 January 2006")
+	tanggal := t.formatTanggalIndonesia(sekarang)
 
 	if alasanBatal == "" {
 		alasanBatal = "Dibatalkan oleh karyawan"
