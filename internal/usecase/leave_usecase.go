@@ -406,19 +406,21 @@ func (u *LeaveUsecase) CancelLeave(ctx context.Context, leaveID, karyawanID stri
 		return nil, errors.New("dispensasi tidak dapat dibatalkan")
 	}
 
-	if leave.Status != "menunggu" && leave.Status != "disetujui" {
+	if leave.Status != "disetujui" {
 		return nil, errors.New("pengajuan tidak bisa dibatalkan")
 	}
 
-	if leave.Status == "disetujui" && leave.DifinalisasiOleh == nil {
-		sekarang := time.Now()
-		tanggalMulai := leave.TanggalMulai
-		batasBatal := time.Date(tanggalMulai.Year(), tanggalMulai.Month(), tanggalMulai.Day(), 0, 0, 0, 0, time.Local).Add(-24 * time.Hour)
-		batasBatal = time.Date(batasBatal.Year(), batasBatal.Month(), batasBatal.Day(), 23, 59, 59, 0, time.Local)
+	if leave.DifinalisasiOleh == nil {
+		return nil, errors.New("pengajuan belum difinalisasi HRD, tidak dapat dibatalkan")
+	}
 
-		if sekarang.After(batasBatal) {
-			return nil, errors.New("pembatalan cuti hanya dapat dilakukan maksimal H-24 jam sebelum tanggal mulai cuti")
-		}
+	sekarang := time.Now()
+	tanggalMulai := leave.TanggalMulai
+	batasBatal := time.Date(tanggalMulai.Year(), tanggalMulai.Month(), tanggalMulai.Day(), 0, 0, 0, 0, time.Local).Add(-24 * time.Hour)
+	batasBatal = time.Date(batasBatal.Year(), batasBatal.Month(), batasBatal.Day(), 23, 59, 59, 0, time.Local)
+
+	if sekarang.After(batasBatal) {
+		return nil, errors.New("pembatalan cuti hanya dapat dilakukan maksimal H-24 jam sebelum tanggal mulai cuti")
 	}
 
 	if alasanBatal == "" {
