@@ -423,6 +423,13 @@ func (u *AdminUsecase) GetPresensiReport(ctx context.Context, startDate, endDate
     var items []PresensiReportItem
     var total int
 
+    if startDate == "" {
+        startDate = "1970-01-01"
+    }
+    if endDate == "" {
+        endDate = "2999-12-31"
+    }
+
     query := `
         FROM presensi p
         JOIN karyawan k ON p.karyawan_id = k.id
@@ -454,7 +461,8 @@ func (u *AdminUsecase) GetPresensiReport(ctx context.Context, startDate, endDate
     }
 
     dataQuery := `
-        SELECT p.id, k.nama_lengkap, p.tanggal, 
+        SELECT p.id, k.nama_lengkap, 
+               p.tanggal::TEXT, 
                COALESCE(p.jam_masuk::TEXT, '') as jam_masuk,
                COALESCE(p.status, '') as status_masuk,
                COALESCE(p.jam_keluar::TEXT, '') as jam_keluar,
@@ -536,6 +544,13 @@ func (u *AdminUsecase) GetCutiReport(ctx context.Context, startDate, endDate, st
     var items []CutiReportItem
     var total int
 
+    if startDate == "" {
+        startDate = "1970-01-01"
+    }
+    if endDate == "" {
+        endDate = "2999-12-31"
+    }
+
     query := `
         FROM pengajuan_cuti pc
         JOIN karyawan k ON pc.karyawan_id = k.id
@@ -569,7 +584,7 @@ func (u *AdminUsecase) GetCutiReport(ctx context.Context, startDate, endDate, st
 
     dataQuery := `
         SELECT pc.id, k.nama_lengkap, pc.sub_tipe, pc.status,
-               pc.tanggal_mulai, pc.tanggal_selesai, pc.total_hari,
+               pc.tanggal_mulai::TEXT, pc.tanggal_selesai::TEXT, pc.total_hari,
                COALESCE(sc.sisa_cuti, 12) as sisa_cuti
     ` + query + ` ORDER BY pc.dibuat_pada DESC LIMIT $` + strconv.Itoa(argIdx) + ` OFFSET $` + strconv.Itoa(argIdx+1)
 
