@@ -532,6 +532,7 @@ func (u *AdminUsecase) ExportPresensiCSV(ctx context.Context, startDate, endDate
 type CutiReportItem struct {
     ID           string `json:"id"`
     KaryawanNama string `json:"karyawan_nama"`
+    Divisi       string `json:"divisi"`
     SubTipe      string `json:"sub_tipe"`
     Status       string `json:"status"`
     TanggalMulai string `json:"tanggal_mulai"`
@@ -583,7 +584,7 @@ func (u *AdminUsecase) GetCutiReport(ctx context.Context, startDate, endDate, st
     }
 
     dataQuery := `
-        SELECT pc.id, k.nama_lengkap, pc.sub_tipe, pc.status,
+        SELECT pc.id, k.nama_lengkap, COALESCE(k.divisi, '') as divisi, pc.sub_tipe, pc.status,
                pc.tanggal_mulai::TEXT, pc.tanggal_selesai::TEXT, pc.total_hari,
                COALESCE(sc.sisa_cuti, 12) as sisa_cuti
     ` + query + ` ORDER BY pc.dibuat_pada DESC LIMIT $` + strconv.Itoa(argIdx) + ` OFFSET $` + strconv.Itoa(argIdx+1)
@@ -598,7 +599,7 @@ func (u *AdminUsecase) GetCutiReport(ctx context.Context, startDate, endDate, st
     for rows.Next() {
         var item CutiReportItem
         err := rows.Scan(
-            &item.ID, &item.KaryawanNama, &item.SubTipe, &item.Status,
+            &item.ID, &item.KaryawanNama, &item.Divisi, &item.SubTipe, &item.Status,
             &item.TanggalMulai, &item.TanggalSelesai, &item.TotalHari,
             &item.SisaCuti,
         )
@@ -619,12 +620,13 @@ func (u *AdminUsecase) ExportCutiCSV(ctx context.Context, startDate, endDate, st
 
     var buf bytes.Buffer
     writer := csv.NewWriter(&buf)
-    writer.Write([]string{"ID", "Nama Karyawan", "Jenis Cuti", "Status", "Tanggal Mulai", "Tanggal Selesai", "Jumlah Hari", "Kuota Tersedia"})
+    writer.Write([]string{"ID", "Nama Karyawan", "Divisi", "Jenis Cuti", "Status", "Tanggal Mulai", "Tanggal Selesai", "Jumlah Hari", "Kuota Tersedia"})
 
     for _, item := range items {
         row := []string{
             item.ID,
             item.KaryawanNama,
+            item.Divisi,
             item.SubTipe,
             item.Status,
             item.TanggalMulai,
