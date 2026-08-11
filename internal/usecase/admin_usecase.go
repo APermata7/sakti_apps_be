@@ -660,6 +660,17 @@ func (u *AdminUsecase) GetAllLibur(ctx context.Context, tahun int, jenis, sumber
     return u.LiburUsecase.GetAll(ctx, tahun, jenis, sumber, aktif, limit, page)
 }
 
+func (u *AdminUsecase) GetKonfigurasi(ctx context.Context) (*domain.KonfigurasiKerja, error) {
+    config, err := u.KonfigurasiRepo.GetActive(ctx)
+    if err != nil {
+        return nil, err
+    }
+    if config == nil {
+        return nil, errors.New("konfigurasi kerja tidak ditemukan")
+    }
+    return config, nil
+}
+
 func (u *AdminUsecase) UpdateKonfigurasi(ctx context.Context, userID string, req domain.UpdateKonfigurasiRequest) (*domain.KonfigurasiKerja, error) {
     config, err := u.KonfigurasiRepo.GetActive(ctx)
     if err != nil {

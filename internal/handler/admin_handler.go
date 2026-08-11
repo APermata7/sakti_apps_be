@@ -594,6 +594,21 @@ func (h *AdminHandler) ToggleLibur(c *fiber.Ctx) error {
     })
 }
 
+func (h *AdminHandler) GetKonfigurasi(c *fiber.Ctx) error {
+    config, err := h.AdminUsecase.GetKonfigurasi(c.Context())
+    if err != nil {
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+            "success": false,
+            "message": err.Error(),
+        })
+    }
+
+    return c.JSON(fiber.Map{
+        "success": true,
+        "data":    config,
+    })
+}
+
 func (h *AdminHandler) UpdateKonfigurasi(c *fiber.Ctx) error {
     var req domain.UpdateKonfigurasiRequest
     if err := c.BodyParser(&req); err != nil {
