@@ -634,3 +634,22 @@ func (h *AdminHandler) UpdateKonfigurasi(c *fiber.Ctx) error {
         "data":    config,
     })
 }
+
+func (h *AdminHandler) ExportKaryawanCSV(c *fiber.Ctx) error {
+    search := c.Query("search")
+    role := c.Query("role")
+    status := c.Query("status")
+
+    csvData, err := h.AdminUsecase.ExportKaryawanCSV(c.Context(), search, role, status)
+    if err != nil {
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+            "success": false,
+            "message": err.Error(),
+        })
+    }
+
+    filename := "laporan_karyawan_" + time.Now().Format("20060102_150405") + ".csv"
+    c.Set("Content-Type", "text/csv")
+    c.Set("Content-Disposition", "attachment; filename="+filename)
+    return c.Send(csvData)
+}

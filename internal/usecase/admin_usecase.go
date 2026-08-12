@@ -715,3 +715,48 @@ func (u *AdminUsecase) UpdateKonfigurasi(ctx context.Context, userID string, req
     }
     return config, nil
 }
+
+func (u *AdminUsecase) ExportKaryawanCSV(ctx context.Context, search, role, status string) ([]byte, error) {
+    items, _, err := u.GetAllKaryawan(ctx, 1, 10000, search, role, status)
+    if err != nil {
+        return nil, err
+    }
+
+    var buf bytes.Buffer
+    writer := csv.NewWriter(&buf)
+    writer.Write([]string{"ID", "Nama Lengkap", "Email", "Nomor Telepon", "Role", "Jabatan", "Divisi", "Unit", "Status"})
+
+    for _, item := range items {
+        jabatan := ""
+        if item.LevelJabatan != nil {
+            jabatan = *item.LevelJabatan
+        }
+        divisi := ""
+        if item.Divisi != nil {
+            divisi = *item.Divisi
+        }
+        unit := ""
+        if item.Unit != nil {
+            unit = *item.Unit
+        }
+        noTelp := ""
+        if item.NomorTelepon != nil {
+            noTelp = *item.NomorTelepon
+        }
+
+        row := []string{
+            item.ID,
+            item.NamaLengkap,
+            item.Email,
+            noTelp,
+            item.Role,
+            jabatan,
+            divisi,
+            unit,
+            item.StatusKaryawan,
+        }
+        writer.Write(row)
+    }
+    writer.Flush()
+    return buf.Bytes(), nil
+}
