@@ -707,7 +707,7 @@ func (u *AdminUsecase) UpdateKonfigurasi(ctx context.Context, userID string, req
     if req.LogoKantor != nil {
         config.LogoKantor = req.LogoKantor
     }
-    
+
     config.DiperbaruiOleh = &userID
 
     if err := u.KonfigurasiRepo.Update(ctx, config); err != nil {
