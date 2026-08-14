@@ -43,8 +43,10 @@ func sanitizeFilename(filename string) string {
 	name := strings.TrimSuffix(filename, ext)
 	name = strings.ReplaceAll(name, " ", "-")
 	name = strings.ReplaceAll(name, "_", "-")
+	name = strings.ReplaceAll(name, "(", "")
+	name = strings.ReplaceAll(name, ")", "")
 	name = strings.ToLower(name)
-	return name + ext
+	return name
 }
 
 func UploadFile(file multipart.File, filename string) (string, error) {
