@@ -6,6 +6,8 @@ import (
 	"log"
 	"mime/multipart"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/cloudinary/cloudinary-go/v2"
@@ -36,6 +38,15 @@ func InitCloudinary() error {
 	return nil
 }
 
+func sanitizeFilename(filename string) string {
+	ext := filepath.Ext(filename)
+	name := strings.TrimSuffix(filename, ext)
+	name = strings.ReplaceAll(name, " ", "-")
+	name = strings.ReplaceAll(name, "_", "-")
+	name = strings.ToLower(name)
+	return name + ext
+}
+
 func UploadFile(file multipart.File, filename string) (string, error) {
 	if Cld == nil {
 		return "", nil
@@ -49,10 +60,12 @@ func UploadFile(file multipart.File, filename string) (string, error) {
 		folder = "sakti-apps"
 	}
 
+	safeFilename := sanitizeFilename(filename)
+
 	resp, err := Cld.Upload.Upload(ctx, file, uploader.UploadParams{
 		Folder:         folder,
-		PublicID:       filename,
-		UseFilename:    api.Bool(true),
+		PublicID:       safeFilename,
+		UseFilename:    api.Bool(false),
 		UniqueFilename: api.Bool(true),
 	})
 	if err != nil {
@@ -72,13 +85,16 @@ func UploadImage(file multipart.File, filename string) (string, error) {
 
 	folder := os.Getenv("CLOUDINARY_UPLOAD_FOLDER")
 	if folder == "" {
-		folder = "sakti-apps/photos"
+		folder = "sakti-apps"
 	}
+	folder = folder + "/photos"
+
+	safeFilename := sanitizeFilename(filename)
 
 	resp, err := Cld.Upload.Upload(ctx, file, uploader.UploadParams{
 		Folder:         folder,
-		PublicID:       filename,
-		UseFilename:    api.Bool(true),
+		PublicID:       safeFilename,
+		UseFilename:    api.Bool(false),
 		UniqueFilename: api.Bool(true),
 		ResourceType:   "image",
 	})
@@ -107,10 +123,12 @@ func UploadImageWithCustomFolder(file multipart.File, folderPath, filename strin
 		folder = baseFolder + "/" + folderPath
 	}
 
+	safeFilename := sanitizeFilename(filename)
+
 	resp, err := Cld.Upload.Upload(ctx, file, uploader.UploadParams{
 		Folder:         folder,
-		PublicID:       filename,
-		UseFilename:    api.Bool(true),
+		PublicID:       safeFilename,
+		UseFilename:    api.Bool(false),
 		UniqueFilename: api.Bool(true),
 		ResourceType:   "image",
 	})
@@ -131,13 +149,16 @@ func UploadTTD(file multipart.File, filename string) (string, error) {
 
 	folder := os.Getenv("CLOUDINARY_UPLOAD_FOLDER")
 	if folder == "" {
-		folder = "sakti-apps/ttd"
+		folder = "sakti-apps"
 	}
+	folder = folder + "/ttd"
+
+	safeFilename := sanitizeFilename(filename)
 
 	resp, err := Cld.Upload.Upload(ctx, file, uploader.UploadParams{
 		Folder:         folder,
-		PublicID:       filename,
-		UseFilename:    api.Bool(true),
+		PublicID:       safeFilename,
+		UseFilename:    api.Bool(false),
 		UniqueFilename: api.Bool(true),
 		ResourceType:   "image",
 	})
@@ -158,15 +179,18 @@ func UploadPDF(data []byte, filename string) (string, error) {
 
 	folder := os.Getenv("CLOUDINARY_UPLOAD_FOLDER")
 	if folder == "" {
-		folder = "sakti-apps/documents"
+		folder = "sakti-apps"
 	}
+	folder = folder + "/documents"
+
+	safeFilename := sanitizeFilename(filename)
 
 	reader := bytes.NewReader(data)
 
 	resp, err := Cld.Upload.Upload(ctx, reader, uploader.UploadParams{
 		Folder:         folder,
-		PublicID:       filename,
-		UseFilename:    api.Bool(true),
+		PublicID:       safeFilename,
+		UseFilename:    api.Bool(false),
 		UniqueFilename: api.Bool(true),
 		ResourceType:   "raw",
 	})
@@ -190,12 +214,14 @@ func UploadBytes(data []byte, filename string) (string, error) {
 		folder = "sakti-apps"
 	}
 
+	safeFilename := sanitizeFilename(filename)
+
 	reader := bytes.NewReader(data)
 
 	resp, err := Cld.Upload.Upload(ctx, reader, uploader.UploadParams{
 		Folder:         folder,
-		PublicID:       filename,
-		UseFilename:    api.Bool(true),
+		PublicID:       safeFilename,
+		UseFilename:    api.Bool(false),
 		UniqueFilename: api.Bool(true),
 		ResourceType:   "auto",
 	})
