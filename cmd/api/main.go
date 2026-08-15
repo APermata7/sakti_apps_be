@@ -123,7 +123,6 @@ func main() {
 	})
 
 	app.Post("/upload/file", handler.UploadFile)
-	app.Post("/upload/image", handler.UploadImage)
 
 	api := app.Group("/api")
 
@@ -138,6 +137,7 @@ func main() {
 	api.Post("/webhook/telegram", telegramWebhookHandler.Webhook)
 
 	protected := api.Group("/", middleware.AuthMiddleware())
+	protected.Post("/upload/image", handler.UploadImage)
 	protected.Get("/auth/me", authHandler.GetProfile)
 	protected.Post("/auth/logout", authHandler.Logout)
 	protected.Put("/auth/change-password", authHandler.ChangePassword)
