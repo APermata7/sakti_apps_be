@@ -2,6 +2,7 @@ package handler
 
 import (
 	"log"
+	"runtime/debug"
 
 	"sakti_apps_be/internal/repository"
 	"sakti_apps_be/internal/utils"
@@ -43,10 +44,32 @@ func UploadFile(c *fiber.Ctx) error {
 }
 
 func UploadImage(c *fiber.Ctx) error {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("UploadImage panic: %v", r)
+			log.Printf("Stack: %s", debug.Stack())
+		}
+	}()
+
 	log.Println("UploadImage: start")
 
-	role := c.Locals("role").(string)
-	userID := c.Locals("user_id").(string)
+	role, ok := c.Locals("role").(string)
+	if !ok || role == "" {
+		log.Println("UploadImage: role not found")
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"success": false,
+			"message": "Unauthorized",
+		})
+	}
+
+	userID, ok := c.Locals("user_id").(string)
+	if !ok || userID == "" {
+		log.Println("UploadImage: user_id not found")
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"success": false,
+			"message": "Unauthorized",
+		})
+	}
 
 	karyawanID := c.FormValue("karyawan_id")
 	log.Printf("UploadImage: role=%s, userID=%s, karyawanID=%s", role, userID, karyawanID)
