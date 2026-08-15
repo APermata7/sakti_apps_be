@@ -20,17 +20,9 @@ func (h *TTDHandler) UploadTTD(c *fiber.Ctx) error {
 	role := c.Locals("role").(string)
 	userID := c.Locals("user_id").(string)
 
-	var req struct {
-		KaryawanID string `json:"karyawan_id"`
-	}
-	if err := c.BodyParser(&req); err != nil {
-		req.KaryawanID = ""
-	}
+	karyawanID := c.FormValue("karyawan_id")
 
-	var karyawanID string
-	if role == "admin" && req.KaryawanID != "" {
-		karyawanID = req.KaryawanID
-	} else {
+	if !(role == "admin" && karyawanID != "") {
 		karyawanID = userID
 	}
 
@@ -87,17 +79,9 @@ func (h *TTDHandler) GetTTD(c *fiber.Ctx) error {
 	role := c.Locals("role").(string)
 	userID := c.Locals("user_id").(string)
 
-	var req struct {
-		KaryawanID string `json:"karyawan_id"`
-	}
-	if err := c.BodyParser(&req); err != nil {
-		req.KaryawanID = ""
-	}
+	karyawanID := c.FormValue("karyawan_id")
 
-	var karyawanID string
-	if role == "admin" && req.KaryawanID != "" {
-		karyawanID = req.KaryawanID
-	} else {
+	if !(role == "admin" && karyawanID != "") {
 		karyawanID = userID
 	}
 
@@ -120,7 +104,7 @@ func (h *TTDHandler) UpdateTTD(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(string)
 
 	var req struct {
-		KaryawanID    string `json:"karyawan_id"`
+		KaryawanID     string `json:"karyawan_id"`
 		URLTandaTangan string `json:"url_tanda_tangan"`
 	}
 	if err := c.BodyParser(&req); err != nil {
@@ -165,17 +149,9 @@ func (h *TTDHandler) DeleteTTD(c *fiber.Ctx) error {
 	role := c.Locals("role").(string)
 	userID := c.Locals("user_id").(string)
 
-	var req struct {
-		KaryawanID string `json:"karyawan_id"`
-	}
-	if err := c.BodyParser(&req); err != nil {
-		req.KaryawanID = ""
-	}
+	karyawanID := c.FormValue("karyawan_id")
 
-	var karyawanID string
-	if role == "admin" && req.KaryawanID != "" {
-		karyawanID = req.KaryawanID
-	} else {
+	if !(role == "admin" && karyawanID != "") {
 		karyawanID = userID
 	}
 
@@ -197,17 +173,9 @@ func (h *TTDHandler) VerifyTTD(c *fiber.Ctx) error {
 	role := c.Locals("role").(string)
 	userID := c.Locals("user_id").(string)
 
-	var req struct {
-		KaryawanID string `json:"karyawan_id"`
-	}
-	if err := c.BodyParser(&req); err != nil {
-		req.KaryawanID = ""
-	}
+	karyawanID := c.FormValue("karyawan_id")
 
-	var karyawanID string
-	if role == "admin" && req.KaryawanID != "" {
-		karyawanID = req.KaryawanID
-	} else {
+	if !(role == "admin" && karyawanID != "") {
 		karyawanID = userID
 	}
 

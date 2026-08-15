@@ -44,17 +44,9 @@ func UploadImage(c *fiber.Ctx) error {
 	role := c.Locals("role").(string)
 	userID := c.Locals("user_id").(string)
 
-	var req struct {
-		KaryawanID string `json:"karyawan_id"`
-	}
-	if err := c.BodyParser(&req); err != nil {
-		req.KaryawanID = ""
-	}
+	karyawanID := c.FormValue("karyawan_id")
 
-	var karyawanID string
-	if role == "admin" && req.KaryawanID != "" {
-		karyawanID = req.KaryawanID
-	} else {
+	if !(role == "admin" && karyawanID != "") {
 		karyawanID = userID
 	}
 
