@@ -17,7 +17,22 @@ func NewTTDHandler(ttdUsecase *usecase.TTDUsecase) *TTDHandler {
 }
 
 func (h *TTDHandler) UploadTTD(c *fiber.Ctx) error {
-	karyawanID := c.Locals("user_id").(string)
+	role := c.Locals("role").(string)
+	userID := c.Locals("user_id").(string)
+
+	var req struct {
+		KaryawanID string `json:"karyawan_id"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		req.KaryawanID = ""
+	}
+
+	var karyawanID string
+	if role == "admin" && req.KaryawanID != "" {
+		karyawanID = req.KaryawanID
+	} else {
+		karyawanID = userID
+	}
 
 	file, err := c.FormFile("image")
 	if err != nil {
@@ -69,7 +84,22 @@ func (h *TTDHandler) UploadTTD(c *fiber.Ctx) error {
 }
 
 func (h *TTDHandler) GetTTD(c *fiber.Ctx) error {
-	karyawanID := c.Locals("user_id").(string)
+	role := c.Locals("role").(string)
+	userID := c.Locals("user_id").(string)
+
+	var req struct {
+		KaryawanID string `json:"karyawan_id"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		req.KaryawanID = ""
+	}
+
+	var karyawanID string
+	if role == "admin" && req.KaryawanID != "" {
+		karyawanID = req.KaryawanID
+	} else {
+		karyawanID = userID
+	}
 
 	ttd, err := h.TTDUsecase.GetByKaryawanID(c.Context(), karyawanID)
 	if err != nil {
@@ -86,9 +116,13 @@ func (h *TTDHandler) GetTTD(c *fiber.Ctx) error {
 }
 
 func (h *TTDHandler) UpdateTTD(c *fiber.Ctx) error {
-	karyawanID := c.Locals("user_id").(string)
+	role := c.Locals("role").(string)
+	userID := c.Locals("user_id").(string)
 
-	var req domain.CreateTTDRequest
+	var req struct {
+		KaryawanID    string `json:"karyawan_id"`
+		URLTandaTangan string `json:"url_tanda_tangan"`
+	}
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
@@ -96,7 +130,23 @@ func (h *TTDHandler) UpdateTTD(c *fiber.Ctx) error {
 		})
 	}
 
-	ttd, err := h.TTDUsecase.Update(c.Context(), karyawanID, req)
+	if req.URLTandaTangan == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "URL tanda tangan wajib diisi",
+		})
+	}
+
+	var karyawanID string
+	if role == "admin" && req.KaryawanID != "" {
+		karyawanID = req.KaryawanID
+	} else {
+		karyawanID = userID
+	}
+
+	ttd, err := h.TTDUsecase.Update(c.Context(), karyawanID, domain.CreateTTDRequest{
+		URLTandaTangan: req.URLTandaTangan,
+	})
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
@@ -112,7 +162,22 @@ func (h *TTDHandler) UpdateTTD(c *fiber.Ctx) error {
 }
 
 func (h *TTDHandler) DeleteTTD(c *fiber.Ctx) error {
-	karyawanID := c.Locals("user_id").(string)
+	role := c.Locals("role").(string)
+	userID := c.Locals("user_id").(string)
+
+	var req struct {
+		KaryawanID string `json:"karyawan_id"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		req.KaryawanID = ""
+	}
+
+	var karyawanID string
+	if role == "admin" && req.KaryawanID != "" {
+		karyawanID = req.KaryawanID
+	} else {
+		karyawanID = userID
+	}
 
 	err := h.TTDUsecase.Delete(c.Context(), karyawanID)
 	if err != nil {
@@ -129,7 +194,22 @@ func (h *TTDHandler) DeleteTTD(c *fiber.Ctx) error {
 }
 
 func (h *TTDHandler) VerifyTTD(c *fiber.Ctx) error {
-	karyawanID := c.Locals("user_id").(string)
+	role := c.Locals("role").(string)
+	userID := c.Locals("user_id").(string)
+
+	var req struct {
+		KaryawanID string `json:"karyawan_id"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		req.KaryawanID = ""
+	}
+
+	var karyawanID string
+	if role == "admin" && req.KaryawanID != "" {
+		karyawanID = req.KaryawanID
+	} else {
+		karyawanID = userID
+	}
 
 	result, err := h.TTDUsecase.Verify(c.Context(), karyawanID)
 	if err != nil {
