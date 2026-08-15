@@ -20,11 +20,15 @@ func NewTTDRepo(db *pgxpool.Pool) *TTDRepo {
 
 func (r *TTDRepo) Create(ctx context.Context, ttd *domain.TandaTangan) error {
 	query := `
-		INSERT INTO tanda_tangan (karyawan_id, url_tanda_tangan, hash_tanda_tangan)
-		VALUES ($1, $2, $3)
-		RETURNING id
+		INSERT INTO tanda_tangan (karyawan_id, url_tanda_tangan, hash_tanda_tangan, diunggah_pada, diperbarui_pada)
+		VALUES ($1, $2, $3, NOW(), NOW())
+		RETURNING id, diunggah_pada, diperbarui_pada
 	`
-	err := r.DB.QueryRow(ctx, query, ttd.KaryawanID, ttd.URLTandaTangan, ttd.HashTandaTangan).Scan(&ttd.ID)
+	err := r.DB.QueryRow(ctx, query, ttd.KaryawanID, ttd.URLTandaTangan, ttd.HashTandaTangan).Scan(
+		&ttd.ID,
+		&ttd.DiunggahPada,
+		&ttd.DiperbaruiPada,
+	)
 	return err
 }
 
@@ -57,8 +61,9 @@ func (r *TTDRepo) Update(ctx context.Context, ttd *domain.TandaTangan) error {
 		UPDATE tanda_tangan
 		SET url_tanda_tangan = $2, hash_tanda_tangan = $3, diperbarui_pada = NOW()
 		WHERE karyawan_id = $1
+		RETURNING diperbarui_pada
 	`
-	_, err := r.DB.Exec(ctx, query, ttd.KaryawanID, ttd.URLTandaTangan, ttd.HashTandaTangan)
+	err := r.DB.QueryRow(ctx, query, ttd.KaryawanID, ttd.URLTandaTangan, ttd.HashTandaTangan).Scan(&ttd.DiperbaruiPada)
 	return err
 }
 
