@@ -119,7 +119,6 @@ func main() {
 
 	app.Post("/upload/file", handler.UploadFile)
 	app.Post("/upload/image", handler.UploadImage)
-	app.Post("/upload/ttd", handler.UploadTTD)
 
 	api := app.Group("/api")
 

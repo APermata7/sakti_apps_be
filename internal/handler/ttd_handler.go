@@ -5,6 +5,7 @@ import (
 
 	"sakti_apps_be/internal/domain"
 	"sakti_apps_be/internal/usecase"
+	"sakti_apps_be/internal/utils"
 )
 
 type TTDHandler struct {
@@ -18,19 +19,45 @@ func NewTTDHandler(ttdUsecase *usecase.TTDUsecase) *TTDHandler {
 func (h *TTDHandler) UploadTTD(c *fiber.Ctx) error {
 	karyawanID := c.Locals("user_id").(string)
 
-	var req domain.CreateTTDRequest
-	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"success": false,
-			"message": "Request tidak valid",
-		})
-	}
-
-	ttd, err := h.TTDUsecase.Create(c.Context(), karyawanID, req)
+	file, err := c.FormFile("image")
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
-			"message": err.Error(),
+			"message": "File image wajib diupload",
+		})
+	}
+
+	if file.Size > 2*1024*1024 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Ukuran file maksimal 2MB",
+		})
+	}
+
+	src, err := file.Open()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "Gagal membaca file",
+		})
+	}
+	defer src.Close()
+
+	url, err := utils.UploadTTD(src, file.Filename)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "Gagal upload file: " + err.Error(),
+		})
+	}
+
+	ttd, err := h.TTDUsecase.Create(c.Context(), karyawanID, domain.CreateTTDRequest{
+		URLTandaTangan: url,
+	})
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "Gagal simpan ke database: " + err.Error(),
 		})
 	}
 
