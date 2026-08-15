@@ -1,9 +1,11 @@
 package handler
 
 import (
+	"sakti_apps_be/internal/repository"
 	"sakti_apps_be/internal/utils"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func UploadFile(c *fiber.Ctx) error {
@@ -39,6 +41,23 @@ func UploadFile(c *fiber.Ctx) error {
 }
 
 func UploadImage(c *fiber.Ctx) error {
+	role := c.Locals("role").(string)
+	userID := c.Locals("user_id").(string)
+
+	var req struct {
+		KaryawanID string `json:"karyawan_id"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		req.KaryawanID = ""
+	}
+
+	var karyawanID string
+	if role == "admin" && req.KaryawanID != "" {
+		karyawanID = req.KaryawanID
+	} else {
+		karyawanID = userID
+	}
+
 	file, err := c.FormFile("image")
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -64,8 +83,26 @@ func UploadImage(c *fiber.Ctx) error {
 		})
 	}
 
+	dbPool, ok := c.Locals("db").(*pgxpool.Pool)
+	if !ok {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "Database connection not found",
+		})
+	}
+
+	karyawanRepo := repository.NewKaryawanRepo(dbPool)
+	err = karyawanRepo.UpdateFotoURL(c.Context(), karyawanID, url)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "Gagal simpan ke database: " + err.Error(),
+		})
+	}
+
 	return c.JSON(fiber.Map{
-		"success": true,
-		"url":     url,
+		"success":     true,
+		"url":         url,
+		"karyawan_id": karyawanID,
 	})
 }

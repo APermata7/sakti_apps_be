@@ -109,6 +109,11 @@ func main() {
 	app.Use(logger.New())
 	app.Use(cors.New())
 
+	app.Use(func(c *fiber.Ctx) error {
+		c.Locals("db", dbConn.Pool)
+		return c.Next()
+	})
+
 	app.Get("/health", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
 			"status":  "ok",

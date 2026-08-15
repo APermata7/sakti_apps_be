@@ -333,3 +333,9 @@ func (r *KaryawanRepo) GetTelegramStatus(ctx context.Context, karyawanID string)
 	}
 	return "", nil
 }
+
+func (r *KaryawanRepo) UpdateFotoURL(ctx context.Context, karyawanID, fotoURL string) error {
+	query := `UPDATE karyawan SET foto_url = $1, diperbarui_pada = NOW() WHERE id = $2`
+	_, err := r.DB.Exec(ctx, query, fotoURL, karyawanID)
+	return err
+}
