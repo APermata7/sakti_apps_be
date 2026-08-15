@@ -216,6 +216,16 @@ func main() {
 		}
 	}()
 
+	go func() {
+		for {
+			time.Sleep(24 * time.Hour)
+			ctx := context.Background()
+			if err := presensiUsecase.CleanupOldPhotos(ctx); err != nil {
+				log.Printf("Cleanup old photos failed: %v", err)
+			}
+		}
+	}()
+
 	port := os.Getenv("APP_PORT")
 	if port == "" {
 		port = "8080"

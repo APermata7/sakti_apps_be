@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"strconv"
+	"strings"
 	"time"
 
 	"sakti_apps_be/internal/domain"
@@ -52,6 +53,21 @@ func formatTanggalIndonesia(t time.Time) string {
 	bulanInggris := t.Format("January")
 	bulanIndo := bulan[bulanInggris]
 	return t.Format("02 " + bulanIndo + " 2006 | 15:04")
+}
+
+func extractPublicID(url string) string {
+	parts := strings.Split(url, "/upload/")
+	if len(parts) < 2 {
+		return ""
+	}
+	path := parts[1]
+	if idx := strings.Index(path, "/"); idx != -1 {
+		path = path[idx+1:]
+	}
+	if idx := strings.LastIndex(path, "."); idx != -1 {
+		path = path[:idx]
+	}
+	return path
 }
 
 func (u *PresensiUsecase) CheckIn(ctx context.Context, karyawanID string, req domain.CheckInRequest) (*domain.CheckInResponse, error) {
@@ -475,5 +491,55 @@ func (u *PresensiUsecase) KirimInApp(ctx context.Context, req domain.KirimNotifi
 		go utils.SendMulticast(tokens, req.Judul, req.Pesan)
 	}
 
+	return nil
+}
+
+func (u *PresensiUsecase) CleanupOldPhotos(ctx context.Context) error {
+	log.Println("CleanupOldPhotos dimulai")
+
+	query := `
+		SELECT url_foto FROM presensi 
+		WHERE tanggal < NOW() - INTERVAL '2 months'
+		AND url_foto IS NOT NULL AND url_foto != ''
+	`
+	rows, err := u.PresensiRepo.DB.Query(ctx, query)
+	if err != nil {
+		log.Printf("CleanupOldPhotos query error: %v", err)
+		return err
+	}
+	defer rows.Close()
+
+	var urls []string
+	for rows.Next() {
+		var url string
+		if err := rows.Scan(&url); err != nil {
+			continue
+		}
+		urls = append(urls, url)
+	}
+
+	log.Printf("CleanupOldPhotos found %d old photos", len(urls))
+
+	for _, url := range urls {
+		publicID := extractPublicID(url)
+		if publicID != "" {
+			if err := utils.DeleteFile(publicID); err != nil {
+				log.Printf("CleanupOldPhotos delete file error: %v", err)
+			}
+		}
+	}
+
+	deleteQuery := `
+		UPDATE presensi 
+		SET url_foto = NULL 
+		WHERE tanggal < NOW() - INTERVAL '2 months'
+	`
+	_, err = u.PresensiRepo.DB.Exec(ctx, deleteQuery)
+	if err != nil {
+		log.Printf("CleanupOldPhotos update error: %v", err)
+		return err
+	}
+
+	log.Println("CleanupOldPhotos selesai")
 	return nil
 }
