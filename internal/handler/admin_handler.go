@@ -653,3 +653,29 @@ func (h *AdminHandler) ExportKaryawanCSV(c *fiber.Ctx) error {
     c.Set("Content-Disposition", "attachment; filename="+filename)
     return c.Send(csvData)
 }
+
+func (h *AdminHandler) GetLogs(c *fiber.Ctx) error {
+    page, _ := strconv.Atoi(c.Query("page", "1"))
+    limit, _ := strconv.Atoi(c.Query("limit", "50"))
+
+    logs, total, err := h.AdminUsecase.GetLogs(c.Context(), page, limit)
+    if err != nil {
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+            "success": false,
+            "message": err.Error(),
+        })
+    }
+
+    totalPages := (total + limit - 1) / limit
+
+    return c.JSON(fiber.Map{
+        "success": true,
+        "data":    logs,
+        "meta": fiber.Map{
+            "total":       total,
+            "page":        page,
+            "limit":       limit,
+            "total_pages": totalPages,
+        },
+    })
+}

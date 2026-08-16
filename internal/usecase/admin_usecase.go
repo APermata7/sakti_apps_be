@@ -24,6 +24,7 @@ type AdminUsecase struct {
     LeaveRepo       *repository.LeaveRepo
     LiburUsecase    *LiburUsecase
     KonfigurasiRepo *repository.KonfigurasiRepo
+    LogUsecase      *LogUsecase
     SupabaseURL     string
     AnonKey         string
 }
@@ -35,6 +36,7 @@ func NewAdminUsecase(
     leaveRepo *repository.LeaveRepo,
     liburUsecase *LiburUsecase,
     konfigurasiRepo *repository.KonfigurasiRepo,
+    logUsecase *LogUsecase,
 ) *AdminUsecase {
     return &AdminUsecase{
         DB:              db,
@@ -43,6 +45,7 @@ func NewAdminUsecase(
         LeaveRepo:       leaveRepo,
         LiburUsecase:    liburUsecase,
         KonfigurasiRepo: konfigurasiRepo,
+        LogUsecase:      logUsecase,
         SupabaseURL:     os.Getenv("SUPABASE_URL"),
         AnonKey:         os.Getenv("SUPABASE_ANON_KEY"),
     }
@@ -293,6 +296,11 @@ func (u *AdminUsecase) CreateKaryawan(ctx context.Context, req domain.CreateKary
         return nil, err
     }
 
+    if u.LogUsecase != nil {
+        detail := "Menambahkan karyawan: " + req.Email + " (" + req.NamaLengkap + ")"
+        u.LogUsecase.CreateLog(ctx, "admin", "create_karyawan", detail)
+    }
+
     return karyawan, nil
 }
 
@@ -370,6 +378,11 @@ func (u *AdminUsecase) UpdateKaryawan(ctx context.Context, id string, req domain
         return nil, err
     }
 
+    if u.LogUsecase != nil {
+        detail := "Memperbarui karyawan: " + existing.Email + " (" + existing.NamaLengkap + ")"
+        u.LogUsecase.CreateLog(ctx, "admin", "update_karyawan", detail)
+    }
+
     return existing, nil
 }
 
@@ -391,7 +404,16 @@ func (u *AdminUsecase) DeleteKaryawan(ctx context.Context, id string) error {
         }
     }
 
-    return u.KaryawanRepo.Delete(ctx, id)
+    if err := u.KaryawanRepo.Delete(ctx, id); err != nil {
+        return err
+    }
+
+    if u.LogUsecase != nil {
+        detail := "Menonaktifkan karyawan: " + existing.Email + " (" + existing.NamaLengkap + ")"
+        u.LogUsecase.CreateLog(ctx, "admin", "delete_karyawan", detail)
+    }
+
+    return nil
 }
 
 func (u *AdminUsecase) ActivateKaryawan(ctx context.Context, id string) error {
@@ -403,7 +425,16 @@ func (u *AdminUsecase) ActivateKaryawan(ctx context.Context, id string) error {
         return errors.New("karyawan tidak ditemukan")
     }
     existing.StatusKaryawan = "aktif"
-    return u.KaryawanRepo.Update(ctx, existing)
+    if err := u.KaryawanRepo.Update(ctx, existing); err != nil {
+        return err
+    }
+
+    if u.LogUsecase != nil {
+        detail := "Mengaktifkan kembali karyawan: " + existing.Email + " (" + existing.NamaLengkap + ")"
+        u.LogUsecase.CreateLog(ctx, "admin", "activate_karyawan", detail)
+    }
+
+    return nil
 }
 
 type PresensiReportItem struct {
@@ -641,19 +672,62 @@ func (u *AdminUsecase) ExportCutiCSV(ctx context.Context, startDate, endDate, st
 }
 
 func (u *AdminUsecase) CreateLibur(ctx context.Context, req domain.CreateLiburRequest) (*domain.Libur, error) {
-    return u.LiburUsecase.Create(ctx, req)
+    libur, err := u.LiburUsecase.Create(ctx, req)
+    if err != nil {
+        return nil, err
+    }
+
+    if u.LogUsecase != nil {
+        detail := "Menambahkan hari libur: " + req.Nama + " (" + req.Tanggal + ")"
+        u.LogUsecase.CreateLog(ctx, "admin", "create_libur", detail)
+    }
+
+    return libur, nil
 }
 
 func (u *AdminUsecase) UpdateLibur(ctx context.Context, id string, req domain.UpdateLiburRequest) (*domain.Libur, error) {
-    return u.LiburUsecase.Update(ctx, id, req)
+    libur, err := u.LiburUsecase.Update(ctx, id, req)
+    if err != nil {
+        return nil, err
+    }
+
+    if u.LogUsecase != nil {
+        detail := "Memperbarui hari libur ID: " + id
+        u.LogUsecase.CreateLog(ctx, "admin", "update_libur", detail)
+    }
+
+    return libur, nil
 }
 
 func (u *AdminUsecase) DeleteLibur(ctx context.Context, id string) error {
-    return u.LiburUsecase.Delete(ctx, id)
+    if err := u.LiburUsecase.Delete(ctx, id); err != nil {
+        return err
+    }
+
+    if u.LogUsecase != nil {
+        detail := "Menghapus hari libur ID: " + id
+        u.LogUsecase.CreateLog(ctx, "admin", "delete_libur", detail)
+    }
+
+    return nil
 }
 
 func (u *AdminUsecase) ToggleLibur(ctx context.Context, id string) (bool, error) {
-    return u.LiburUsecase.Toggle(ctx, id)
+    aktif, err := u.LiburUsecase.Toggle(ctx, id)
+    if err != nil {
+        return false, err
+    }
+
+    if u.LogUsecase != nil {
+        statusText := "nonaktif"
+        if aktif {
+            statusText = "aktif"
+        }
+        detail := "Mengubah status hari libur ID: " + id + " menjadi " + statusText
+        u.LogUsecase.CreateLog(ctx, "admin", "toggle_libur", detail)
+    }
+
+    return aktif, nil
 }
 
 func (u *AdminUsecase) GetAllLibur(ctx context.Context, tahun int, jenis, sumber string, aktif *bool, limit, page int) ([]domain.Libur, int, error) {
@@ -713,6 +787,12 @@ func (u *AdminUsecase) UpdateKonfigurasi(ctx context.Context, userID string, req
     if err := u.KonfigurasiRepo.Update(ctx, config); err != nil {
         return nil, err
     }
+
+    if u.LogUsecase != nil {
+        detail := "Memperbarui konfigurasi kerja oleh user ID: " + userID
+        u.LogUsecase.CreateLog(ctx, "admin", "update_konfigurasi", detail)
+    }
+
     return config, nil
 }
 
@@ -759,4 +839,15 @@ func (u *AdminUsecase) ExportKaryawanCSV(ctx context.Context, search, role, stat
     }
     writer.Flush()
     return buf.Bytes(), nil
+}
+
+func (u *AdminUsecase) GetLogs(ctx context.Context, page, limit int) ([]map[string]interface{}, int, error) {
+    if page <= 0 {
+        page = 1
+    }
+    if limit <= 0 {
+        limit = 50
+    }
+    offset := (page - 1) * limit
+    return u.LogUsecase.GetLogs(ctx, limit, offset)
 }
