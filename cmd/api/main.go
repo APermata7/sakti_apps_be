@@ -64,7 +64,12 @@ func main() {
     telegramRepo := repository.NewTelegramRepo(dbConn.Pool)
     logRepo := repository.NewLogRepo(dbConn.Pool)
 
-    authUsecase := usecase.NewAuthUsecase(karyawanRepo, riwayatRepo)
+    authUsecase := usecase.NewAuthUsecase(
+        karyawanRepo,
+        riwayatRepo,
+        logRepo,
+    )
+
     presensiUsecase := usecase.NewPresensiUsecase(
         presensiRepo,
         karyawanRepo,
@@ -74,6 +79,7 @@ func main() {
         notifikasiRepo,
         fcmTokenRepo,
     )
+
     notificationUsecase := usecase.NewNotificationUsecase(fcmTokenRepo, notifikasiRepo, karyawanRepo, dbConn.Pool)
     leaveUsecase := usecase.NewLeaveUsecase(leaveRepo, karyawanRepo, ttdRepo, konfigurasiRepo, riwayatRepo, notificationUsecase)
     riwayatUsecase := usecase.NewRiwayatUsecase(riwayatRepo)

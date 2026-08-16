@@ -17,15 +17,21 @@ import (
 type AuthUsecase struct {
     KaryawanRepo     *repository.KaryawanRepo
     RiwayatRepo      *repository.RiwayatRepo
+    LogRepo          *repository.LogRepo
     FCMTokenRepo     *repository.FCMTokenRepo
     SupabaseURL      string
     AnonKey          string
 }
 
-func NewAuthUsecase(karyawanRepo *repository.KaryawanRepo, riwayatRepo *repository.RiwayatRepo) *AuthUsecase {
+func NewAuthUsecase(
+    karyawanRepo *repository.KaryawanRepo,
+    riwayatRepo *repository.RiwayatRepo,
+    logRepo *repository.LogRepo,
+) *AuthUsecase {
     return &AuthUsecase{
         KaryawanRepo:     karyawanRepo,
         RiwayatRepo:      riwayatRepo,
+        LogRepo:          logRepo,
         SupabaseURL:      os.Getenv("SUPABASE_URL"),
         AnonKey:          os.Getenv("SUPABASE_ANON_KEY"),
     }
@@ -90,9 +96,16 @@ func (u *AuthUsecase) Login(ctx context.Context, req domain.LoginRequest) (*doma
         return nil, errors.New("akun tidak aktif")
     }
 
-    if u.RiwayatRepo != nil {
-        detail := "Login berhasil pada " + time.Now().Format("2006-01-02 15:04:05")
-        u.RiwayatRepo.CreateRiwayat(ctx, karyawan.ID, "login", detail)
+    if karyawan.Role == "admin" {
+        if u.LogRepo != nil {
+            detail := "Login admin berhasil pada " + time.Now().Format("2006-01-02 15:04:05")
+            u.LogRepo.CreateLog(ctx, karyawan.ID, "login", detail)
+        }
+    } else {
+        if u.RiwayatRepo != nil {
+            detail := "Login berhasil pada " + time.Now().Format("2006-01-02 15:04:05")
+            u.RiwayatRepo.CreateRiwayat(ctx, karyawan.ID, "login", detail)
+        }
     }
 
     log.Printf("Login berhasil: email=%s, role=%s", karyawan.Email, karyawan.Role)
