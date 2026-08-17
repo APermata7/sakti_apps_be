@@ -96,6 +96,7 @@ func main() {
         leaveRepo,
         liburUsecase,
         konfigurasiRepo,
+        ttdRepo,
         logUsecase,
     )
 

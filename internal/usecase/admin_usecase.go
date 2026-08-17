@@ -25,6 +25,7 @@ type AdminUsecase struct {
     LeaveRepo       *repository.LeaveRepo
     LiburUsecase    *LiburUsecase
     KonfigurasiRepo *repository.KonfigurasiRepo
+    TTDRepo         *repository.TTDRepo
     LogUsecase      *LogUsecase
     SupabaseURL     string
     AnonKey         string
@@ -37,6 +38,7 @@ func NewAdminUsecase(
     leaveRepo *repository.LeaveRepo,
     liburUsecase *LiburUsecase,
     konfigurasiRepo *repository.KonfigurasiRepo,
+    ttdRepo *repository.TTDRepo,
     logUsecase *LogUsecase,
 ) *AdminUsecase {
     return &AdminUsecase{
@@ -46,6 +48,7 @@ func NewAdminUsecase(
         LeaveRepo:       leaveRepo,
         LiburUsecase:    liburUsecase,
         KonfigurasiRepo: konfigurasiRepo,
+        TTDRepo:         ttdRepo,
         LogUsecase:      logUsecase,
         SupabaseURL:     os.Getenv("SUPABASE_URL"),
         AnonKey:         os.Getenv("SUPABASE_ANON_KEY"),
@@ -311,11 +314,53 @@ func (u *AdminUsecase) CreateKaryawan(ctx context.Context, req domain.CreateKary
 
 func (u *AdminUsecase) GetAllKaryawan(ctx context.Context, page, limit int, search, role, status string) ([]domain.Karyawan, int, error) {
     offset := (page - 1) * limit
-    return u.KaryawanRepo.GetAll(ctx, limit, offset, search, role, status)
+
+    karyawanList, total, err := u.KaryawanRepo.GetAll(ctx, limit, offset, search, role, status)
+    if err != nil {
+        return nil, 0, err
+    }
+
+    for i := range karyawanList {
+        ttd, err := u.TTDRepo.GetByKaryawanID(ctx, karyawanList[i].ID)
+        if err == nil && ttd != nil {
+            karyawanList[i].TandaTangan = &domain.TandaTangan{
+                ID:             ttd.ID,
+                KaryawanID:     ttd.KaryawanID,
+                URLTandaTangan: ttd.URLTandaTangan,
+                DiunggahPada:   ttd.DiunggahPada,
+                DiperbaruiPada: ttd.DiperbaruiPada,
+            }
+        } else {
+            karyawanList[i].TandaTangan = nil
+        }
+    }
+
+    return karyawanList, total, nil
 }
 
 func (u *AdminUsecase) GetKaryawanByID(ctx context.Context, id string) (*domain.Karyawan, error) {
-    return u.KaryawanRepo.GetByID(ctx, id)
+    karyawan, err := u.KaryawanRepo.GetByID(ctx, id)
+    if err != nil {
+        return nil, err
+    }
+    if karyawan == nil {
+        return nil, nil
+    }
+
+    ttd, err := u.TTDRepo.GetByKaryawanID(ctx, id)
+    if err == nil && ttd != nil {
+        karyawan.TandaTangan = &domain.TandaTangan{
+            ID:             ttd.ID,
+            KaryawanID:     ttd.KaryawanID,
+            URLTandaTangan: ttd.URLTandaTangan,
+            DiunggahPada:   ttd.DiunggahPada,
+            DiperbaruiPada: ttd.DiperbaruiPada,
+        }
+    } else {
+        karyawan.TandaTangan = nil
+    }
+
+    return karyawan, nil
 }
 
 func (u *AdminUsecase) UpdateKaryawan(ctx context.Context, id string, req domain.UpdateKaryawanRequest) (*domain.Karyawan, error) {
