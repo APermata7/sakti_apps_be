@@ -219,6 +219,8 @@ func main() {
 
     adminGroup.Get("/karyawan/export", adminHandler.ExportKaryawanCSV)
 
+    adminGroup.Put("/karyawan/:id/cuti/balance", adminHandler.UpdateCutiBalance)
+
     adminGroup.Get("/logs", adminHandler.GetLogs)
 
     go func() {

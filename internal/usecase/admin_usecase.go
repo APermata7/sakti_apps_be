@@ -6,6 +6,7 @@ import (
     "encoding/csv"
     "encoding/json"
     "errors"
+    "log"
     "net/http"
     "os"
     "strconv"
@@ -294,6 +295,10 @@ func (u *AdminUsecase) CreateKaryawan(ctx context.Context, req domain.CreateKary
 
     if err := u.KaryawanRepo.Create(ctx, karyawan); err != nil {
         return nil, err
+    }
+
+    if err := u.LeaveRepo.UpdateBalance(ctx, karyawan.ID, time.Now().Year()); err != nil {
+        log.Printf("Gagal inisialisasi sisa cuti untuk karyawan baru: %v", err)
     }
 
     if u.LogUsecase != nil {
@@ -794,6 +799,35 @@ func (u *AdminUsecase) UpdateKonfigurasi(ctx context.Context, userID string, req
     }
 
     return config, nil
+}
+
+func (u *AdminUsecase) UpdateCutiBalance(ctx context.Context, adminID, karyawanID string, tahun int, sisaCutiBaru int) error {
+    balance, err := u.LeaveRepo.GetBalance(ctx, karyawanID, tahun)
+    if err != nil {
+        return err
+    }
+    if balance == nil {
+        balance = &domain.SisaCuti{
+            Tahun:            tahun,
+            JumlahCuti:       12,
+            TelahDilaksanakan: 0,
+            AkanDilaksanakan:  0,
+            SisaCuti:          sisaCutiBaru,
+        }
+    }
+
+    balance.SisaCuti = sisaCutiBaru
+
+    if err := u.LeaveRepo.UpdateBalance(ctx, karyawanID, tahun); err != nil {
+        return err
+    }
+
+    if u.LogUsecase != nil {
+        detail := "Mengubah sisa cuti karyawan " + karyawanID + " tahun " + strconv.Itoa(tahun) + " menjadi " + strconv.Itoa(sisaCutiBaru)
+        u.LogUsecase.CreateLog(ctx, adminID, "update_cuti_balance", detail)
+    }
+
+    return nil
 }
 
 func (u *AdminUsecase) ExportKaryawanCSV(ctx context.Context, search, role, status string) ([]byte, error) {

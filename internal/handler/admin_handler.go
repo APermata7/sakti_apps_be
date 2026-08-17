@@ -662,6 +662,57 @@ func (h *AdminHandler) ExportKaryawanCSV(c *fiber.Ctx) error {
     return c.Send(csvData)
 }
 
+func (h *AdminHandler) UpdateCutiBalance(c *fiber.Ctx) error {
+    karyawanID := c.Params("id")
+    if karyawanID == "" {
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+            "success": false,
+            "message": "ID karyawan wajib diisi",
+        })
+    }
+
+    var req struct {
+        Tahun    int `json:"tahun"`
+        SisaCuti int `json:"sisa_cuti"`
+    }
+    if err := c.BodyParser(&req); err != nil {
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+            "success": false,
+            "message": "Request tidak valid: " + err.Error(),
+        })
+    }
+
+    if req.Tahun <= 0 {
+        req.Tahun = time.Now().Year()
+    }
+    if req.SisaCuti < 0 {
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+            "success": false,
+            "message": "Sisa cuti tidak boleh negatif",
+        })
+    }
+
+    adminID := c.Locals("user_id").(string)
+
+    err := h.AdminUsecase.UpdateCutiBalance(c.Context(), adminID, karyawanID, req.Tahun, req.SisaCuti)
+    if err != nil {
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+            "success": false,
+            "message": err.Error(),
+        })
+    }
+
+    return c.JSON(fiber.Map{
+        "success": true,
+        "message": "Sisa cuti berhasil diperbarui",
+        "data": fiber.Map{
+            "karyawan_id": karyawanID,
+            "tahun":       req.Tahun,
+            "sisa_cuti":   req.SisaCuti,
+        },
+    })
+}
+
 func (h *AdminHandler) GetLogs(c *fiber.Ctx) error {
     page, _ := strconv.Atoi(c.Query("page", "1"))
     limit, _ := strconv.Atoi(c.Query("limit", "50"))
