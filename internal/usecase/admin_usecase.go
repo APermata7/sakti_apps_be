@@ -671,7 +671,7 @@ func (u *AdminUsecase) ExportCutiCSV(ctx context.Context, startDate, endDate, st
     return buf.Bytes(), nil
 }
 
-func (u *AdminUsecase) CreateLibur(ctx context.Context, req domain.CreateLiburRequest) (*domain.Libur, error) {
+func (u *AdminUsecase) CreateLibur(ctx context.Context, userID string, req domain.CreateLiburRequest) (*domain.Libur, error) {
     libur, err := u.LiburUsecase.Create(ctx, req)
     if err != nil {
         return nil, err
@@ -679,13 +679,13 @@ func (u *AdminUsecase) CreateLibur(ctx context.Context, req domain.CreateLiburRe
 
     if u.LogUsecase != nil {
         detail := "Menambahkan hari libur: " + req.Nama + " (" + req.Tanggal + ")"
-        u.LogUsecase.CreateLog(ctx, "admin", "create_libur", detail)
+        u.LogUsecase.CreateLog(ctx, userID, "create_libur", detail)
     }
 
     return libur, nil
 }
 
-func (u *AdminUsecase) UpdateLibur(ctx context.Context, id string, req domain.UpdateLiburRequest) (*domain.Libur, error) {
+func (u *AdminUsecase) UpdateLibur(ctx context.Context, userID string, id string, req domain.UpdateLiburRequest) (*domain.Libur, error) {
     libur, err := u.LiburUsecase.Update(ctx, id, req)
     if err != nil {
         return nil, err
@@ -693,26 +693,26 @@ func (u *AdminUsecase) UpdateLibur(ctx context.Context, id string, req domain.Up
 
     if u.LogUsecase != nil {
         detail := "Memperbarui hari libur ID: " + id
-        u.LogUsecase.CreateLog(ctx, "admin", "update_libur", detail)
+        u.LogUsecase.CreateLog(ctx, userID, "update_libur", detail)
     }
 
     return libur, nil
 }
 
-func (u *AdminUsecase) DeleteLibur(ctx context.Context, id string) error {
+func (u *AdminUsecase) DeleteLibur(ctx context.Context, userID string, id string) error {
     if err := u.LiburUsecase.Delete(ctx, id); err != nil {
         return err
     }
 
     if u.LogUsecase != nil {
         detail := "Menghapus hari libur ID: " + id
-        u.LogUsecase.CreateLog(ctx, "admin", "delete_libur", detail)
+        u.LogUsecase.CreateLog(ctx, userID, "delete_libur", detail)
     }
 
     return nil
 }
 
-func (u *AdminUsecase) ToggleLibur(ctx context.Context, id string) (bool, error) {
+func (u *AdminUsecase) ToggleLibur(ctx context.Context, userID string, id string) (bool, error) {
     aktif, err := u.LiburUsecase.Toggle(ctx, id)
     if err != nil {
         return false, err
@@ -724,7 +724,7 @@ func (u *AdminUsecase) ToggleLibur(ctx context.Context, id string) (bool, error)
             statusText = "aktif"
         }
         detail := "Mengubah status hari libur ID: " + id + " menjadi " + statusText
-        u.LogUsecase.CreateLog(ctx, "admin", "toggle_libur", detail)
+        u.LogUsecase.CreateLog(ctx, userID, "toggle_libur", detail)
     }
 
     return aktif, nil

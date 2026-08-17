@@ -451,7 +451,9 @@ func (h *AdminHandler) CreateLibur(c *fiber.Ctx) error {
         })
     }
 
-    libur, err := h.AdminUsecase.CreateLibur(c.Context(), req)
+    userID := c.Locals("user_id").(string)
+
+    libur, err := h.AdminUsecase.CreateLibur(c.Context(), userID, req)
     if err != nil {
         return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
             "success": false,
@@ -525,7 +527,9 @@ func (h *AdminHandler) UpdateLibur(c *fiber.Ctx) error {
         })
     }
 
-    libur, err := h.AdminUsecase.UpdateLibur(c.Context(), id, req)
+    userID := c.Locals("user_id").(string)
+
+    libur, err := h.AdminUsecase.UpdateLibur(c.Context(), userID, id, req)
     if err != nil {
         return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
             "success": false,
@@ -549,7 +553,9 @@ func (h *AdminHandler) DeleteLibur(c *fiber.Ctx) error {
         })
     }
 
-    err := h.AdminUsecase.DeleteLibur(c.Context(), id)
+    userID := c.Locals("user_id").(string)
+
+    err := h.AdminUsecase.DeleteLibur(c.Context(), userID, id)
     if err != nil {
         return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
             "success": false,
@@ -572,7 +578,9 @@ func (h *AdminHandler) ToggleLibur(c *fiber.Ctx) error {
         })
     }
 
-    aktif, err := h.AdminUsecase.ToggleLibur(c.Context(), id)
+    userID := c.Locals("user_id").(string)
+
+    aktif, err := h.AdminUsecase.ToggleLibur(c.Context(), userID, id)
     if err != nil {
         return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
             "success": false,
