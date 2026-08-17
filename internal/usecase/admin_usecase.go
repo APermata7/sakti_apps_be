@@ -298,7 +298,7 @@ func (u *AdminUsecase) CreateKaryawan(ctx context.Context, req domain.CreateKary
 
     if u.LogUsecase != nil {
         detail := "Menambahkan karyawan: " + req.Email + " (" + req.NamaLengkap + ")"
-        u.LogUsecase.CreateLog(ctx, "admin", "create_karyawan", detail)
+        u.LogUsecase.CreateLog(ctx, karyawan.ID, "create_karyawan", detail)
     }
 
     return karyawan, nil
@@ -380,7 +380,7 @@ func (u *AdminUsecase) UpdateKaryawan(ctx context.Context, id string, req domain
 
     if u.LogUsecase != nil {
         detail := "Memperbarui karyawan: " + existing.Email + " (" + existing.NamaLengkap + ")"
-        u.LogUsecase.CreateLog(ctx, "admin", "update_karyawan", detail)
+        u.LogUsecase.CreateLog(ctx, existing.ID, "update_karyawan", detail)
     }
 
     return existing, nil
@@ -410,7 +410,7 @@ func (u *AdminUsecase) DeleteKaryawan(ctx context.Context, id string) error {
 
     if u.LogUsecase != nil {
         detail := "Menonaktifkan karyawan: " + existing.Email + " (" + existing.NamaLengkap + ")"
-        u.LogUsecase.CreateLog(ctx, "admin", "delete_karyawan", detail)
+        u.LogUsecase.CreateLog(ctx, existing.ID, "delete_karyawan", detail)
     }
 
     return nil
@@ -431,7 +431,7 @@ func (u *AdminUsecase) ActivateKaryawan(ctx context.Context, id string) error {
 
     if u.LogUsecase != nil {
         detail := "Mengaktifkan kembali karyawan: " + existing.Email + " (" + existing.NamaLengkap + ")"
-        u.LogUsecase.CreateLog(ctx, "admin", "activate_karyawan", detail)
+        u.LogUsecase.CreateLog(ctx, existing.ID, "activate_karyawan", detail)
     }
 
     return nil
@@ -790,7 +790,7 @@ func (u *AdminUsecase) UpdateKonfigurasi(ctx context.Context, userID string, req
 
     if u.LogUsecase != nil {
         detail := "Memperbarui konfigurasi kerja oleh user ID: " + userID
-        u.LogUsecase.CreateLog(ctx, "admin", "update_konfigurasi", detail)
+        u.LogUsecase.CreateLog(ctx, userID, "update_konfigurasi", detail)
     }
 
     return config, nil
