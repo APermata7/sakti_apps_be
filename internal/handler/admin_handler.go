@@ -330,6 +330,7 @@ func (h *AdminHandler) GetPresensiReport(c *fiber.Ctx) error {
     startDate := c.Query("start_date")
     endDate := c.Query("end_date")
     status := c.Query("status")
+    search := c.Query("search")
     limit, _ := strconv.Atoi(c.Query("limit", "10"))
     page, _ := strconv.Atoi(c.Query("page", "1"))
 
@@ -341,7 +342,7 @@ func (h *AdminHandler) GetPresensiReport(c *fiber.Ctx) error {
     }
     offset := (page - 1) * limit
 
-    items, total, err := h.AdminUsecase.GetPresensiReport(c.Context(), startDate, endDate, status, limit, offset)
+    items, total, err := h.AdminUsecase.GetPresensiReport(c.Context(), startDate, endDate, status, search, limit, offset)
     if err != nil {
         return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
             "success": false,
@@ -369,8 +370,9 @@ func (h *AdminHandler) ExportPresensiCSV(c *fiber.Ctx) error {
     startDate := c.Query("start_date")
     endDate := c.Query("end_date")
     status := c.Query("status")
+    search := c.Query("search")
 
-    csvData, err := h.AdminUsecase.ExportPresensiCSV(c.Context(), startDate, endDate, status)
+    csvData, err := h.AdminUsecase.ExportPresensiCSV(c.Context(), startDate, endDate, status, search)
     if err != nil {
         return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
             "success": false,
@@ -388,6 +390,7 @@ func (h *AdminHandler) GetCutiReport(c *fiber.Ctx) error {
     startDate := c.Query("start_date")
     endDate := c.Query("end_date")
     status := c.Query("status")
+    search := c.Query("search")
     limit, _ := strconv.Atoi(c.Query("limit", "10"))
     page, _ := strconv.Atoi(c.Query("page", "1"))
 
@@ -399,7 +402,7 @@ func (h *AdminHandler) GetCutiReport(c *fiber.Ctx) error {
     }
     offset := (page - 1) * limit
 
-    items, total, err := h.AdminUsecase.GetCutiReport(c.Context(), startDate, endDate, status, limit, offset)
+    items, total, err := h.AdminUsecase.GetCutiReport(c.Context(), startDate, endDate, status, search, limit, offset)
     if err != nil {
         return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
             "success": false,
@@ -427,8 +430,9 @@ func (h *AdminHandler) ExportCutiCSV(c *fiber.Ctx) error {
     startDate := c.Query("start_date")
     endDate := c.Query("end_date")
     status := c.Query("status")
+    search := c.Query("search")
 
-    csvData, err := h.AdminUsecase.ExportCutiCSV(c.Context(), startDate, endDate, status)
+    csvData, err := h.AdminUsecase.ExportCutiCSV(c.Context(), startDate, endDate, status, search)
     if err != nil {
         return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
             "success": false,

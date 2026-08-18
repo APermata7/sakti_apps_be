@@ -6,6 +6,7 @@ import (
     "encoding/csv"
     "encoding/json"
     "errors"
+    "fmt"
     "log"
     "net/http"
     "os"
@@ -500,7 +501,7 @@ type PresensiReportItem struct {
     LocationStatusKeluar string  `json:"location_status_keluar"`
 }
 
-func (u *AdminUsecase) GetPresensiReport(ctx context.Context, startDate, endDate, status string, limit, offset int) ([]PresensiReportItem, int, error) {
+func (u *AdminUsecase) GetPresensiReport(ctx context.Context, startDate, endDate, status, search string, limit, offset int) ([]PresensiReportItem, int, error) {
     var items []PresensiReportItem
     var total int
 
@@ -519,18 +520,24 @@ func (u *AdminUsecase) GetPresensiReport(ctx context.Context, startDate, endDate
     args := []interface{}{}
     argIdx := 1
 
+    if search != "" {
+        query += fmt.Sprintf(` AND (k.nama_lengkap ILIKE $%d OR k.email ILIKE $%d)`, argIdx, argIdx+1)
+        args = append(args, "%"+search+"%", "%"+search+"%")
+        argIdx += 2
+    }
+
     if startDate != "" {
-        query += ` AND p.tanggal >= $` + strconv.Itoa(argIdx)
+        query += fmt.Sprintf(` AND p.tanggal >= $%d`, argIdx)
         args = append(args, startDate)
         argIdx++
     }
     if endDate != "" {
-        query += ` AND p.tanggal <= $` + strconv.Itoa(argIdx)
+        query += fmt.Sprintf(` AND p.tanggal <= $%d`, argIdx)
         args = append(args, endDate)
         argIdx++
     }
     if status != "" {
-        query += ` AND p.status = $` + strconv.Itoa(argIdx)
+        query += fmt.Sprintf(` AND p.status = $%d`, argIdx)
         args = append(args, status)
         argIdx++
     }
@@ -581,8 +588,8 @@ func (u *AdminUsecase) GetPresensiReport(ctx context.Context, startDate, endDate
     return items, total, nil
 }
 
-func (u *AdminUsecase) ExportPresensiCSV(ctx context.Context, startDate, endDate, status string) ([]byte, error) {
-    items, _, err := u.GetPresensiReport(ctx, startDate, endDate, status, 10000, 0)
+func (u *AdminUsecase) ExportPresensiCSV(ctx context.Context, startDate, endDate, status, search string) ([]byte, error) {
+    items, _, err := u.GetPresensiReport(ctx, startDate, endDate, status, search, 10000, 0)
     if err != nil {
         return nil, err
     }
@@ -622,7 +629,7 @@ type CutiReportItem struct {
     SisaCuti     int    `json:"sisa_cuti"`
 }
 
-func (u *AdminUsecase) GetCutiReport(ctx context.Context, startDate, endDate, status string, limit, offset int) ([]CutiReportItem, int, error) {
+func (u *AdminUsecase) GetCutiReport(ctx context.Context, startDate, endDate, status, search string, limit, offset int) ([]CutiReportItem, int, error) {
     var items []CutiReportItem
     var total int
 
@@ -642,18 +649,24 @@ func (u *AdminUsecase) GetCutiReport(ctx context.Context, startDate, endDate, st
     args := []interface{}{}
     argIdx := 1
 
+    if search != "" {
+        query += fmt.Sprintf(` AND (k.nama_lengkap ILIKE $%d OR k.email ILIKE $%d)`, argIdx, argIdx+1)
+        args = append(args, "%"+search+"%", "%"+search+"%")
+        argIdx += 2
+    }
+
     if startDate != "" {
-        query += ` AND pc.tanggal_mulai >= $` + strconv.Itoa(argIdx)
+        query += fmt.Sprintf(` AND pc.tanggal_mulai >= $%d`, argIdx)
         args = append(args, startDate)
         argIdx++
     }
     if endDate != "" {
-        query += ` AND pc.tanggal_selesai <= $` + strconv.Itoa(argIdx)
+        query += fmt.Sprintf(` AND pc.tanggal_selesai <= $%d`, argIdx)
         args = append(args, endDate)
         argIdx++
     }
     if status != "" {
-        query += ` AND pc.status = $` + strconv.Itoa(argIdx)
+        query += fmt.Sprintf(` AND pc.status = $%d`, argIdx)
         args = append(args, status)
         argIdx++
     }
@@ -693,8 +706,8 @@ func (u *AdminUsecase) GetCutiReport(ctx context.Context, startDate, endDate, st
     return items, total, nil
 }
 
-func (u *AdminUsecase) ExportCutiCSV(ctx context.Context, startDate, endDate, status string) ([]byte, error) {
-    items, _, err := u.GetCutiReport(ctx, startDate, endDate, status, 10000, 0)
+func (u *AdminUsecase) ExportCutiCSV(ctx context.Context, startDate, endDate, status, search string) ([]byte, error) {
+    items, _, err := u.GetCutiReport(ctx, startDate, endDate, status, search, 10000, 0)
     if err != nil {
         return nil, err
     }
