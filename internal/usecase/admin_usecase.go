@@ -92,10 +92,10 @@ type CutiStat struct {
 func (u *AdminUsecase) GetDashboardStats(ctx context.Context) (*DashboardStats, error) {
     var stats DashboardStats
 
-    queryTotal := `SELECT COUNT(*) FROM karyawan`
+    queryTotal := `SELECT COUNT(*) FROM karyawan WHERE role != 'admin'`
     u.DB.QueryRow(ctx, queryTotal).Scan(&stats.TotalKaryawan)
 
-    queryAktif := `SELECT COUNT(*) FROM karyawan WHERE status_karyawan = 'aktif'`
+    queryAktif := `SELECT COUNT(*) FROM karyawan WHERE status_karyawan = 'aktif' AND role != 'admin'`
     u.DB.QueryRow(ctx, queryAktif).Scan(&stats.KaryawanAktif)
 
     monthStart := time.Now().AddDate(0, 0, -30)
@@ -117,7 +117,7 @@ func (u *AdminUsecase) GetDashboardStats(ctx context.Context) (*DashboardStats, 
             END as departemen,
             COUNT(*) as total
         FROM karyawan 
-        WHERE status_karyawan = 'aktif'
+        WHERE status_karyawan = 'aktif' AND role != 'admin'
         GROUP BY departemen
         ORDER BY total DESC
     `

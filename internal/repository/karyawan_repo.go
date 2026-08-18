@@ -235,7 +235,7 @@ func (r *KaryawanRepo) Delete(ctx context.Context, id string) error {
 }
 
 func (r *KaryawanRepo) GetAll(ctx context.Context, limit, offset int, search, role, levelJabatan, divisi, unit, status string) ([]domain.Karyawan, int, error) {
-    whereClause := "WHERE 1=1"
+    whereClause := "WHERE role != 'admin'"
     args := []interface{}{}
     argIdx := 1
 
