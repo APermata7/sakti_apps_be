@@ -52,6 +52,23 @@ func (r *LeaveRepo) Create(ctx context.Context, leave *domain.PengajuanCuti) err
 	return err
 }
 
+func (r *LeaveRepo) CreateBalance(ctx context.Context, balance *domain.SisaCuti) error {
+	query := `
+		INSERT INTO sisa_cuti (karyawan_id, tahun, jumlah_cuti, telah_dilaksanakan, akan_dilaksanakan, sisa_cuti)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id
+	`
+	err := r.DB.QueryRow(ctx, query,
+		balance.KaryawanID,
+		balance.Tahun,
+		balance.JumlahCuti,
+		balance.TelahDilaksanakan,
+		balance.AkanDilaksanakan,
+		balance.SisaCuti,
+	).Scan(&balance.ID)
+	return err
+}
+
 func (r *LeaveRepo) GetByID(ctx context.Context, id string) (*domain.PengajuanCuti, error) {
 	query := `
 		SELECT id, karyawan_id, sub_tipe, tanggal_mulai, tanggal_selesai,
