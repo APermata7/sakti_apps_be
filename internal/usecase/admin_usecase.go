@@ -313,10 +313,10 @@ func (u *AdminUsecase) CreateKaryawan(ctx context.Context, req domain.CreateKary
     return karyawan, nil
 }
 
-func (u *AdminUsecase) GetAllKaryawan(ctx context.Context, page, limit int, search, role, status string) ([]domain.Karyawan, int, error) {
+func (u *AdminUsecase) GetAllKaryawan(ctx context.Context, page, limit int, search, role, levelJabatan, divisi, unit, status string) ([]domain.Karyawan, int, error) {
     offset := (page - 1) * limit
 
-    karyawanList, total, err := u.KaryawanRepo.GetAll(ctx, limit, offset, search, role, status)
+    karyawanList, total, err := u.KaryawanRepo.GetAll(ctx, limit, offset, search, role, levelJabatan, divisi, unit, status)
     if err != nil {
         return nil, 0, err
     }
@@ -889,7 +889,7 @@ func (u *AdminUsecase) UpdateCutiBalance(ctx context.Context, adminID, karyawanI
 }
 
 func (u *AdminUsecase) ExportKaryawanCSV(ctx context.Context, search, role, status string) ([]byte, error) {
-    items, _, err := u.GetAllKaryawan(ctx, 1, 10000, search, role, status)
+    items, _, err := u.GetAllKaryawan(ctx, 1, 10000, search, role, "", "", "", status)
     if err != nil {
         return nil, err
     }

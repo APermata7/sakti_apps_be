@@ -142,6 +142,9 @@ func (h *AdminHandler) GetAllKaryawan(c *fiber.Ctx) error {
     limit, _ := strconv.Atoi(c.Query("limit", "10"))
     search := c.Query("search")
     role := c.Query("role")
+    levelJabatan := c.Query("level_jabatan")
+    divisi := c.Query("divisi")
+    unit := c.Query("unit")
     status := c.Query("status")
 
     if page <= 0 {
@@ -151,7 +154,7 @@ func (h *AdminHandler) GetAllKaryawan(c *fiber.Ctx) error {
         limit = 10
     }
 
-    karyawanList, total, err := h.AdminUsecase.GetAllKaryawan(c.Context(), page, limit, search, role, status)
+    karyawanList, total, err := h.AdminUsecase.GetAllKaryawan(c.Context(), page, limit, search, role, levelJabatan, divisi, unit, status)
     if err != nil {
         return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
             "success": false,
