@@ -5,6 +5,7 @@ import (
     "database/sql"
     "errors"
     "fmt"
+    "strconv"
 
     "github.com/jackc/pgx/v5"
     "github.com/jackc/pgx/v5/pgxpool"
@@ -287,7 +288,11 @@ func (r *KaryawanRepo) GetAll(ctx context.Context, limit, offset int, search, ro
                role, level_jabatan, atasan_langsung_id, 
                divisi, unit, status_karyawan, telegram_chat_id, dibuat_pada, diperbarui_pada
         FROM karyawan
-    ` + whereClause + fmt.Sprintf(" ORDER BY dibuat_pada DESC LIMIT $%d OFFSET $%d", argIdx, argIdx+1)
+    ` + whereClause + `
+        ORDER BY 
+            CASE WHEN status_karyawan = 'aktif' THEN 0 ELSE 1 END ASC,
+            nama_lengkap ASC
+        LIMIT $` + strconv.Itoa(argIdx) + ` OFFSET $` + strconv.Itoa(argIdx+1)
 
     finalArgs := append(args, limit, offset)
     rows, err := r.DB.Query(ctx, query, finalArgs...)
