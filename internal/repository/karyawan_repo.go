@@ -240,9 +240,8 @@ func (r *KaryawanRepo) GetAll(ctx context.Context, limit, offset int, search, ro
     argIdx := 1
 
     if search != "" {
-        whereClause += fmt.Sprintf(" AND (nama_lengkap ILIKE $%d OR email ILIKE $%d)", argIdx, argIdx)
-        args = append(args, "%"+search+"%")
-        args = append(args, "%"+search+"%")
+        whereClause += fmt.Sprintf(" AND (nama_lengkap ILIKE $%d OR email ILIKE $%d)", argIdx, argIdx+1)
+        args = append(args, "%"+search+"%", "%"+search+"%")
         argIdx += 2
     }
 
