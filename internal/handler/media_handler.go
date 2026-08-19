@@ -137,3 +137,43 @@ func UploadImage(c *fiber.Ctx) error {
         "karyawan_id": karyawanID,
     })
 }
+
+func UploadLogoHandler(c *fiber.Ctx) error {
+    log.Println("UploadLogoHandler: start")
+
+    file, err := c.FormFile("image")
+    if err != nil {
+        log.Printf("UploadLogoHandler: FormFile error: %v", err)
+        return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+            "success": false,
+            "message": "Image not found",
+        })
+    }
+    log.Printf("UploadLogoHandler: file=%s, size=%d", file.Filename, file.Size)
+
+    src, err := file.Open()
+    if err != nil {
+        log.Printf("UploadLogoHandler: Open error: %v", err)
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+            "success": false,
+            "message": "Failed to open image",
+        })
+    }
+    defer src.Close()
+
+    log.Println("UploadLogoHandler: uploading to Cloudinary logos folder")
+    url, err := utils.UploadLogo(src, file.Filename)
+    if err != nil {
+        log.Printf("UploadLogoHandler: Cloudinary error: %v", err)
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+            "success": false,
+            "message": "Gagal upload logo: " + err.Error(),
+        })
+    }
+    log.Printf("UploadLogoHandler: Cloudinary URL: %s", url)
+
+    return c.JSON(fiber.Map{
+        "success": true,
+        "url":     url,
+    })
+}
