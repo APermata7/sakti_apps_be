@@ -140,8 +140,11 @@ func (u *LeaveUsecase) DetermineApprovalFlow(ctx context.Context, karyawan *doma
 
 		if karyawan.AtasanLangsungID != nil {
 			flow.AtasanID = karyawan.AtasanLangsungID
+			flow.LangsungApprove = false
 		} else {
-			flow.LangsungApprove = true
+			flow.LangsungApprove = false
+			flow.ButuhAtasan = false
+			flow.LangsungFinal = false
 		}
 	}
 
@@ -321,6 +324,12 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 	}
 
 	status := "menunggu"
+
+	if karyawan.AtasanLangsungID == nil && req.SubTipe != "dispensasi" {
+		status = "menunggu"
+		flow.ButuhAtasan = false
+	}
+
 	if flow.LangsungApprove {
 		status = "disetujui"
 	}
@@ -346,7 +355,7 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 		JudulDokumen:      judulDokumen,
 	}
 
-	if flow.LangsungFinal || req.SubTipe == "dispensasi" || (karyawan.AtasanLangsungID == nil && req.SubTipe != "dispensasi") {
+	if flow.LangsungFinal || req.SubTipe == "dispensasi" {
 		if flow.HRDID != nil {
 			leave.DifinalisasiOleh = flow.HRDID
 		} else {
@@ -393,11 +402,20 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 
 		tanggalCuti := formatTanggalCuti(start, end)
 
+		var judulNotif, pesanNotif string
+		if karyawan.AtasanLangsungID == nil && req.SubTipe != "dispensasi" {
+			judulNotif = "Pengajuan Cuti Berhasil"
+			pesanNotif = "Pengajuan " + jenis + " " + strconv.Itoa(totalHari) + " hari pada tanggal " + tanggalCuti + " berhasil diajukan. Silakan tunggu finalisasi dari HRD."
+		} else {
+			judulNotif = "Pengajuan Cuti Berhasil"
+			pesanNotif = "Pengajuan " + jenis + " " + strconv.Itoa(totalHari) + " hari pada tanggal " + tanggalCuti + " berhasil diajukan. Silakan tunggu proses persetujuan dari atasan."
+		}
+
 		go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
 			KaryawanID:    karyawanID,
 			Jenis:         "pengajuan",
-			Judul:         "Pengajuan Cuti Berhasil",
-			Pesan:         "Pengajuan " + jenis + " " + strconv.Itoa(totalHari) + " hari pada tanggal " + tanggalCuti + " berhasil diajukan. Silakan tunggu proses persetujuan dari atasan.",
+			Judul:         judulNotif,
+			Pesan:         pesanNotif,
 			ReferensiID:   leave.ID,
 			ReferensiTipe: "pengajuan_cuti",
 		})
@@ -434,6 +452,9 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 						if req.SubTipe == "dispensasi" {
 							judulHRD = "Pengajuan Dispensasi oleh " + karyawan.NamaLengkap
 							pesanHRD = karyawan.NamaLengkap + " telah mengajukan dispensasi dan telah langsung difinalisasi."
+						} else if karyawan.AtasanLangsungID == nil {
+							judulHRD = "Pengajuan Cuti oleh " + karyawan.NamaLengkap
+							pesanHRD = karyawan.NamaLengkap + " telah mengajukan cuti berupa " + req.SubTipe + ". Silakan lakukan finalisasi pada halaman yang tersedia di Beranda Anda."
 						} else {
 							judulHRD = "Pengajuan Cuti oleh " + karyawan.NamaLengkap
 							pesanHRD = karyawan.NamaLengkap + " telah mengajukan cuti berupa " + req.SubTipe + ". Silakan lakukan finalisasi pada halaman yang tersedia di Beranda Anda."
