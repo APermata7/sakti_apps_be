@@ -179,7 +179,44 @@ func UploadLogoHandler(c *fiber.Ctx) error {
 }
 
 func UploadPresensi(c *fiber.Ctx) error {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("UploadPresensi panic: %v", r)
+			log.Printf("Stack: %s", debug.Stack())
+		}
+	}()
+
 	log.Println("UploadPresensi: start")
+
+	userID, ok := c.Locals("user_id").(string)
+	if !ok || userID == "" {
+		log.Println("UploadPresensi: user_id not found")
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"success": false,
+			"message": "Unauthorized",
+		})
+	}
+
+	karyawan, err := repository.NewKaryawanRepo(c.Locals("db").(*pgxpool.Pool)).GetByID(c.Context(), userID)
+	if err != nil || karyawan == nil {
+		log.Printf("UploadPresensi: karyawan not found")
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Karyawan tidak ditemukan",
+		})
+	}
+
+	var req struct {
+		Tipe string `json:"tipe"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		req.Tipe = "in"
+	}
+
+	tipe := req.Tipe
+	if tipe != "in" && tipe != "out" {
+		tipe = "in"
+	}
 
 	file, err := c.FormFile("image")
 	if err != nil {
@@ -201,8 +238,8 @@ func UploadPresensi(c *fiber.Ctx) error {
 	}
 	defer src.Close()
 
-	log.Println("UploadPresensi: uploading to Cloudinary presensi folder")
-	url, err := utils.UploadPresensi(src, file.Filename)
+	log.Printf("UploadPresensi: uploading to Cloudinary presensi folder, tipe=%s", tipe)
+	url, err := utils.UploadPresensi(src, file.Filename, karyawan.NamaLengkap, tipe)
 	if err != nil {
 		log.Printf("UploadPresensi: Cloudinary error: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -215,5 +252,6 @@ func UploadPresensi(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"success": true,
 		"url":     url,
+		"tipe":    tipe,
 	})
 }
