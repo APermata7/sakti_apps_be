@@ -1197,5 +1197,5 @@ func (u *LeaveUsecase) GetFinalizationList(ctx context.Context, limit int, page 
 	}
 	offset := (page - 1) * limit
 
-	return u.LeaveRepo.GetAllLeaves(ctx, "", "hrd", "disetujui", "", "", "", limit, offset)
+	return u.LeaveRepo.GetAllLeaves(ctx, "", "hrd", "", "", "", "", limit, offset)
 }

@@ -531,8 +531,8 @@ func (r *LeaveRepo) GetAllLeaves(ctx context.Context, atasanID string, role stri
 	}
 
 	if role == "hrd" {
-		query += ` AND pc.difinalisasi_oleh IS NULL AND pc.status = 'disetujui'`
-	}
+        query += ` AND pc.difinalisasi_oleh IS NULL AND (pc.status = 'disetujui' OR (pc.status = 'menunggu' AND pc.langsung_approve = false))`
+    }
 
 	countQuery := `SELECT COUNT(*) ` + query
 	err := r.DB.QueryRow(ctx, countQuery, args...).Scan(&total)
