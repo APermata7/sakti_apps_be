@@ -179,110 +179,120 @@ func (u *PresensiUsecase) CheckIn(ctx context.Context, karyawanID string, req do
 }
 
 func (u *PresensiUsecase) CheckOut(ctx context.Context, karyawanID string, req domain.CheckOutRequest) (*domain.CheckOutResponse, error) {
-    log.Printf("CheckOut dimulai untuk karyawanID: %s", karyawanID)
+	log.Printf("CheckOut dimulai untuk karyawanID: %s", karyawanID)
 
-    if req.SelfieURL == "" {
-        log.Printf("URL selfie kosong")
-        return nil, errors.New("selfie URL wajib diisi untuk check-out")
-    }
+	if req.SelfieURL == "" {
+		log.Printf("URL selfie kosong")
+		return nil, errors.New("selfie URL wajib diisi untuk check-out")
+	}
 
-    if req.Latitude == 0 || req.Longitude == 0 {
-        log.Printf("Koordinat tidak valid: Lat=%f, Lon=%f", req.Latitude, req.Longitude)
-        return nil, errors.New("latitude dan longitude wajib diisi")
-    }
+	if req.Latitude == 0 || req.Longitude == 0 {
+		log.Printf("Koordinat tidak valid: Lat=%f, Lon=%f", req.Latitude, req.Longitude)
+		return nil, errors.New("latitude dan longitude wajib diisi")
+	}
 
-    presensi, err := u.PresensiRepo.GetToday(ctx, karyawanID)
-    if err != nil {
-        log.Printf("Error mengambil data presensi hari ini: %v", err)
-        return nil, errors.New("anda belum melakukan presensi masuk hari ini")
-    }
-    if presensi == nil || presensi.JamMasuk == "" {
-        log.Printf("Tidak ada check-in untuk hari ini")
-        return nil, errors.New("anda belum melakukan presensi masuk hari ini")
-    }
-    if presensi.JamKeluar != nil && *presensi.JamKeluar != "" {
-        log.Printf("Karyawan sudah check-out")
-        return nil, errors.New("anda sudah melakukan presensi keluar hari ini")
-    }
+	presensi, err := u.PresensiRepo.GetToday(ctx, karyawanID)
+	if err != nil {
+		log.Printf("Error mengambil data presensi hari ini: %v", err)
+		return nil, errors.New("anda belum melakukan presensi masuk hari ini")
+	}
+	if presensi == nil || presensi.JamMasuk == "" {
+		log.Printf("Tidak ada check-in untuk hari ini")
+		return nil, errors.New("anda belum melakukan presensi masuk hari ini")
+	}
+	if presensi.JamKeluar != nil && *presensi.JamKeluar != "" {
+		log.Printf("Karyawan sudah check-out")
+		return nil, errors.New("anda sudah melakukan presensi keluar hari ini")
+	}
 
-    config, err := u.ConfigRepo.GetActive(ctx)
-    if err != nil {
-        log.Printf("Error mengambil konfigurasi: %v", err)
-        return nil, err
-    }
+	config, err := u.ConfigRepo.GetActive(ctx)
+	if err != nil {
+		log.Printf("Error mengambil konfigurasi: %v", err)
+		return nil, err
+	}
 
-    log.Printf("Memulai verifikasi wajah untuk check-out")
-    faceMatch, _, err := utils.VerifyFaceWithRepo(ctx, req.SelfieURL, karyawanID, u.KaryawanRepo)
-    if err != nil {
-        log.Printf("Error verifikasi wajah: %v", err)
-        return nil, err
-    }
-    if !faceMatch {
-        log.Printf("Wajah tidak dikenali untuk check-out")
-        return nil, errors.New("wajah tidak dikenali")
-    }
+	log.Printf("Memulai verifikasi wajah untuk check-out")
+	faceMatch, _, err := utils.VerifyFaceWithRepo(ctx, req.SelfieURL, karyawanID, u.KaryawanRepo)
+	if err != nil {
+		log.Printf("Error verifikasi wajah: %v", err)
+		return nil, err
+	}
+	if !faceMatch {
+		log.Printf("Wajah tidak dikenali untuk check-out")
+		return nil, errors.New("wajah tidak dikenali")
+	}
 
-    jamKeluar := time.Now()
-    jamKeluarStr := jamKeluar.Format("15:04:05")
+	jamKeluar := time.Now()
+	jamKeluarStr := jamKeluar.Format("15:04:05")
 
-    wib := time.FixedZone("WIB", 7*60*60)
-    jam, _ := time.Parse("15:04:05", config.JamPulang)
-    jamPulangTime := time.Date(jamKeluar.Year(), jamKeluar.Month(), jamKeluar.Day(), jam.Hour(), jam.Minute(), jam.Second(), 0, wib)
+	wib := time.FixedZone("WIB", 7*60*60)
+	jamMinimalPulangTime, _ := time.Parse("15:04:05", config.JamMinimalPulang)
+	jamPulangTime, _ := time.Parse("15:04:05", config.JamPulang)
 
-    var lembur bool
-    var jamLembur float64
+	jamMinimalPulangToday := time.Date(jamKeluar.Year(), jamKeluar.Month(), jamKeluar.Day(), jamMinimalPulangTime.Hour(), jamMinimalPulangTime.Minute(), jamMinimalPulangTime.Second(), 0, wib)
+	jamPulangToday := time.Date(jamKeluar.Year(), jamKeluar.Month(), jamKeluar.Day(), jamPulangTime.Hour(), jamPulangTime.Minute(), jamPulangTime.Second(), 0, wib)
 
-    if req.Lembur {
-        lembur = true
-        if jamKeluar.After(jamPulangTime) {
-            selisih := jamKeluar.Sub(jamPulangTime)
-            jamLembur = selisih.Hours()
-        } else {
-            jamLembur = 0
-        }
-    } else {
-        lembur = false
-        jamLembur = 0
-    }
-    log.Printf("Lembur: %t, Jam lembur: %f", lembur, jamLembur)
+	log.Printf("Jam keluar: %s, Jam minimal pulang: %s, Jam pulang: %s", jamKeluarStr, config.JamMinimalPulang, config.JamPulang)
 
-    distance := utils.Haversine(config.LatKantor, config.LongKantor, req.Latitude, req.Longitude)
-    isOutside := distance > float64(config.RadiusKantor)
-    log.Printf("Jarak: %f meter, Radius: %d meter, Di luar radius: %t", distance, config.RadiusKantor, isOutside)
+	if jamKeluar.Before(jamMinimalPulangToday) {
+		log.Printf("Check-out ditolak: sebelum jam minimal pulang (%s)", config.JamMinimalPulang)
+		return nil, errors.New("check-out hanya dapat dilakukan mulai pukul " + config.JamMinimalPulang + " WIB")
+	}
 
-    locationStatusKeluar := "di_dalam_radius"
-    if isOutside {
-        locationStatusKeluar = "di_luar_radius"
-    }
+	var lembur bool
+	var jamLembur float64
 
-    log.Printf("Memperbarui data check-out")
-    if err := u.PresensiRepo.UpdateCheckOut(ctx, presensi.ID, jamKeluarStr, lembur, jamLembur, req.Latitude, req.Longitude, req.SelfieURL, distance, isOutside, &locationStatusKeluar); err != nil {
-        log.Printf("Error update check-out: %v", err)
-        return nil, err
-    }
-    log.Printf("Check-out berhasil diperbarui untuk presensi ID: %s", presensi.ID)
+	if req.Lembur {
+		lembur = true
+		if jamKeluar.After(jamPulangToday) {
+			selisih := jamKeluar.Sub(jamPulangToday)
+			jamLembur = selisih.Hours()
+		} else {
+			jamLembur = 0
+		}
+	} else {
+		lembur = false
+		jamLembur = 0
+	}
+	log.Printf("Lembur: %t, Jam lembur: %f", lembur, jamLembur)
 
-    if u.RiwayatRepo != nil {
-        statusLembur := ""
-        if lembur {
-            statusLembur = " dengan lembur " + strconv.FormatFloat(jamLembur, 'f', 1, 64) + " jam"
-        }
-        detail := "Check-out pada " + jamKeluarStr + statusLembur + " di lokasi " + locationStatusKeluar
-        u.RiwayatRepo.CreateRiwayat(ctx, karyawanID, "check_out", detail)
-    }
+	distance := utils.Haversine(config.LatKantor, config.LongKantor, req.Latitude, req.Longitude)
+	isOutside := distance > float64(config.RadiusKantor)
+	log.Printf("Jarak: %f meter, Radius: %d meter, Di luar radius: %t", distance, config.RadiusKantor, isOutside)
 
-    return &domain.CheckOutResponse{
-        ID:                    presensi.ID,
-        KaryawanID:            presensi.KaryawanID,
-        Tanggal:               presensi.Tanggal.Format("2006-01-02"),
-        JamMasuk:              presensi.JamMasuk,
-        JamKeluar:             jamKeluarStr,
-        Lembur:                lembur,
-        JamLembur:             jamLembur,
-        DistanceMeter:         distance,
-        IsOutsideRadius:       isOutside,
-        LocationStatusKeluar:  locationStatusKeluar,
-    }, nil
+	locationStatusKeluar := "di_dalam_radius"
+	if isOutside {
+		locationStatusKeluar = "di_luar_radius"
+	}
+
+	log.Printf("Memperbarui data check-out")
+	if err := u.PresensiRepo.UpdateCheckOut(ctx, presensi.ID, jamKeluarStr, lembur, jamLembur, req.Latitude, req.Longitude, req.SelfieURL, distance, isOutside, &locationStatusKeluar); err != nil {
+		log.Printf("Error update check-out: %v", err)
+		return nil, err
+	}
+	log.Printf("Check-out berhasil diperbarui untuk presensi ID: %s", presensi.ID)
+
+	if u.RiwayatRepo != nil {
+		statusLembur := ""
+		if lembur {
+			statusLembur = " dengan lembur " + strconv.FormatFloat(jamLembur, 'f', 1, 64) + " jam"
+		}
+		detail := "Check-out pada " + jamKeluarStr + statusLembur + " di lokasi " + locationStatusKeluar
+		u.RiwayatRepo.CreateRiwayat(ctx, karyawanID, "check_out", detail)
+	}
+
+	return &domain.CheckOutResponse{
+		ID:                    presensi.ID,
+		KaryawanID:            presensi.KaryawanID,
+		Tanggal:               presensi.Tanggal.Format("2006-01-02"),
+		JamMasuk:              presensi.JamMasuk,
+		JamKeluar:             jamKeluarStr,
+		Lembur:                lembur,
+		JamLembur:             jamLembur,
+		DistanceMeter:         distance,
+		IsOutsideRadius:       isOutside,
+		LocationStatusKeluar:  locationStatusKeluar,
+	}, nil
 }
 
 func (u *PresensiUsecase) GetToday(ctx context.Context, karyawanID string) (*domain.TodayResponse, error) {
