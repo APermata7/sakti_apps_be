@@ -239,13 +239,23 @@ func (r *LeaveRepo) UpdateAlasanBatal(ctx context.Context, id, alasan string) er
 func (r *LeaveRepo) Finalize(ctx context.Context, id, hrdID string) error {
     query := `
         UPDATE pengajuan_cuti 
-        SET difinalisasi_oleh = $1, 
+        SET status = 'disetujui',
+            difinalisasi_oleh = $1, 
             tanggal_difinalisasi = NOW(),
             diperbarui_pada = NOW()
-        WHERE id = $2 AND status = 'disetujui'
+        WHERE id = $2 AND difinalisasi_oleh IS NULL
     `
-    _, err := r.DB.Exec(ctx, query, hrdID, id)
-    return err
+    result, err := r.DB.Exec(ctx, query, hrdID, id)
+    if err != nil {
+        return err
+    }
+
+    rowsAffected := result.RowsAffected()
+    if rowsAffected == 0 {
+        return errors.New("tidak ada data yang diupdate")
+    }
+
+    return nil
 }
 
 func (r *LeaveRepo) UpdatePDFURL(ctx context.Context, id, url string) error {
