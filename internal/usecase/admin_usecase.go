@@ -373,6 +373,18 @@ func (u *AdminUsecase) UpdateKaryawan(ctx context.Context, id string, req domain
         return nil, errors.New("karyawan tidak ditemukan")
     }
 
+    if req.Role != nil && *req.Role != "" {
+        return nil, errors.New("tidak memiliki izin untuk mengubah role")
+    }
+
+    if req.StatusKaryawan != nil && *req.StatusKaryawan != "" {
+        return nil, errors.New("tidak memiliki izin untuk mengubah status karyawan")
+    }
+
+    if req.AtasanLangsungID != nil {
+        return nil, errors.New("tidak memiliki izin untuk mengubah atasan langsung")
+    }
+
     if req.NamaLengkap != nil && *req.NamaLengkap != "" {
         existing.NamaLengkap = *req.NamaLengkap
     }
@@ -390,21 +402,11 @@ func (u *AdminUsecase) UpdateKaryawan(ctx context.Context, id string, req domain
             existing.FotoURL = nil
         }
     }
-    if req.Role != nil && *req.Role != "" {
-        existing.Role = *req.Role
-    }
     if req.LevelJabatan != nil {
         if *req.LevelJabatan != "" {
             existing.LevelJabatan = req.LevelJabatan
         } else {
             existing.LevelJabatan = nil
-        }
-    }
-    if req.AtasanLangsungID != nil {
-        if *req.AtasanLangsungID != "" {
-            existing.AtasanLangsungID = req.AtasanLangsungID
-        } else {
-            existing.AtasanLangsungID = nil
         }
     }
     if req.Divisi != nil {
@@ -420,9 +422,6 @@ func (u *AdminUsecase) UpdateKaryawan(ctx context.Context, id string, req domain
         } else {
             existing.Unit = nil
         }
-    }
-    if req.StatusKaryawan != nil && *req.StatusKaryawan != "" {
-        existing.StatusKaryawan = *req.StatusKaryawan
     }
 
     if err := u.KaryawanRepo.Update(ctx, existing); err != nil {
