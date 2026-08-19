@@ -201,6 +201,36 @@ func UploadLogo(file multipart.File, filename string) (string, error) {
     return resp.SecureURL, nil
 }
 
+func UploadPresensi(file multipart.File, filename string) (string, error) {
+    if Cld == nil {
+        return "", nil
+    }
+
+    ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+    defer cancel()
+
+    folder := os.Getenv("CLOUDINARY_UPLOAD_FOLDER")
+    if folder == "" {
+        folder = "sakti-apps"
+    }
+    folder = folder + "/presensi"
+
+    safeFilename := sanitizeFilename(filename)
+
+    resp, err := Cld.Upload.Upload(ctx, file, uploader.UploadParams{
+        Folder:         folder,
+        PublicID:       safeFilename,
+        UseFilename:    api.Bool(false),
+        UniqueFilename: api.Bool(true),
+        ResourceType:   "image",
+    })
+    if err != nil {
+        return "", err
+    }
+
+    return resp.SecureURL, nil
+}
+
 func UploadPDF(data []byte, filename string) (string, error) {
     if Cld == nil {
         return "", nil
