@@ -140,6 +140,8 @@ func (u *LeaveUsecase) DetermineApprovalFlow(ctx context.Context, karyawan *doma
 
 		if karyawan.AtasanLangsungID != nil {
 			flow.AtasanID = karyawan.AtasanLangsungID
+		} else {
+			flow.LangsungApprove = true
 		}
 	}
 
@@ -344,7 +346,7 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 		JudulDokumen:      judulDokumen,
 	}
 
-	if flow.LangsungFinal || req.SubTipe == "dispensasi" {
+	if flow.LangsungFinal || req.SubTipe == "dispensasi" || (karyawan.AtasanLangsungID == nil && req.SubTipe != "dispensasi") {
 		if flow.HRDID != nil {
 			leave.DifinalisasiOleh = flow.HRDID
 		} else {
