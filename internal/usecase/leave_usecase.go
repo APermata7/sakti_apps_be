@@ -753,60 +753,69 @@ func (u *LeaveUsecase) RejectLeave(ctx context.Context, leaveID, managerID, alas
 }
 
 func (u *LeaveUsecase) FinalizeLeave(ctx context.Context, leaveID, hrdID string) (*domain.PengajuanCuti, error) {
-	leave, err := u.LeaveRepo.GetByID(ctx, leaveID)
-	if err != nil {
-		return nil, errors.New("pengajuan tidak ditemukan")
-	}
-	if leave == nil {
-		return nil, errors.New("pengajuan tidak ditemukan")
-	}
-	if leave.Status != "disetujui" {
-		return nil, errors.New("pengajuan belum disetujui atasan")
-	}
+    leave, err := u.LeaveRepo.GetByID(ctx, leaveID)
+    if err != nil {
+        return nil, errors.New("pengajuan tidak ditemukan")
+    }
+    if leave == nil {
+        return nil, errors.New("pengajuan tidak ditemukan")
+    }
 
-	if err := u.LeaveRepo.Finalize(ctx, leaveID, hrdID); err != nil {
-		return nil, err
-	}
+    if leave.Status != "disetujui" {
+        karyawan, err := u.KaryawanRepo.GetByID(ctx, leave.KaryawanID)
+        if err != nil || karyawan == nil {
+            return nil, errors.New("karyawan tidak ditemukan")
+        }
 
-	if leave.MengurangiCuti {
-		tahun := leave.TanggalMulai.Year()
-		u.LeaveRepo.UpdateBalance(ctx, leave.KaryawanID, tahun)
-	}
+        if leave.Status == "menunggu" && karyawan.AtasanLangsungID == nil {
+        } else {
+            return nil, errors.New("pengajuan belum disetujui atasan")
+        }
+    }
 
-	if u.RiwayatRepo != nil {
-		karyawan, _ := u.KaryawanRepo.GetByID(ctx, hrdID)
-		namaHRD := "HRD"
-		if karyawan != nil {
-			namaHRD = karyawan.NamaLengkap
-		}
-		detail := "Cuti difinalisasi oleh " + namaHRD
-		u.RiwayatRepo.CreateRiwayat(ctx, leave.KaryawanID, "cuti_difinalisasi", detail)
-	}
+    if err := u.LeaveRepo.Finalize(ctx, leaveID, hrdID); err != nil {
+        return nil, err
+    }
 
-	if u.NotificationUsecase != nil {
-		karyawan, _ := u.KaryawanRepo.GetByID(ctx, leave.KaryawanID)
-		if karyawan != nil && karyawan.Role != "hrd" {
-			var jenis string
-			if leave.SubTipe == "dispensasi" {
-				jenis = "dispensasi"
-			} else {
-				jenis = "cuti " + leave.SubTipe
-			}
+    if leave.MengurangiCuti {
+        tahun := leave.TanggalMulai.Year()
+        u.LeaveRepo.UpdateBalance(ctx, leave.KaryawanID, tahun)
+    }
 
-			tanggalCuti := formatTanggalCuti(leave.TanggalMulai, leave.TanggalSelesai)
+    if u.RiwayatRepo != nil {
+        karyawan, _ := u.KaryawanRepo.GetByID(ctx, hrdID)
+        namaHRD := "HRD"
+        if karyawan != nil {
+            namaHRD = karyawan.NamaLengkap
+        }
+        detail := "Cuti difinalisasi oleh " + namaHRD
+        u.RiwayatRepo.CreateRiwayat(ctx, leave.KaryawanID, "cuti_difinalisasi", detail)
+    }
 
-			go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
-				KaryawanID:    leave.KaryawanID,
-				Jenis:         "persetujuan",
-				Judul:         "Pengajuan Cuti Berhasil",
-				Pesan:         "Pengajuan " + jenis + " Anda pada tanggal " + tanggalCuti + " telah disetujui dan difinalisasi. Surat cuti Anda telah tersedia dan dapat diunduh pada halaman Cuti.",
-				ReferensiID:   leaveID,
-				ReferensiTipe: "pengajuan_cuti",
-			})
-		}
-	}
+    if u.NotificationUsecase != nil {
+        karyawan, _ := u.KaryawanRepo.GetByID(ctx, leave.KaryawanID)
+        if karyawan != nil && karyawan.Role != "hrd" {
+            var jenis string
+            if leave.SubTipe == "dispensasi" {
+                jenis = "dispensasi"
+            } else {
+                jenis = "cuti " + leave.SubTipe
+            }
 
-	return u.LeaveRepo.GetByID(ctx, leaveID)
+            tanggalCuti := formatTanggalCuti(leave.TanggalMulai, leave.TanggalSelesai)
+
+            go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
+                KaryawanID:    leave.KaryawanID,
+                Jenis:         "persetujuan",
+                Judul:         "Pengajuan Cuti Berhasil",
+                Pesan:         "Pengajuan " + jenis + " Anda pada tanggal " + tanggalCuti + " telah disetujui dan difinalisasi. Surat cuti Anda telah tersedia dan dapat diunduh pada halaman Cuti.",
+                ReferensiID:   leaveID,
+                ReferensiTipe: "pengajuan_cuti",
+            })
+        }
+    }
+
+    return u.LeaveRepo.GetByID(ctx, leaveID)
 }
 
 func (u *LeaveUsecase) DownloadSuratCuti(ctx context.Context, leaveID string) ([]byte, string, error) {
