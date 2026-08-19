@@ -197,6 +197,8 @@ func main() {
     protected.Delete("/ttd", ttdHandler.DeleteTTD)
     protected.Get("/ttd/verify", ttdHandler.VerifyTTD)
 
+    protected.Post("/upload/presensi", handler.UploadPresensi)
+
     adminGroup := protected.Group("/admin", middleware.RequireRole("admin"))
     adminGroup.Get("/dashboard", adminHandler.GetDashboard)
     adminGroup.Get("/dashboard/chart", adminHandler.GetDashboardChart)
@@ -230,7 +232,6 @@ func main() {
 
     adminGroup.Post("/upload/image", handler.UploadImage)
     adminGroup.Post("/upload/logo", handler.UploadLogoHandler)
-    adminGroup.Post("/upload/presensi", handler.UploadPresensi)
 
     go func() {
         for {
