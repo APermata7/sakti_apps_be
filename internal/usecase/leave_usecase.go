@@ -238,265 +238,257 @@ func (u *LeaveUsecase) DeductLeaveQuota(ctx context.Context, karyawanID string, 
 }
 
 func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req domain.CreateCutiRequest) (*domain.PengajuanCuti, error) {
-	karyawan, err := u.KaryawanRepo.GetByID(ctx, karyawanID)
-	if err != nil || karyawan == nil {
-		return nil, errors.New("karyawan tidak ditemukan")
-	}
+    karyawan, err := u.KaryawanRepo.GetByID(ctx, karyawanID)
+    if err != nil || karyawan == nil {
+        return nil, errors.New("karyawan tidak ditemukan")
+    }
 
-	if req.SubTipe != "izin" && req.SubTipe != "sakit" && req.SubTipe != "dispensasi" {
-		return nil, errors.New("sub tipe harus 'izin', 'sakit', atau 'dispensasi'")
-	}
+    if req.SubTipe != "izin" && req.SubTipe != "sakit" && req.SubTipe != "dispensasi" {
+        return nil, errors.New("sub tipe harus 'izin', 'sakit', atau 'dispensasi'")
+    }
 
-	start, err := time.Parse("2006-01-02", req.TanggalMulai)
-	if err != nil {
-		return nil, errors.New("format tanggal mulai tidak valid (YYYY-MM-DD)")
-	}
-	end, err := time.Parse("2006-01-02", req.TanggalSelesai)
-	if err != nil {
-		return nil, errors.New("format tanggal selesai tidak valid (YYYY-MM-DD)")
-	}
+    start, err := time.Parse("2006-01-02", req.TanggalMulai)
+    if err != nil {
+        return nil, errors.New("format tanggal mulai tidak valid (YYYY-MM-DD)")
+    }
+    end, err := time.Parse("2006-01-02", req.TanggalSelesai)
+    if err != nil {
+        return nil, errors.New("format tanggal selesai tidak valid (YYYY-MM-DD)")
+    }
 
-	totalHari, err := u.countWorkDaysWithHoliday(ctx, start, end)
-	if err != nil {
-		return nil, errors.New("gagal menghitung hari kerja")
-	}
+    totalHari, err := u.countWorkDaysWithHoliday(ctx, start, end)
+    if err != nil {
+        return nil, errors.New("gagal menghitung hari kerja")
+    }
 
-	if totalHari <= 0 {
-		return nil, errors.New("tanggal tidak valid (tidak ada hari kerja)")
-	}
+    if totalHari <= 0 {
+        return nil, errors.New("tanggal tidak valid (tidak ada hari kerja)")
+    }
 
-	if req.SubTipe == "dispensasi" && totalHari > 2 {
-		return nil, errors.New("dispensasi maksimal 2 hari")
-	}
+    if req.SubTipe == "dispensasi" && totalHari > 2 {
+        return nil, errors.New("dispensasi maksimal 2 hari")
+    }
 
-	existingLeaves, err := u.LeaveRepo.GetActiveLeaves(ctx, karyawanID)
-	if err != nil {
-		return nil, err
-	}
+    existingLeaves, err := u.LeaveRepo.GetActiveLeaves(ctx, karyawanID)
+    if err != nil {
+        return nil, err
+    }
 
-	for _, existing := range existingLeaves {
-		existingStart := existing.TanggalMulai
-		existingEnd := existing.TanggalSelesai
+    for _, existing := range existingLeaves {
+        existingStart := existing.TanggalMulai
+        existingEnd := existing.TanggalSelesai
 
-		if !(end.Before(existingStart) || start.After(existingEnd)) {
-			return nil, errors.New("terdapat pengajuan cuti yang overlap pada tanggal tersebut")
-		}
-	}
+        if !(end.Before(existingStart) || start.After(existingEnd)) {
+            return nil, errors.New("terdapat pengajuan cuti yang overlap pada tanggal tersebut")
+        }
+    }
 
-	balance, err := u.LeaveRepo.GetBalanceWithCarryOver(ctx, karyawanID, time.Now().Year())
-	if err != nil {
-		return nil, errors.New("gagal mendapatkan kuota cuti")
-	}
+    balance, err := u.LeaveRepo.GetBalanceWithCarryOver(ctx, karyawanID, time.Now().Year())
+    if err != nil {
+        return nil, errors.New("gagal mendapatkan kuota cuti")
+    }
 
-	if balance == nil {
-		balance = &domain.SisaCuti{
-			JumlahCuti:        12,
-			TelahDilaksanakan: 0,
-			AkanDilaksanakan:  0,
-			SisaCuti:          12,
-		}
-	}
+    if balance == nil {
+        balance = &domain.SisaCuti{
+            JumlahCuti:        12,
+            TelahDilaksanakan: 0,
+            AkanDilaksanakan:  0,
+            SisaCuti:          12,
+        }
+    }
 
-	mengurangiCuti := true
-	if req.SubTipe == "dispensasi" {
-		mengurangiCuti = false
-	}
+    mengurangiCuti := true
+    if req.SubTipe == "dispensasi" {
+        mengurangiCuti = false
+    }
 
-	kuotaTersedia := balance.JumlahCuti - balance.TelahDilaksanakan - balance.AkanDilaksanakan
+    kuotaTersedia := balance.JumlahCuti - balance.TelahDilaksanakan - balance.AkanDilaksanakan
 
-	if mengurangiCuti && totalHari > kuotaTersedia {
-		return nil, errors.New("jumlah hari cuti melebihi kuota cuti yang tersedia")
-	}
+    if mengurangiCuti && totalHari > kuotaTersedia {
+        return nil, errors.New("jumlah hari cuti melebihi kuota cuti yang tersedia")
+    }
 
-	flow, err := u.DetermineApprovalFlow(ctx, karyawan)
-	if err != nil {
-		return nil, err
-	}
+    judulDokumen := "PERMOHONAN/LAPORAN CUTI TAHUNAN"
+    if req.SubTipe == "dispensasi" {
+        judulDokumen = "PERMOHONAN/LAPORAN DISPENSASI"
+    }
 
-	judulDokumen := "PERMOHONAN/LAPORAN CUTI TAHUNAN"
-	if req.SubTipe == "dispensasi" {
-		judulDokumen = "PERMOHONAN/LAPORAN DISPENSASI"
-	}
+    var status string
+    var langsungApprove bool
+    var langsungFinal bool
 
-	status := "menunggu"
+    if req.SubTipe == "dispensasi" {
+        status = "disetujui"
+        langsungApprove = true
+        langsungFinal = true
+    } else {
+        if karyawan.AtasanLangsungID == nil {
+            status = "disetujui"
+            langsungApprove = true
+            langsungFinal = false
+        } else {
+            status = "menunggu"
+            langsungApprove = false
+            langsungFinal = false
+        }
+    }
 
-	if req.SubTipe == "dispensasi" {
-		status = "disetujui"
-		flow.LangsungApprove = true
-		flow.LangsungFinal = true
-	} else {
-		if karyawan.AtasanLangsungID == nil {
-			status = "menunggu"
-			flow.ButuhAtasan = false
-			flow.LangsungApprove = false
-			flow.LangsungFinal = false
-		} else if flow.LangsungApprove {
-			status = "disetujui"
-		}
-	}
+    leave := &domain.PengajuanCuti{
+        KaryawanID:        karyawanID,
+        SubTipe:           req.SubTipe,
+        TanggalMulai:      start,
+        TanggalSelesai:    end,
+        TotalHari:         totalHari,
+        Alasan:            req.Alasan,
+        Status:            status,
+        BackDate:          req.BackDate,
+        MengurangiCuti:    mengurangiCuti,
+        LangsungApprove:   langsungApprove,
+        LangsungFinal:     langsungFinal,
+        JudulDokumen:      judulDokumen,
+    }
 
-	leave := &domain.PengajuanCuti{
-		KaryawanID:        karyawanID,
-		SubTipe:           req.SubTipe,
-		TanggalMulai:      start,
-		TanggalSelesai:    end,
-		TotalHari:         totalHari,
-		Alasan:            req.Alasan,
-		Status:            status,
-		BackDate:          req.BackDate,
-		MengurangiCuti:    mengurangiCuti,
-		LangsungApprove:   flow.LangsungApprove,
-		LangsungFinal:     flow.LangsungFinal,
-		JudulDokumen:      judulDokumen,
-	}
+    if langsungFinal {
+        hrd, err := u.KaryawanRepo.GetByRole(ctx, "hrd")
+        if err == nil && hrd != nil {
+            leave.DifinalisasiOleh = &hrd.ID
+            now := time.Now()
+            leave.TanggalDifinalisasi = &now
+        }
+    }
 
-	if flow.LangsungFinal || req.SubTipe == "dispensasi" {
-		if flow.HRDID != nil {
-			leave.DifinalisasiOleh = flow.HRDID
-		} else {
-			hrd, err := u.KaryawanRepo.GetByRole(ctx, "hrd")
-			if err == nil && hrd != nil {
-				leave.DifinalisasiOleh = &hrd.ID
-			}
-		}
-		if leave.DifinalisasiOleh != nil {
-			now := time.Now()
-			leave.TanggalDifinalisasi = &now
-		}
-	}
+    if err := u.LeaveRepo.Create(ctx, leave); err != nil {
+        return nil, err
+    }
 
-	if err := u.LeaveRepo.Create(ctx, leave); err != nil {
-		return nil, err
-	}
+    if leave.MengurangiCuti {
+        tahun := leave.TanggalMulai.Year()
+        if req.SubTipe == "dispensasi" {
+            u.LeaveRepo.UpdateBalance(ctx, karyawanID, tahun)
+        } else {
+            u.LeaveRepo.UpdateAkanDilaksanakan(ctx, karyawanID, tahun)
+        }
 
-	if leave.MengurangiCuti {
-		tahun := leave.TanggalMulai.Year()
-		if req.SubTipe == "dispensasi" {
-			u.LeaveRepo.UpdateBalance(ctx, karyawanID, tahun)
-		} else {
-			u.LeaveRepo.UpdateAkanDilaksanakan(ctx, karyawanID, tahun)
-		}
+        if err := u.DeductLeaveQuota(ctx, karyawanID, tahun, totalHari); err != nil {
+            log.Printf("DeductLeaveQuota error: %v", err)
+        }
+    }
 
-		if err := u.DeductLeaveQuota(ctx, karyawanID, tahun, totalHari); err != nil {
-			log.Printf("DeductLeaveQuota error: %v", err)
-		}
-	}
+    if u.RiwayatRepo != nil {
+        detail := "Pengajuan cuti " + req.SubTipe + " " + strconv.Itoa(totalHari) + " hari dari " + req.TanggalMulai + " sampai " + req.TanggalSelesai
+        u.RiwayatRepo.CreateRiwayat(ctx, karyawanID, "cuti_diajukan", detail)
+    }
 
-	if u.RiwayatRepo != nil {
-		detail := "Pengajuan cuti " + req.SubTipe + " " + strconv.Itoa(totalHari) + " hari dari " + req.TanggalMulai + " sampai " + req.TanggalSelesai
-		u.RiwayatRepo.CreateRiwayat(ctx, karyawanID, "cuti_diajukan", detail)
-	}
+    if u.NotificationUsecase != nil {
+        var jenis string
+        if req.SubTipe == "dispensasi" {
+            jenis = "dispensasi"
+        } else {
+            jenis = "cuti " + req.SubTipe
+        }
 
-	if u.NotificationUsecase != nil {
-		var jenis string
-		if req.SubTipe == "dispensasi" {
-			jenis = "dispensasi"
-		} else {
-			jenis = "cuti " + req.SubTipe
-		}
+        tanggalCuti := formatTanggalCuti(start, end)
 
-		tanggalCuti := formatTanggalCuti(start, end)
+        var judulNotif, pesanNotif string
+        if karyawan.AtasanLangsungID == nil && req.SubTipe != "dispensasi" {
+            judulNotif = "Pengajuan Cuti Berhasil"
+            pesanNotif = "Pengajuan " + jenis + " " + strconv.Itoa(totalHari) + " hari pada tanggal " + tanggalCuti + " berhasil diajukan. Silakan tunggu finalisasi dari HRD."
+        } else {
+            judulNotif = "Pengajuan Cuti Berhasil"
+            pesanNotif = "Pengajuan " + jenis + " " + strconv.Itoa(totalHari) + " hari pada tanggal " + tanggalCuti + " berhasil diajukan. Silakan tunggu proses persetujuan dari atasan."
+        }
 
-		var judulNotif, pesanNotif string
-		if karyawan.AtasanLangsungID == nil && req.SubTipe != "dispensasi" {
-			judulNotif = "Pengajuan Cuti Berhasil"
-			pesanNotif = "Pengajuan " + jenis + " " + strconv.Itoa(totalHari) + " hari pada tanggal " + tanggalCuti + " berhasil diajukan. Silakan tunggu finalisasi dari HRD."
-		} else {
-			judulNotif = "Pengajuan Cuti Berhasil"
-			pesanNotif = "Pengajuan " + jenis + " " + strconv.Itoa(totalHari) + " hari pada tanggal " + tanggalCuti + " berhasil diajukan. Silakan tunggu proses persetujuan dari atasan."
-		}
+        go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
+            KaryawanID:    karyawanID,
+            Jenis:         "pengajuan",
+            Judul:         judulNotif,
+            Pesan:         pesanNotif,
+            ReferensiID:   leave.ID,
+            ReferensiTipe: "pengajuan_cuti",
+        })
 
-		go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
-			KaryawanID:    karyawanID,
-			Jenis:         "pengajuan",
-			Judul:         judulNotif,
-			Pesan:         pesanNotif,
-			ReferensiID:   leave.ID,
-			ReferensiTipe: "pengajuan_cuti",
-		})
+        if karyawan.AtasanLangsungID != nil {
+            atasan, _ := u.KaryawanRepo.GetByID(ctx, *karyawan.AtasanLangsungID)
+            if atasan != nil {
+                var judulAtasan, pesanAtasan string
+                if req.SubTipe == "dispensasi" {
+                    judulAtasan = "Pengajuan Dispensasi oleh " + karyawan.NamaLengkap
+                    pesanAtasan = karyawan.NamaLengkap + " telah mengajukan dispensasi dan telah langsung difinalisasi."
+                } else {
+                    judulAtasan = "Pengajuan Cuti oleh " + karyawan.NamaLengkap
+                    pesanAtasan = karyawan.NamaLengkap + " telah mengajukan cuti berupa " + req.SubTipe + ". Silahkan lakukan persetujuan pada halaman yang tersedia di Beranda Anda."
+                }
 
-		if karyawan.AtasanLangsungID != nil {
-			atasan, _ := u.KaryawanRepo.GetByID(ctx, *karyawan.AtasanLangsungID)
-			if atasan != nil {
-				var judulAtasan, pesanAtasan string
-				if req.SubTipe == "dispensasi" {
-					judulAtasan = "Pengajuan Dispensasi oleh " + karyawan.NamaLengkap
-					pesanAtasan = karyawan.NamaLengkap + " telah mengajukan dispensasi dan telah langsung difinalisasi."
-				} else {
-					judulAtasan = "Pengajuan Cuti oleh " + karyawan.NamaLengkap
-					pesanAtasan = karyawan.NamaLengkap + " telah mengajukan cuti berupa " + req.SubTipe + ". Silahkan lakukan persetujuan pada halaman yang tersedia di Beranda Anda."
-				}
+                go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
+                    KaryawanID:    atasan.ID,
+                    Jenis:         "pengajuan",
+                    Judul:         judulAtasan,
+                    Pesan:         pesanAtasan,
+                    ReferensiID:   leave.ID,
+                    ReferensiTipe: "pengajuan_cuti",
+                })
+            }
+        }
 
-				go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
-					KaryawanID:    atasan.ID,
-					Jenis:         "pengajuan",
-					Judul:         judulAtasan,
-					Pesan:         pesanAtasan,
-					ReferensiID:   leave.ID,
-					ReferensiTipe: "pengajuan_cuti",
-				})
-			}
-		}
+        if karyawan.Role != "hrd" {
+            hrdList, _, err := u.KaryawanRepo.GetAll(ctx, 100, 0, "", "hrd", "", "", "", "aktif")
+            if err == nil && len(hrdList) > 0 {
+                for _, hrd := range hrdList {
+                    if hrd.ID == karyawanID {
+                        continue
+                    }
+                    var judulHRD, pesanHRD string
+                    if req.SubTipe == "dispensasi" {
+                        judulHRD = "Pengajuan Dispensasi oleh " + karyawan.NamaLengkap
+                        pesanHRD = karyawan.NamaLengkap + " telah mengajukan dispensasi dan telah langsung difinalisasi."
+                    } else if karyawan.AtasanLangsungID == nil {
+                        judulHRD = "Pengajuan Cuti oleh " + karyawan.NamaLengkap
+                        pesanHRD = karyawan.NamaLengkap + " telah mengajukan cuti berupa " + req.SubTipe + ". Silakan lakukan finalisasi pada halaman yang tersedia di Beranda Anda."
+                    } else {
+                        judulHRD = "Pengajuan Cuti oleh " + karyawan.NamaLengkap
+                        pesanHRD = karyawan.NamaLengkap + " telah mengajukan cuti berupa " + req.SubTipe + ". Silakan lakukan finalisasi pada halaman yang tersedia di Beranda Anda."
+                    }
 
-		if karyawan.Role != "hrd" {
-			hrdList, _, err := u.KaryawanRepo.GetAll(ctx, 100, 0, "", "hrd", "", "", "", "aktif")
-			if err == nil && len(hrdList) > 0 {
-				for _, hrd := range hrdList {
-					if hrd.ID == karyawanID {
-						continue
-					}
-					var judulHRD, pesanHRD string
-					if req.SubTipe == "dispensasi" {
-						judulHRD = "Pengajuan Dispensasi oleh " + karyawan.NamaLengkap
-						pesanHRD = karyawan.NamaLengkap + " telah mengajukan dispensasi dan telah langsung difinalisasi."
-					} else if karyawan.AtasanLangsungID == nil {
-						judulHRD = "Pengajuan Cuti oleh " + karyawan.NamaLengkap
-						pesanHRD = karyawan.NamaLengkap + " telah mengajukan cuti berupa " + req.SubTipe + ". Silakan lakukan finalisasi pada halaman yang tersedia di Beranda Anda."
-					} else {
-						judulHRD = "Pengajuan Cuti oleh " + karyawan.NamaLengkap
-						pesanHRD = karyawan.NamaLengkap + " telah mengajukan cuti berupa " + req.SubTipe + ". Silakan lakukan finalisasi pada halaman yang tersedia di Beranda Anda."
-					}
+                    go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
+                        KaryawanID:    hrd.ID,
+                        Jenis:         "pengajuan",
+                        Judul:         judulHRD,
+                        Pesan:         pesanHRD,
+                        ReferensiID:   leave.ID,
+                        ReferensiTipe: "pengajuan_cuti",
+                    })
+                }
+            }
+        }
+    }
 
-					go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
-						KaryawanID:    hrd.ID,
-						Jenis:         "pengajuan",
-						Judul:         judulHRD,
-						Pesan:         pesanHRD,
-						ReferensiID:   leave.ID,
-						ReferensiTipe: "pengajuan_cuti",
-					})
-				}
-			}
-		}
-	}
+    telegram := utils.NewTelegramBot(u.KaryawanRepo.DB)
+    if telegram != nil && karyawan.AtasanLangsungID != nil {
+        atasan, _ := u.KaryawanRepo.GetByID(ctx, *karyawan.AtasanLangsungID)
+        if atasan != nil && atasan.TelegramChatID != nil && *atasan.TelegramChatID != "" {
+            if req.SubTipe == "dispensasi" {
+                go telegram.SendCreateDispensasiNotification(
+                    *atasan.TelegramChatID,
+                    atasan.ID,
+                    karyawan.NamaLengkap,
+                    strconv.Itoa(totalHari),
+                    req.Alasan,
+                    leave.ID,
+                )
+            } else {
+                go telegram.SendCreateLeaveNotification(
+                    *atasan.TelegramChatID,
+                    atasan.ID,
+                    karyawan.NamaLengkap,
+                    strconv.Itoa(totalHari),
+                    req.Alasan,
+                    leave.ID,
+                )
+            }
+        }
+    }
 
-	telegram := utils.NewTelegramBot(u.KaryawanRepo.DB)
-	if telegram != nil && karyawan.AtasanLangsungID != nil {
-		atasan, _ := u.KaryawanRepo.GetByID(ctx, *karyawan.AtasanLangsungID)
-		if atasan != nil && atasan.TelegramChatID != nil && *atasan.TelegramChatID != "" {
-			if req.SubTipe == "dispensasi" {
-				go telegram.SendCreateDispensasiNotification(
-					*atasan.TelegramChatID,
-					atasan.ID,
-					karyawan.NamaLengkap,
-					strconv.Itoa(totalHari),
-					req.Alasan,
-					leave.ID,
-				)
-			} else {
-				go telegram.SendCreateLeaveNotification(
-					*atasan.TelegramChatID,
-					atasan.ID,
-					karyawan.NamaLengkap,
-					strconv.Itoa(totalHari),
-					req.Alasan,
-					leave.ID,
-				)
-			}
-		}
-	}
-
-	return u.LeaveRepo.GetByID(ctx, leave.ID)
+    return u.LeaveRepo.GetByID(ctx, leave.ID)
 }
 
 func (u *LeaveUsecase) GetStatus(ctx context.Context, karyawanID, status string, limit, page int) ([]domain.PengajuanCuti, int, error) {
@@ -752,69 +744,70 @@ func (u *LeaveUsecase) RejectLeave(ctx context.Context, leaveID, managerID, alas
 }
 
 func (u *LeaveUsecase) FinalizeLeave(ctx context.Context, leaveID, hrdID string) (*domain.PengajuanCuti, error) {
-	leave, err := u.LeaveRepo.GetByID(ctx, leaveID)
-	if err != nil {
-		return nil, errors.New("pengajuan tidak ditemukan")
-	}
-	if leave == nil {
-		return nil, errors.New("pengajuan tidak ditemukan")
-	}
+    leave, err := u.LeaveRepo.GetByID(ctx, leaveID)
+    if err != nil {
+        return nil, errors.New("pengajuan tidak ditemukan")
+    }
+    if leave == nil {
+        return nil, errors.New("pengajuan tidak ditemukan")
+    }
 
-	if leave.Status != "disetujui" {
-		karyawan, err := u.KaryawanRepo.GetByID(ctx, leave.KaryawanID)
-		if err != nil || karyawan == nil {
-			return nil, errors.New("karyawan tidak ditemukan")
-		}
+    if leave.Status != "disetujui" {
+        karyawan, err := u.KaryawanRepo.GetByID(ctx, leave.KaryawanID)
+        if err != nil || karyawan == nil {
+            return nil, errors.New("karyawan tidak ditemukan")
+        }
 
-		if leave.Status == "menunggu" && karyawan.AtasanLangsungID == nil {
-		} else {
-			return nil, errors.New("pengajuan belum disetujui atasan")
-		}
-	}
+        if leave.Status == "menunggu" && karyawan.AtasanLangsungID == nil {
+            // Karyawan tanpa atasan: status langsung disetujui, bisa difinalisasi
+        } else {
+            return nil, errors.New("pengajuan belum disetujui atasan")
+        }
+    }
 
-	if err := u.LeaveRepo.Finalize(ctx, leaveID, hrdID); err != nil {
-		return nil, err
-	}
+    if err := u.LeaveRepo.Finalize(ctx, leaveID, hrdID); err != nil {
+        return nil, err
+    }
 
-	if leave.MengurangiCuti {
-		tahun := leave.TanggalMulai.Year()
-		u.LeaveRepo.UpdateBalance(ctx, leave.KaryawanID, tahun)
-	}
+    if leave.MengurangiCuti {
+        tahun := leave.TanggalMulai.Year()
+        u.LeaveRepo.UpdateBalance(ctx, leave.KaryawanID, tahun)
+    }
 
-	if u.RiwayatRepo != nil {
-		karyawan, _ := u.KaryawanRepo.GetByID(ctx, hrdID)
-		namaHRD := "HRD"
-		if karyawan != nil {
-			namaHRD = karyawan.NamaLengkap
-		}
-		detail := "Cuti difinalisasi oleh " + namaHRD
-		u.RiwayatRepo.CreateRiwayat(ctx, leave.KaryawanID, "cuti_difinalisasi", detail)
-	}
+    if u.RiwayatRepo != nil {
+        karyawan, _ := u.KaryawanRepo.GetByID(ctx, hrdID)
+        namaHRD := "HRD"
+        if karyawan != nil {
+            namaHRD = karyawan.NamaLengkap
+        }
+        detail := "Cuti difinalisasi oleh " + namaHRD
+        u.RiwayatRepo.CreateRiwayat(ctx, leave.KaryawanID, "cuti_difinalisasi", detail)
+    }
 
-	if u.NotificationUsecase != nil {
-		karyawan, _ := u.KaryawanRepo.GetByID(ctx, leave.KaryawanID)
-		if karyawan != nil && karyawan.Role != "hrd" {
-			var jenis string
-			if leave.SubTipe == "dispensasi" {
-				jenis = "dispensasi"
-			} else {
-				jenis = "cuti " + leave.SubTipe
-			}
+    if u.NotificationUsecase != nil {
+        karyawan, _ := u.KaryawanRepo.GetByID(ctx, leave.KaryawanID)
+        if karyawan != nil && karyawan.Role != "hrd" {
+            var jenis string
+            if leave.SubTipe == "dispensasi" {
+                jenis = "dispensasi"
+            } else {
+                jenis = "cuti " + leave.SubTipe
+            }
 
-			tanggalCuti := formatTanggalCuti(leave.TanggalMulai, leave.TanggalSelesai)
+            tanggalCuti := formatTanggalCuti(leave.TanggalMulai, leave.TanggalSelesai)
 
-			go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
-				KaryawanID:    leave.KaryawanID,
-				Jenis:         "persetujuan",
-				Judul:         "Pengajuan Cuti Berhasil",
-				Pesan:         "Pengajuan " + jenis + " Anda pada tanggal " + tanggalCuti + " telah disetujui dan difinalisasi. Surat cuti Anda telah tersedia dan dapat diunduh pada halaman Cuti.",
-				ReferensiID:   leaveID,
-				ReferensiTipe: "pengajuan_cuti",
-			})
-		}
-	}
+            go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
+                KaryawanID:    leave.KaryawanID,
+                Jenis:         "persetujuan",
+                Judul:         "Pengajuan Cuti Berhasil",
+                Pesan:         "Pengajuan " + jenis + " Anda pada tanggal " + tanggalCuti + " telah disetujui dan difinalisasi. Surat cuti Anda telah tersedia dan dapat diunduh pada halaman Cuti.",
+                ReferensiID:   leaveID,
+                ReferensiTipe: "pengajuan_cuti",
+            })
+        }
+    }
 
-	return u.LeaveRepo.GetByID(ctx, leaveID)
+    return u.LeaveRepo.GetByID(ctx, leaveID)
 }
 
 func (u *LeaveUsecase) DownloadSuratCuti(ctx context.Context, leaveID string) ([]byte, string, error) {
