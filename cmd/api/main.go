@@ -118,7 +118,7 @@ func main() {
 
     app.Use(logger.New())
     app.Use(cors.New(cors.Config{
-        AllowOrigins: "https://sakti-web-fe.vercel.app",
+        AllowOrigins: "https://sakti-web-fe.vercel.app, http://localhost:5173",
         AllowMethods: "GET,POST,PUT,DELETE,OPTIONS",
         AllowHeaders: "Origin, Content-Type, Accept, Authorization",
     }))
