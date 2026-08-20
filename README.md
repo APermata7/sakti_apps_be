@@ -11,7 +11,7 @@ Backend Service untuk Sistem Presensi dan Manajemen Kepegawaian KOPEGTEL Malang.
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Go-1.21+-00ADD8?style=for-the-badge&logo=go" alt="Go">
+  <img src="https://img.shields.io/badge/Go-1.25-00ADD8?style=for-the-badge&logo=go" alt="Go">
   &nbsp;
   <img src="https://img.shields.io/badge/Fiber-v2-00ADD8?style=for-the-badge" alt="Fiber">
   &nbsp;
@@ -19,6 +19,13 @@ Backend Service untuk Sistem Presensi dan Manajemen Kepegawaian KOPEGTEL Malang.
   &nbsp;
   <img src="https://img.shields.io/badge/Cloudinary-Cloud-3448C5?style=for-the-badge&logo=cloudinary" alt="Cloudinary">
   &nbsp;
+  <img src="https://img.shields.io/badge/Resend-Email-000000?style=for-the-badge&logo=resend" alt="Resend">
+  &nbsp;
+  <img src="https://img.shields.io/badge/FCM-Notifications-FFCA28?style=for-the-badge&logo=firebase" alt="FCM">
+  &nbsp;
+  <img src="https://img.shields.io/badge/Telegram-Bot-26A5E4?style=for-the-badge&logo=telegram" alt="Telegram Bot">
+  &nbsp;
+  <img src="https://img.shields.io/badge/cPanel-Deployment-FF6C2C?style=for-the-badge&logo=cpanel" alt="cPanel">
 </p>
 
 ---
@@ -67,7 +74,7 @@ Pengembangan backend ini bertujuan untuk:
 
 - CRUD Data Karyawan
 - Profil Pengguna
-- Divisi & Unit (digabung menjadi Departemen di tampilan)
+- Divisi & Unit
 - Level Jabatan (staff, officer, spv, ka_unit, manager, gm, hrd)
 - Status Karyawan (aktif / nonaktif)
 - Atasan Langsung
@@ -118,6 +125,7 @@ Jenis pengajuan yang didukung:
 **Aturan Bisnis:**
 - Cuti hanya bisa dibatalkan maksimal H-24 jam
 - Kuota cuti = sisa cuti tahun ini + sisa cuti tahun lalu (berlaku sampai 31 Maret)
+- Karyawan tanpa atasan langsung masuk ke HRD
 - Karyawan dengan role atasan/manager langsung auto approve
 - Karyawan dengan role HRD langsung auto final
 
@@ -129,7 +137,7 @@ Sistem dapat menghasilkan dokumen PDF:
 
 - **Surat Cuti** (2 atau 3 Tanda Tangan)
   - 3 TTD: Pemohon + Atasan + HRD (karyawan biasa)
-  - 2 TTD: Pemohon + HRD (atasan/manager)
+  - 2 TTD: Pemohon + HRD (atasan/manager, tanpa atasan)
   - 2 TTD: Pemohon + Atasan (HRD)
 - **Surat Dispensasi** (2 atau 3 Tanda Tangan)
 - Format tanggal Indonesia (contoh: 24 Juli 2026)
@@ -140,7 +148,7 @@ Sistem dapat menghasilkan dokumen PDF:
 ### 🔔 Notifikasi
 
 **Jenis Notifikasi:**
-- In-App Notification
+- In-App Notification (FCM)
 - Telegram Bot (untuk atasan)
 
 **Trigger Notifikasi:**
@@ -193,12 +201,14 @@ Seluruh aktivitas penting dicatat:
 | Database Cloud | Supabase |
 | Driver Database | pgx/v5 |
 | Authentication | Supabase Auth (JWT) |
+| Email Service | Resend |
 | Environment | Godotenv |
 | Storage | Supabase Storage |
 | Image Storage | Cloudinary |
 | PDF Generator | gofpdf/v2 |
 | Face Recognition | MobileFaceNet (InsightFace) |
 | Notification | FCM + Telegram Bot |
+| Deployment | cPanel |
 
 ---
 
@@ -335,3 +345,39 @@ Backend menyediakan beberapa kelompok endpoint:
 | **TTD** | Upload, get, update, delete tanda tangan digital | `/api/ttd/*` |
 | **Riwayat** | Riwayat aktivitas user | `/api/riwayat` |
 | **Upload** | Upload file, image, TTD | `/upload/*` |
+
+---
+
+## 🌐 Deployment
+
+### Production
+
+Backend dideploy pada server cPanel dengan base URL:
+
+```text
+https://backendsakti.kopegtelmalang.co.id
+```
+
+### Build Application
+
+Build binary untuk environment Linux:
+
+```bash
+GOOS=linux GOARCH=amd64 go build -o sakti-backend cmd/api/main.go
+```
+
+Setelah proses build:
+
+1. Upload binary ke server.
+2. Upload atau konfigurasi environment variables.
+3. Pastikan permission executable telah sesuai.
+4. Jalankan aplikasi melalui konfigurasi server atau process manager yang digunakan.
+
+Contoh menjalankan binary:
+
+```bash
+chmod +x sakti-backend
+./sakti-backend
+```
+
+---
