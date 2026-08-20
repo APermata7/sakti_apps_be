@@ -239,9 +239,10 @@ func (u *AdminUsecase) CreateKaryawan(ctx context.Context, req domain.CreateKary
     }
 
     supabaseReq := map[string]interface{}{
-        "email":         req.Email,
-        "password":      req.Password,
-        "user_metadata": userMetadata,
+        "email":          req.Email,
+        "password":       req.Password,
+        "user_metadata":  userMetadata,
+        "email_confirm":  true,
     }
 
     jsonBody, _ := json.Marshal(supabaseReq)
@@ -251,7 +252,7 @@ func (u *AdminUsecase) CreateKaryawan(ctx context.Context, req domain.CreateKary
         return nil, err
     }
     httpReq.Header.Set("apikey", u.AnonKey)
-    httpReq.Header.Set("Authorization", "Bearer "+os.Getenv("SUPABASE_SERVICE_KEY"))
+    httpReq.Header.Set("Authorization", "Bearer "+os.Getenv("SUPABASE_SERVICE_ROLE_KEY"))
     httpReq.Header.Set("Content-Type", "application/json")
 
     client := &http.Client{}
@@ -261,8 +262,8 @@ func (u *AdminUsecase) CreateKaryawan(ctx context.Context, req domain.CreateKary
     }
     defer resp.Body.Close()
 
-    if resp.StatusCode != 200 {
-        return nil, errors.New("gagal membuat akun di Supabase")
+    if resp.StatusCode != 200 && resp.StatusCode != 201 {
+        return nil, errors.New("gagal membuat akun di Supabase: " + resp.Status)
     }
 
     var authResp struct {
