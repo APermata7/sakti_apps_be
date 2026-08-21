@@ -202,7 +202,7 @@ func (u *AuthUsecase) ChangePassword(ctx context.Context, userID, token, current
     return nil
 }
 
-func (u *AuthUsecase) ForgotPassword(ctx context.Context, email string) error {
+func (u *AuthUsecase) ForgotPassword(ctx context.Context, email string, redirectTo string) error {
     log.Printf("ForgotPassword: email=%s", email)
 
     karyawan, err := u.KaryawanRepo.GetByEmail(ctx, email)
@@ -218,6 +218,11 @@ func (u *AuthUsecase) ForgotPassword(ctx context.Context, email string) error {
     supabaseReq := map[string]string{
         "email": email,
     }
+
+    if redirectTo != "" {
+        supabaseReq["redirect_to"] = redirectTo
+    }
+
     jsonBody, _ := json.Marshal(supabaseReq)
 
     httpReq, err := http.NewRequestWithContext(ctx, "POST", u.SupabaseURL+"/auth/v1/recover", bytes.NewBuffer(jsonBody))

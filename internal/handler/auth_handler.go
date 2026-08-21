@@ -167,7 +167,8 @@ func (h *AuthHandler) ChangePassword(c *fiber.Ctx) error {
 
 func (h *AuthHandler) ForgotPassword(c *fiber.Ctx) error {
     var req struct {
-        Email string `json:"email"`
+        Email      string `json:"email"`
+        RedirectTo string `json:"redirect_to"`
     }
     if err := c.BodyParser(&req); err != nil {
         return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -183,7 +184,7 @@ func (h *AuthHandler) ForgotPassword(c *fiber.Ctx) error {
         })
     }
 
-    err := h.AuthUsecase.ForgotPassword(c.Context(), req.Email)
+    err := h.AuthUsecase.ForgotPassword(c.Context(), req.Email, req.RedirectTo)
     if err != nil {
         return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
             "success": false,
