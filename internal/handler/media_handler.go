@@ -291,6 +291,15 @@ func UploadPresensi(c *fiber.Ctx) error {
             "message": "Gagal upload presensi: " + err.Error(),
         })
     }
+
+    if url == "" {
+        log.Printf("UploadPresensi: Cloudinary URL kosong")
+        return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+            "success": false,
+            "message": "Gagal upload presensi, URL foto tidak ditemukan dari server",
+        })
+    }
+
     log.Printf("UploadPresensi: Cloudinary URL: %s", url)
 
     return c.JSON(fiber.Map{
