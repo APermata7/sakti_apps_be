@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -74,6 +75,24 @@ func getWIBLocation() *time.Location {
 	return time.FixedZone("WIB", 7*60*60)
 }
 
+func (u *PresensiUsecase) verifyFaceWithRepo(ctx context.Context, selfieURL, karyawanID string) (bool, float64, error) {
+	faceServiceURL := os.Getenv("FACE_SERVICE_URL")
+	if faceServiceURL == "" {
+		return true, 0.95, nil
+	}
+
+	karyawan, err := u.KaryawanRepo.GetByID(ctx, karyawanID)
+	if err != nil || karyawan == nil {
+		return false, 0, errors.New("karyawan tidak ditemukan")
+	}
+
+	if karyawan.FotoURL == nil || *karyawan.FotoURL == "" {
+		return false, 0, errors.New("foto wajah tidak ditemukan")
+	}
+
+	return utils.VerifyFace(ctx, *karyawan.FotoURL, selfieURL)
+}
+
 func (u *PresensiUsecase) CheckIn(ctx context.Context, karyawanID string, req domain.CheckInRequest) (*domain.CheckInResponse, error) {
 	log.Printf("CheckIn dimulai untuk karyawanID: %s", karyawanID)
 
@@ -101,7 +120,7 @@ func (u *PresensiUsecase) CheckIn(ctx context.Context, karyawanID string, req do
 	}
 
 	log.Printf("Memulai verifikasi wajah")
-	faceMatch, similarity, err := utils.VerifyFaceWithRepo(ctx, req.SelfieURL, karyawanID, u.KaryawanRepo)
+	faceMatch, similarity, err := u.verifyFaceWithRepo(ctx, req.SelfieURL, karyawanID)
 	if err != nil {
 		log.Printf("Error verifikasi wajah: %v", err)
 		return nil, err
@@ -216,7 +235,7 @@ func (u *PresensiUsecase) CheckOut(ctx context.Context, karyawanID string, req d
 	}
 
 	log.Printf("Memulai verifikasi wajah untuk check-out")
-	faceMatch, _, err := utils.VerifyFaceWithRepo(ctx, req.SelfieURL, karyawanID, u.KaryawanRepo)
+	faceMatch, _, err := u.verifyFaceWithRepo(ctx, req.SelfieURL, karyawanID)
 	if err != nil {
 		log.Printf("Error verifikasi wajah: %v", err)
 		return nil, err

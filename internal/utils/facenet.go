@@ -9,8 +9,6 @@ import (
 	"net/http"
 	"os"
 	"time"
-
-	"sakti_apps_be/internal/repository"
 )
 
 type FaceVerificationResponse struct {
@@ -35,24 +33,6 @@ func VerifyFace(ctx context.Context, selfieURL, employeeID string) (bool, float6
 	return callFaceService(ctx, faceServiceURL, "", selfieURL)
 }
 
-func VerifyFaceWithRepo(ctx context.Context, selfieURL, employeeID string, karyawanRepo *repository.KaryawanRepo) (bool, float64, error) {
-	faceServiceURL := os.Getenv("FACE_SERVICE_URL")
-	if faceServiceURL == "" {
-		return true, 0.95, nil
-	}
-
-	karyawan, err := karyawanRepo.GetByID(ctx, employeeID)
-	if err != nil || karyawan == nil {
-		return false, 0, errors.New("karyawan tidak ditemukan")
-	}
-
-	if karyawan.FotoURL == nil {
-		return false, 0, errors.New("foto wajah tidak ditemukan")
-	}
-
-	return callFaceService(ctx, faceServiceURL, *karyawan.FotoURL, selfieURL)
-}
-
 func callFaceService(ctx context.Context, serviceURL, referenceURL, selfieURL string) (bool, float64, error) {
 	reqBody := FaceVerificationRequest{
 		ReferenceURL: referenceURL,
@@ -66,7 +46,7 @@ func callFaceService(ctx context.Context, serviceURL, referenceURL, selfieURL st
 	httpReq, err := http.NewRequestWithContext(
 		ctx,
 		"POST",
-		serviceURL+"/api/v1/verify", 
+		serviceURL+"/api/v1/verify",
 		bytes.NewBuffer(jsonBody),
 	)
 	if err != nil {
