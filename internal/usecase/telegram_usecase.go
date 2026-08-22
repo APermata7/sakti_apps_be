@@ -6,12 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"log"
-	"strings"
-	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
-
-	"sakti_apps_be/internal/domain"
 	"sakti_apps_be/internal/repository"
 )
 
@@ -23,7 +18,7 @@ type TelegramUsecase struct {
 func NewTelegramUsecase(
 	karyawanRepo *repository.KaryawanRepo,
 	telegramRepo *repository.TelegramRepo,
-	db *pgxpool.Pool,
+	db interface{},
 ) *TelegramUsecase {
 	return &TelegramUsecase{
 		KaryawanRepo: karyawanRepo,
@@ -31,113 +26,93 @@ func NewTelegramUsecase(
 	}
 }
 
+func (u *TelegramUsecase) GetTelegramStatus(ctx context.Context, karyawanID string) (map[string]interface{}, error) {
+	karyawan, err := u.KaryawanRepo.GetByID(ctx, karyawanID)
+	if err != nil || karyawan == nil {
+		return nil, errors.New("karyawan tidak ditemukan")
+	}
+
+	connected := false
+	chatID := ""
+	if karyawan.TelegramChatID != nil && *karyawan.TelegramChatID != "" {
+		connected = true
+		chatID = *karyawan.TelegramChatID
+	}
+
+	return map[string]interface{}{
+		"connected": connected,
+		"chat_id":   chatID,
+	}, nil
+}
+
+func (u *TelegramUsecase) UpdateChatID(ctx context.Context, karyawanID, chatID string) error {
+	karyawan, err := u.KaryawanRepo.GetByID(ctx, karyawanID)
+	if err != nil || karyawan == nil {
+		return errors.New("karyawan tidak ditemukan")
+	}
+
+	karyawan.TelegramChatID = &chatID
+	if err := u.KaryawanRepo.Update(ctx, karyawan); err != nil {
+		log.Printf("UpdateChatID error: %v", err)
+		return errors.New("gagal menyimpan chat ID")
+	}
+
+	log.Printf("Telegram chat ID updated for karyawan: %s", karyawanID)
+	return nil
+}
+
+func (u *TelegramUsecase) ClearChatID(ctx context.Context, karyawanID string) error {
+	karyawan, err := u.KaryawanRepo.GetByID(ctx, karyawanID)
+	if err != nil || karyawan == nil {
+		return errors.New("karyawan tidak ditemukan")
+	}
+
+	karyawan.TelegramChatID = nil
+	if err := u.KaryawanRepo.Update(ctx, karyawan); err != nil {
+		log.Printf("ClearChatID error: %v", err)
+		return errors.New("gagal menghapus chat ID")
+	}
+
+	log.Printf("Telegram chat ID cleared for karyawan: %s", karyawanID)
+	return nil
+}
+
 func (u *TelegramUsecase) GenerateVerificationCode(ctx context.Context, chatID, username string) (string, error) {
 	bytes := make([]byte, 4)
 	if _, err := rand.Read(bytes); err != nil {
 		return "", err
 	}
-	code := "SAKTI-" + hex.EncodeToString(bytes)
+	code := hex.EncodeToString(bytes)
 
-	if err := u.TelegramRepo.SaveVerification(ctx, code, chatID, username); err != nil {
-		log.Printf("Failed to save verification code: %v", err)
+	if err := u.TelegramRepo.SaveVerificationCode(ctx, chatID, username, code); err != nil {
+		log.Printf("SaveVerificationCode error: %v", err)
 		return "", err
 	}
 
-	log.Printf("Verification code saved to database: %s", code)
+	log.Printf("Verification code generated for chat_id: %s", chatID)
 	return code, nil
 }
 
-func (u *TelegramUsecase) VerifyCode(ctx context.Context, code string) (string, error) {
-	code = strings.ToLower(code)
-
-	if code == "" {
-		return "", errors.New("kode verifikasi tidak valid")
-	}
-
-	verif, err := u.TelegramRepo.GetVerificationByCode(ctx, code)
-	if err != nil {
-		return "", err
-	}
-	if verif == nil {
-		return "", errors.New("kode verifikasi tidak valid")
-	}
-
-	if verif.IsUsed {
-		return "", errors.New("kode verifikasi sudah digunakan")
-	}
-
-	if time.Now().After(verif.ExpiredAt) {
-		return "", errors.New("kode verifikasi sudah kadaluarsa")
-	}
-
-	return verif.ChatID, nil
-}
-
-func (u *TelegramUsecase) ConnectTelegram(ctx context.Context, karyawanID, code string) error {
-	code = strings.ToLower(code)
-
-	log.Printf("[Telegram] Connect started: karyawanID=%s, code=%s", karyawanID, code)
-
-	if code == "" {
-		log.Println("[Telegram] Code is empty")
-		return errors.New("kode verifikasi wajib diisi")
-	}
-
-	chatID, err := u.VerifyCode(ctx, code)
-	if err != nil {
-		log.Printf("[Telegram] VerifyCode failed: %v", err)
-		return err
-	}
-
-	log.Printf("[Telegram] ChatID found: %s", chatID)
-
-	if err := u.KaryawanRepo.UpdateTelegramChatID(ctx, karyawanID, chatID); err != nil {
-		log.Printf("[Telegram] UpdateTelegramChatID failed: %v", err)
-		return err
-	}
-
-	if err := u.TelegramRepo.MarkVerificationAsUsed(ctx, code, karyawanID); err != nil {
-		log.Printf("[Telegram] MarkVerificationAsUsed failed: %v", err)
-	}
-
-	log.Printf("[Telegram] Connect success: karyawanID=%s, chatID=%s", karyawanID, chatID)
-	return nil
-}
-
-func (u *TelegramUsecase) DisconnectTelegram(ctx context.Context, karyawanID string) error {
-	log.Printf("[Telegram] Disconnect started: karyawanID=%s", karyawanID)
-
-	if err := u.KaryawanRepo.ClearTelegramChatID(ctx, karyawanID); err != nil {
-		log.Printf("[Telegram] ClearTelegramChatID failed: %v", err)
-		return err
-	}
-
-	log.Printf("[Telegram] Disconnect success: karyawanID=%s", karyawanID)
-	return nil
-}
-
-func (u *TelegramUsecase) GetTelegramStatus(ctx context.Context, karyawanID string) (*domain.TelegramStatusResponse, error) {
-	log.Printf("[Telegram] GetStatus started: karyawanID=%s", karyawanID)
-
-	chatID, err := u.KaryawanRepo.GetTelegramStatus(ctx, karyawanID)
-	if err != nil {
-		log.Printf("[Telegram] GetTelegramStatus error: %v", err)
-		return nil, err
-	}
-
-	log.Printf("[Telegram] GetStatus result: chatID=%s, connected=%v", chatID, chatID != "")
-	return &domain.TelegramStatusResponse{
-		IsConnected:    chatID != "",
-		TelegramChatID: chatID,
-	}, nil
-}
-
 func (u *TelegramUsecase) CleanupExpiredCodes(ctx context.Context) error {
-	log.Println("[Telegram] CleanupExpiredCodes started")
-	if err := u.TelegramRepo.DeleteExpiredVerifications(ctx); err != nil {
-		log.Printf("[Telegram] CleanupExpiredCodes error: %v", err)
+	log.Println("CleanupExpiredCodes started")
+	if err := u.TelegramRepo.DeleteExpiredCodes(ctx); err != nil {
+		log.Printf("CleanupExpiredCodes error: %v", err)
 		return err
 	}
-	log.Println("[Telegram] CleanupExpiredCodes success")
+	log.Println("CleanupExpiredCodes success")
 	return nil
+}
+
+func (u *TelegramUsecase) VerifyCode(ctx context.Context, chatID, code string) (bool, error) {
+	expected, err := u.TelegramRepo.GetVerificationCode(ctx, chatID)
+	if err != nil {
+		return false, err
+	}
+	if expected != code {
+		return false, nil
+	}
+	if err := u.TelegramRepo.DeleteVerificationCode(ctx, chatID); err != nil {
+		log.Printf("DeleteVerificationCode error: %v", err)
+	}
+	return true, nil
 }

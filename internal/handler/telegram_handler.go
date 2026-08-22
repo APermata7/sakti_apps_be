@@ -3,7 +3,6 @@ package handler
 import (
 	"github.com/gofiber/fiber/v2"
 
-	"sakti_apps_be/internal/domain"
 	"sakti_apps_be/internal/usecase"
 )
 
@@ -35,7 +34,9 @@ func (h *TelegramHandler) GetStatus(c *fiber.Ctx) error {
 func (h *TelegramHandler) Connect(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(string)
 
-	var req domain.TelegramConnectRequest
+	var req struct {
+		ChatID string `json:"chat_id"`
+	}
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
@@ -43,15 +44,16 @@ func (h *TelegramHandler) Connect(c *fiber.Ctx) error {
 		})
 	}
 
-	if req.VerificationCode == "" {
+	if req.ChatID == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
-			"message": "Kode verifikasi wajib diisi",
+			"message": "Chat ID wajib diisi",
 		})
 	}
 
-	if err := h.TelegramUsecase.ConnectTelegram(c.Context(), userID, req.VerificationCode); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+	err := h.TelegramUsecase.UpdateChatID(c.Context(), userID, req.ChatID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"success": false,
 			"message": err.Error(),
 		})
@@ -59,14 +61,14 @@ func (h *TelegramHandler) Connect(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"success": true,
-		"message": "Akun Telegram berhasil dihubungkan",
+		"message": "Telegram berhasil terhubung",
 	})
 }
 
 func (h *TelegramHandler) Disconnect(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(string)
 
-	if err := h.TelegramUsecase.DisconnectTelegram(c.Context(), userID); err != nil {
+	if err := h.TelegramUsecase.ClearChatID(c.Context(), userID); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"success": false,
 			"message": err.Error(),

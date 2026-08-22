@@ -484,8 +484,7 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 							)
 						} else if karyawan.Role == "atasan" || karyawan.Role == "manager" {
 							go telegram.SendMessage(*hrd.TelegramChatID,
-								"<b>📋 Pengajuan Cuti Atasan</b>\n\n"+
-									"Yth. HRD,\n\n"+
+								"Pengajuan Cuti Atasan\n\n"+
 									karyawan.NamaLengkap+" ("+karyawan.Role+") mengajukan "+req.SubTipe+" "+strconv.Itoa(totalHari)+" hari pada "+tanggalCuti+". Silakan lakukan finalisasi di aplikasi SAKTI.",
 							)
 						} else if karyawan.AtasanLangsungID == nil {
@@ -633,7 +632,16 @@ func (u *LeaveUsecase) ApproveLeave(ctx context.Context, leaveID, managerID stri
 		return nil, errors.New("pengajuan tidak ditemukan")
 	}
 	if leave.Status != domain.StatusMenungguAtasan {
-		return nil, errors.New("pengajuan sudah diproses")
+		return nil, errors.New("pengajuan tidak dapat diproses")
+	}
+
+	pemohon, err := u.KaryawanRepo.GetByID(ctx, leave.KaryawanID)
+	if err != nil || pemohon == nil {
+		return nil, errors.New("karyawan pemohon tidak ditemukan")
+	}
+
+	if pemohon.AtasanLangsungID == nil || *pemohon.AtasanLangsungID != managerID {
+		return nil, errors.New("anda tidak berwenang menyetujui pengajuan ini")
 	}
 
 	if err := u.LeaveRepo.Approve(ctx, leaveID, managerID); err != nil {
