@@ -38,56 +38,56 @@ func (r *NotifikasiRepo) Create(ctx context.Context, n *domain.Notifikasi) error
 }
 
 func (r *NotifikasiRepo) GetByKaryawanID(ctx context.Context, karyawanID string, limit, offset int) ([]domain.Notifikasi, int, error) {
-	var items []domain.Notifikasi
-	var total int
+    var items []domain.Notifikasi
+    var total int
 
-	query := `
-		SELECT id, karyawan_id, jenis, channel, judul, pesan,
-		       dibaca, dibaca_pada, referensi_id, referensi_tipe, dibuat_pada
-		FROM notifikasi
-		WHERE karyawan_id = $1
-		ORDER BY dibuat_pada DESC
-		LIMIT $2 OFFSET $3
-	`
+    query := `
+        SELECT id, karyawan_id, jenis, channel, judul, pesan,
+               dibaca, dibaca_pada, referensi_id, referensi_tipe, dibuat_pada
+        FROM notifikasi
+        WHERE karyawan_id = $1
+        ORDER BY dibuat_pada DESC
+        LIMIT $2 OFFSET $3
+    `
 
-	rows, err := r.DB.Query(ctx, query, karyawanID, limit, offset)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer rows.Close()
+    rows, err := r.DB.Query(ctx, query, karyawanID, limit, offset)
+    if err != nil {
+        return nil, 0, err
+    }
+    defer rows.Close()
 
-	for rows.Next() {
-		var n domain.Notifikasi
-		var dibacaPada *time.Time
-		err := rows.Scan(
-			&n.ID,
-			&n.KaryawanID,
-			&n.Jenis,
-			&n.Channel,
-			&n.Judul,
-			&n.Pesan,
-			&n.Dibaca,
-			&dibacaPada,
-			&n.ReferensiID,
-			&n.ReferensiTipe,
-			&n.DibuatPada,
-		)
-		if err != nil {
-			return nil, 0, err
-		}
-		if dibacaPada != nil {
-			n.DibacaPada = dibacaPada
-		}
-		items = append(items, n)
-	}
+    for rows.Next() {
+        var n domain.Notifikasi
+        var dibacaPada *time.Time
+        err := rows.Scan(
+            &n.ID,
+            &n.KaryawanID,
+            &n.Jenis,
+            &n.Channel,
+            &n.Judul,
+            &n.Pesan,
+            &n.Dibaca,
+            &dibacaPada,
+            &n.ReferensiID,
+            &n.ReferensiTipe,
+            &n.DibuatPada,
+        )
+        if err != nil {
+            return nil, 0, err
+        }
+        if dibacaPada != nil {
+            n.DibacaPada = dibacaPada
+        }
+        items = append(items, n)
+    }
 
-	countQuery := `SELECT COUNT(*) FROM notifikasi WHERE karyawan_id = $1`
-	err = r.DB.QueryRow(ctx, countQuery, karyawanID).Scan(&total)
-	if err != nil {
-		return nil, 0, err
-	}
+    countQuery := `SELECT COUNT(*) FROM notifikasi WHERE karyawan_id = $1`
+    err = r.DB.QueryRow(ctx, countQuery, karyawanID).Scan(&total)
+    if err != nil {
+        return nil, 0, err
+    }
 
-	return items, total, nil
+    return items, total, nil
 }
 
 func (r *NotifikasiRepo) MarkAsRead(ctx context.Context, id, karyawanID string) error {

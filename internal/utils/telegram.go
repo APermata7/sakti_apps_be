@@ -154,15 +154,42 @@ func (t *TelegramBot) SendCreateLeaveNotification(chatID, karyawanID, karyawanNa
 	)
 }
 
+func (t *TelegramBot) SendCreateLeaveHRDNotification(chatID, karyawanID, karyawanNama, totalHari, alasan, leaveID string) error {
+	text := fmt.Sprintf(
+		"<b>📋 Pengajuan Cuti Baru</b>\n\n"+
+			"Yth. HRD,\n\n"+
+			"Seorang karyawan telah mengajukan cuti. Berikut detail pengajuannya:\n\n"+
+			"👤 Karyawan : <b>%s</b>\n"+
+			"📅 Lama Cuti : <b>%s hari</b>\n"+
+			"📝 Alasan : %s\n\n"+
+			"Pengajuan ini menunggu approval atasan. Akan muncul di daftar finalisasi setelah disetujui.\n\n"+
+			"Terima kasih.",
+		karyawanNama, totalHari, alasan,
+	)
+
+	err := t.SendMessage(chatID, text)
+	if err != nil {
+		return err
+	}
+
+	return t.SaveNotification(
+		karyawanID,
+		"Pengajuan Cuti Baru",
+		karyawanNama+" mengajukan cuti "+totalHari+" hari",
+		leaveID,
+		"pengajuan",
+	)
+}
+
 func (t *TelegramBot) SendCreateDispensasiNotification(chatID, karyawanID, karyawanNama, totalHari, alasan, leaveID string) error {
 	text := fmt.Sprintf(
 		"<b>📋 Pengajuan Dispensasi Baru</b>\n\n"+
-			"Yth. Atasan,\n\n"+
-			"Seorang karyawan telah mengajukan dispensasi dan telah langsung disetujui. Berikut detail pengajuannya:\n\n"+
+			"Yth. HRD,\n\n"+
+			"Seorang karyawan telah mengajukan dispensasi. Berikut detail pengajuannya:\n\n"+
 			"👤 Karyawan : <b>%s</b>\n"+
 			"📅 Lama Dispensasi : <b>%s hari</b>\n"+
 			"📝 Alasan : %s\n\n"+
-			"Pengajuan ini sudah langsung difinalisasi dan tidak memerlukan proses persetujuan lebih lanjut.\n\n"+
+			"Pengajuan ini telah langsung difinalisasi.\n\n"+
 			"Terima kasih.",
 		karyawanNama, totalHari, alasan,
 	)
@@ -181,6 +208,61 @@ func (t *TelegramBot) SendCreateDispensasiNotification(chatID, karyawanID, karya
 	)
 }
 
+func (t *TelegramBot) SendFinalizationHRDNotification(chatID, karyawanID, karyawanNama, subTipe, tanggalCuti, leaveID string) error {
+	text := fmt.Sprintf(
+		"<b>✅ Pengajuan Cuti Siap Difinalisasi</b>\n\n"+
+			"Yth. HRD,\n\n"+
+			"Pengajuan cuti berikut telah disetujui oleh atasan dan siap untuk difinalisasi:\n\n"+
+			"👤 Karyawan : <b>%s</b>\n"+
+			"📋 Jenis Cuti : <b>%s</b>\n"+
+			"📅 Tanggal Cuti : <b>%s</b>\n\n"+
+			"Silakan lakukan proses finalisasi melalui aplikasi <b>SAKTI</b>.\n\n"+
+			"Terima kasih.",
+		karyawanNama, subTipe, tanggalCuti,
+	)
+
+	err := t.SendMessage(chatID, text)
+	if err != nil {
+		return err
+	}
+
+	return t.SaveNotification(
+		karyawanID,
+		"Pengajuan Cuti Siap Difinalisasi",
+		karyawanNama+" pengajuan cuti "+subTipe+" siap difinalisasi",
+		leaveID,
+		"pengajuan",
+	)
+}
+
+func (t *TelegramBot) SendLeaveWithoutAtasanHRDNotification(chatID, karyawanID, karyawanNama, subTipe, totalHari, tanggalCuti, leaveID string) error {
+	text := fmt.Sprintf(
+		"<b>📋 Pengajuan Cuti Finalisasi</b>\n\n"+
+			"Yth. HRD,\n\n"+
+			"Seorang karyawan tanpa atasan telah mengajukan cuti. Silakan lakukan finalisasi:\n\n"+
+			"👤 Karyawan : <b>%s</b>\n"+
+			"📋 Jenis Cuti : <b>%s</b>\n"+
+			"📅 Lama Cuti : <b>%s hari</b>\n"+
+			"📅 Tanggal Cuti : <b>%s</b>\n\n"+
+			"Silakan lakukan proses finalisasi melalui aplikasi <b>SAKTI</b>.\n\n"+
+			"Terima kasih.",
+		karyawanNama, subTipe, totalHari, tanggalCuti,
+	)
+
+	err := t.SendMessage(chatID, text)
+	if err != nil {
+		return err
+	}
+
+	return t.SaveNotification(
+		karyawanID,
+		"Pengajuan Cuti Finalisasi",
+		karyawanNama+" mengajukan cuti "+subTipe+" "+totalHari+" hari",
+		leaveID,
+		"pengajuan",
+	)
+}
+
 func (t *TelegramBot) SendCancelLeaveNotification(chatID, karyawanID, karyawanNama, leaveID, alasanBatal string) error {
 	sekarang := time.Now()
 	tanggal := t.formatTanggalIndonesia(sekarang)
@@ -194,7 +276,7 @@ func (t *TelegramBot) SendCancelLeaveNotification(chatID, karyawanID, karyawanNa
 			"Yth. Atasan,\n\n"+
 			"Pengajuan cuti berikut telah dibatalkan oleh karyawan:\n\n"+
 			"👤 Karyawan : <b>%s</b>\n"+
-			"📅 Tanggal Pembatalan : %s\n\n"+
+			"📅 Tanggal Pembatalan : <b>%s</b>\n\n"+
 			"📝 Alasan : %s\n\n"+
 			"Tidak diperlukan proses persetujuan lebih lanjut.\n\n"+
 			"Pesan ini dikirim secara otomatis oleh Sistem SAKTI.",
