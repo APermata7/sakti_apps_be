@@ -2,7 +2,6 @@ package utils
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -87,34 +86,6 @@ func (t *TelegramBot) SendMessage(chatID, text string) error {
 	return nil
 }
 
-func (t *TelegramBot) SaveNotification(karyawanID, judul, pesan, referensiID, referensiTipe string) error {
-	if t == nil || t.DB == nil {
-		return nil
-	}
-
-	query := `
-		INSERT INTO notifikasi (karyawan_id, jenis, channel, judul, pesan, referensi_id, referensi_tipe, dibuat_pada)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-	`
-
-	_, err := t.DB.Exec(context.Background(), query,
-		karyawanID,
-		"pengajuan",
-		"telegram",
-		judul,
-		pesan,
-		referensiID,
-		referensiTipe,
-	)
-	if err != nil {
-		log.Printf("Failed to save notification to database: %v", err)
-		return err
-	}
-
-	log.Printf("Telegram notification saved to database for karyawan: %s", karyawanID)
-	return nil
-}
-
 func (t *TelegramBot) formatTanggalIndonesia(tgl time.Time) string {
 	bulan := map[string]string{
 		"January": "Januari", "February": "Februari", "March": "Maret",
@@ -140,18 +111,7 @@ func (t *TelegramBot) SendCreateLeaveNotification(chatID, karyawanID, karyawanNa
 		karyawanNama, totalHari, alasan,
 	)
 
-	err := t.SendMessage(chatID, text)
-	if err != nil {
-		return err
-	}
-
-	return t.SaveNotification(
-		karyawanID,
-		"Pengajuan Cuti Baru",
-		karyawanNama+" mengajukan cuti "+totalHari+" hari",
-		leaveID,
-		"pengajuan",
-	)
+	return t.SendMessage(chatID, text)
 }
 
 func (t *TelegramBot) SendCreateLeaveHRDNotification(chatID, karyawanID, karyawanNama, totalHari, alasan, leaveID string) error {
@@ -167,18 +127,7 @@ func (t *TelegramBot) SendCreateLeaveHRDNotification(chatID, karyawanID, karyawa
 		karyawanNama, totalHari, alasan,
 	)
 
-	err := t.SendMessage(chatID, text)
-	if err != nil {
-		return err
-	}
-
-	return t.SaveNotification(
-		karyawanID,
-		"Pengajuan Cuti Baru",
-		karyawanNama+" mengajukan cuti "+totalHari+" hari",
-		leaveID,
-		"pengajuan",
-	)
+	return t.SendMessage(chatID, text)
 }
 
 func (t *TelegramBot) SendCreateDispensasiNotification(chatID, karyawanID, karyawanNama, totalHari, alasan, leaveID string) error {
@@ -194,18 +143,7 @@ func (t *TelegramBot) SendCreateDispensasiNotification(chatID, karyawanID, karya
 		karyawanNama, totalHari, alasan,
 	)
 
-	err := t.SendMessage(chatID, text)
-	if err != nil {
-		return err
-	}
-
-	return t.SaveNotification(
-		karyawanID,
-		"Pengajuan Dispensasi Baru",
-		karyawanNama+" mengajukan dispensasi "+totalHari+" hari",
-		leaveID,
-		"pengajuan",
-	)
+	return t.SendMessage(chatID, text)
 }
 
 func (t *TelegramBot) SendFinalizationHRDNotification(chatID, karyawanID, karyawanNama, subTipe, tanggalCuti, leaveID string) error {
@@ -221,18 +159,7 @@ func (t *TelegramBot) SendFinalizationHRDNotification(chatID, karyawanID, karyaw
 		karyawanNama, subTipe, tanggalCuti,
 	)
 
-	err := t.SendMessage(chatID, text)
-	if err != nil {
-		return err
-	}
-
-	return t.SaveNotification(
-		karyawanID,
-		"Pengajuan Cuti Siap Difinalisasi",
-		karyawanNama+" pengajuan cuti "+subTipe+" siap difinalisasi",
-		leaveID,
-		"pengajuan",
-	)
+	return t.SendMessage(chatID, text)
 }
 
 func (t *TelegramBot) SendLeaveWithoutAtasanHRDNotification(chatID, karyawanID, karyawanNama, subTipe, totalHari, tanggalCuti, leaveID string) error {
@@ -249,18 +176,7 @@ func (t *TelegramBot) SendLeaveWithoutAtasanHRDNotification(chatID, karyawanID, 
 		karyawanNama, subTipe, totalHari, tanggalCuti,
 	)
 
-	err := t.SendMessage(chatID, text)
-	if err != nil {
-		return err
-	}
-
-	return t.SaveNotification(
-		karyawanID,
-		"Pengajuan Cuti Finalisasi",
-		karyawanNama+" mengajukan cuti "+subTipe+" "+totalHari+" hari",
-		leaveID,
-		"pengajuan",
-	)
+	return t.SendMessage(chatID, text)
 }
 
 func (t *TelegramBot) SendCancelLeaveNotification(chatID, karyawanID, karyawanNama, leaveID, alasanBatal string) error {
@@ -283,18 +199,7 @@ func (t *TelegramBot) SendCancelLeaveNotification(chatID, karyawanID, karyawanNa
 		karyawanNama, tanggal, alasanBatal,
 	)
 
-	err := t.SendMessage(chatID, text)
-	if err != nil {
-		return err
-	}
-
-	return t.SaveNotification(
-		karyawanID,
-		"Pengajuan Cuti Dibatalkan",
-		"Pengajuan cuti "+karyawanNama+" telah dibatalkan. Alasan: "+alasanBatal,
-		leaveID,
-		"pengajuan",
-	)
+	return t.SendMessage(chatID, text)
 }
 
 func (t *TelegramBot) SendNotification(chatID, title, message string) error {

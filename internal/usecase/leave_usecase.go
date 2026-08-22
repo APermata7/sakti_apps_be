@@ -186,57 +186,6 @@ func (u *LeaveUsecase) GenerateAnnualLeaveForAll(ctx context.Context, tahun int)
 	return nil
 }
 
-func (u *LeaveUsecase) DeductLeaveQuota(ctx context.Context, karyawanID string, tahun, totalHari int) error {
-	balance, err := u.LeaveRepo.GetBalance(ctx, karyawanID, tahun)
-	if err != nil {
-		return err
-	}
-	if balance == nil {
-		return errors.New("kuota cuti tidak ditemukan")
-	}
-
-	carryOver := 0
-	balanceLalu, err := u.LeaveRepo.GetBalance(ctx, karyawanID, tahun-1)
-	if err == nil && balanceLalu != nil && balanceLalu.SisaCuti > 0 {
-		now := time.Now()
-		batasCarryOver := time.Date(now.Year(), 3, 31, 23, 59, 59, 0, time.Local)
-		if now.Before(batasCarryOver) || now.Equal(batasCarryOver) {
-			carryOver = balanceLalu.SisaCuti
-		}
-	}
-
-	hariTersisa := totalHari
-
-	if carryOver > 0 {
-		if carryOver >= hariTersisa {
-			carryOver = carryOver - hariTersisa
-			hariTersisa = 0
-		} else {
-			hariTersisa = hariTersisa - carryOver
-			carryOver = 0
-		}
-	}
-
-	if hariTersisa > 0 {
-		kuotaTahunIni := balance.JumlahCuti - balance.TelahDilaksanakan - balance.AkanDilaksanakan
-		if kuotaTahunIni < hariTersisa {
-			return errors.New("kuota cuti tidak mencukupi")
-		}
-	}
-
-	if err := u.LeaveRepo.UpdateBalance(ctx, karyawanID, tahun); err != nil {
-		return err
-	}
-
-	if balanceLalu != nil && carryOver != balanceLalu.SisaCuti {
-		if err := u.LeaveRepo.UpdateBalance(ctx, karyawanID, tahun-1); err != nil {
-			log.Printf("Gagal update carry-over: %v", err)
-		}
-	}
-
-	return nil
-}
-
 func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req domain.CreateCutiRequest) (*domain.PengajuanCuti, error) {
 	karyawan, err := u.KaryawanRepo.GetByID(ctx, karyawanID)
 	if err != nil || karyawan == nil {
@@ -383,10 +332,6 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 			u.LeaveRepo.UpdateBalance(ctx, karyawanID, tahun)
 		} else {
 			u.LeaveRepo.UpdateAkanDilaksanakan(ctx, karyawanID, tahun)
-		}
-
-		if err := u.DeductLeaveQuota(ctx, karyawanID, tahun, totalHari); err != nil {
-			log.Printf("DeductLeaveQuota error: %v", err)
 		}
 	}
 
