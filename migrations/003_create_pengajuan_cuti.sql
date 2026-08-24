@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS public.pengajuan_cuti (
+CREATE TABLE pengajuan_cuti (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     karyawan_id UUID NOT NULL REFERENCES karyawan(id) ON DELETE CASCADE,
     sub_tipe VARCHAR(20) NOT NULL CHECK (sub_tipe IN ('izin', 'sakit', 'dispensasi')),
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS public.pengajuan_cuti (
     diperbarui_pada TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_cuti_karyawan ON pengajuan_cuti(karyawan_id);
-CREATE INDEX IF NOT EXISTS idx_cuti_status ON pengajuan_cuti(status);
-CREATE INDEX IF NOT EXISTS idx_cuti_tanggal ON pengajuan_cuti(tanggal_mulai, tanggal_selesai);
-CREATE INDEX IF NOT EXISTS idx_pengajuan_cuti_status_dibuat ON pengajuan_cuti (status, dibuat_pada DESC);
+CREATE INDEX idx_cuti_karyawan ON pengajuan_cuti(karyawan_id);
+CREATE INDEX idx_cuti_status ON pengajuan_cuti(status);
+CREATE INDEX idx_cuti_tanggal ON pengajuan_cuti(tanggal_mulai, tanggal_selesai);
+CREATE INDEX idx_pengajuan_cuti_status_dibuat ON pengajuan_cuti (status, dibuat_pada DESC);

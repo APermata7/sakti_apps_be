@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS public.karyawan (
+CREATE TABLE karyawan (
     id UUID PRIMARY KEY,
     nama_lengkap VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
@@ -15,6 +15,6 @@ CREATE TABLE IF NOT EXISTS public.karyawan (
     diperbarui_pada TIMESTAMP DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_karyawan_email ON karyawan(email);
-CREATE INDEX IF NOT EXISTS idx_karyawan_role ON karyawan(role);
-CREATE INDEX IF NOT EXISTS idx_karyawan_atasan ON karyawan(atasan_langsung_id);
+CREATE INDEX idx_karyawan_email ON karyawan(email);
+CREATE INDEX idx_karyawan_role ON karyawan(role);
+CREATE INDEX idx_karyawan_atasan ON karyawan(atasan_langsung_id);
