@@ -203,6 +203,7 @@ func UploadLogo(file multipart.File, filename string) (string, error) {
 
 func UploadPresensi(file multipart.File, filename string, karyawanNama, tipe string) (string, error) {
 	if Cld == nil {
+		log.Println("UploadPresensi: Cloudinary not initialized")
 		return "", nil
 	}
 
@@ -220,6 +221,8 @@ func UploadPresensi(file multipart.File, filename string, karyawanNama, tipe str
 	}
 	folder = folder + "/presensi"
 
+	log.Printf("UploadPresensi: folder=%s, publicID=%s, filename=%s", folder, publicID, filename)
+
 	resp, err := Cld.Upload.Upload(ctx, file, uploader.UploadParams{
 		Folder:         folder,
 		PublicID:       publicID,
@@ -228,10 +231,26 @@ func UploadPresensi(file multipart.File, filename string, karyawanNama, tipe str
 		ResourceType:   "image",
 	})
 	if err != nil {
+		log.Printf("UploadPresensi: Cloudinary upload error: %v", err)
 		return "", err
 	}
 
-	return resp.SecureURL, nil
+	if resp == nil {
+		log.Println("UploadPresensi: Cloudinary response is nil")
+		return "", nil
+	}
+
+	log.Printf("UploadPresensi: response PublicID=%s, SecureURL=%s, URL=%s", resp.PublicID, resp.SecureURL, resp.URL)
+
+	if resp.SecureURL == "" && resp.URL == "" {
+		log.Printf("UploadPresensi: Cloudinary URL kosong, response: %+v", resp)
+		return "", nil
+	}
+
+	if resp.SecureURL != "" {
+		return resp.SecureURL, nil
+	}
+	return resp.URL, nil
 }
 
 func UploadPDF(data []byte, filename string) (string, error) {
