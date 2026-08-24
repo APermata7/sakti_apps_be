@@ -200,34 +200,50 @@ func (r *LeaveRepo) UpdateStatus(ctx context.Context, id, status string) error {
 
 func (r *LeaveRepo) Approve(ctx context.Context, id, managerID string) error {
 	query := `
-		UPDATE pengajuan_cuti 
-		SET status = 'menunggu_hrd', disetujui_oleh = $1, tanggal_disetujui = NOW(),
+		UPDATE pengajuan_cuti pc
+		SET status = 'menunggu_hrd',
+		    disetujui_oleh = $1,
+		    tanggal_disetujui = NOW(),
 		    diperbarui_pada = NOW()
-		WHERE id = $2 AND status = 'menunggu_atasan'
+		FROM karyawan k
+		WHERE pc.id = $2
+		  AND pc.karyawan_id = k.id
+		  AND k.atasan_langsung_id = $1
+		  AND pc.status = 'menunggu_atasan'
 	`
 	result, err := r.DB.Exec(ctx, query, managerID, id)
 	if err != nil {
 		return err
 	}
 	if result.RowsAffected() == 0 {
-		return errors.New("pengajuan tidak ditemukan atau status tidak valid")
+		return errors.New("pengajuan tidak ditemukan atau anda tidak berwenang")
 	}
 	return nil
 }
 
 func (r *LeaveRepo) Reject(ctx context.Context, id, managerID, alasan string) error {
 	query := `
-		UPDATE pengajuan_cuti 
-		SET status = 'ditolak', 
-		    disetujui_oleh = $1, 
+		UPDATE pengajuan_cuti pc
+		SET status = 'ditolak',
+		    disetujui_oleh = $1,
 		    tanggal_disetujui = NOW(),
 		    alasan_ditolak = $2,
 		    tanggal_ditolak = NOW(),
 		    diperbarui_pada = NOW()
-		WHERE id = $3
+		FROM karyawan k
+		WHERE pc.id = $3
+		  AND pc.karyawan_id = k.id
+		  AND k.atasan_langsung_id = $1
+		  AND pc.status = 'menunggu_atasan'
 	`
-	_, err := r.DB.Exec(ctx, query, managerID, alasan, id)
-	return err
+	result, err := r.DB.Exec(ctx, query, managerID, alasan, id)
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected() == 0 {
+		return errors.New("pengajuan tidak ditemukan atau anda tidak berwenang")
+	}
+	return nil
 }
 
 func (r *LeaveRepo) UpdateAlasanBatal(ctx context.Context, id, alasan string) error {
@@ -507,6 +523,10 @@ func (r *LeaveRepo) GetAllLeaves(ctx context.Context, atasanID string, role stri
 		argIdx++
 	}
 
+	if role == "hrd" {
+		query += ` AND pc.difinalisasi_oleh IS NULL`
+	}
+
 	if status != "" {
 		query += ` AND pc.status = $` + strconv.Itoa(argIdx)
 		args = append(args, status)
@@ -529,10 +549,6 @@ func (r *LeaveRepo) GetAllLeaves(ctx context.Context, atasanID string, role stri
 		query += ` AND pc.tanggal_selesai <= $` + strconv.Itoa(argIdx)
 		args = append(args, endDate)
 		argIdx++
-	}
-
-	if role == "hrd" {
-		query += ` AND pc.difinalisasi_oleh IS NULL AND pc.status = 'menunggu_hrd'`
 	}
 
 	countQuery := `SELECT COUNT(*) ` + query
@@ -583,5 +599,5 @@ func (r *LeaveRepo) GetAllLeaves(ctx context.Context, atasanID string, role stri
 }
 
 func (r *LeaveRepo) GetPendingLeavesByAtasan(ctx context.Context, atasanID string, limit int, offset int) ([]domain.LeaveWithKaryawanResponse, int, error) {
-	return r.GetAllLeaves(ctx, atasanID, "atasan", "menunggu_atasan", "", "", "", limit, offset)
+	return r.GetAllLeaves(ctx, atasanID, "atasan", domain.StatusMenungguAtasan, "", "", "", limit, offset)
 }

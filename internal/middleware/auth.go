@@ -1,11 +1,13 @@
 package middleware
 
 import (
-	"strings"
 	"log"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/jackc/pgx/v5/pgxpool"
 
+	"sakti_apps_be/internal/repository"
 	"sakti_apps_be/internal/utils"
 )
 
@@ -37,9 +39,30 @@ func AuthMiddleware() fiber.Handler {
 			})
 		}
 
-		c.Locals("user_id", claims.Subject)
+		dbPool, ok := c.Locals("db").(*pgxpool.Pool)
+		if !ok || dbPool == nil {
+			log.Println("AuthMiddleware: database connection not found")
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"message": "Internal server error",
+			})
+		}
+
+		karyawanRepo := repository.NewKaryawanRepo(dbPool)
+		karyawan, err := karyawanRepo.GetByEmail(c.Context(), claims.Email)
+		if err != nil || karyawan == nil {
+			log.Printf("AuthMiddleware: karyawan not found for email: %s", claims.Email)
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"success": false,
+				"message": "Data karyawan tidak ditemukan",
+			})
+		}
+
+		c.Locals("auth_user_id", claims.Subject)
+		c.Locals("user_id", karyawan.ID)
 		c.Locals("email", claims.Email)
 		c.Locals("token", tokenString)
+		c.Locals("karyawan", karyawan)
 
 		var role string
 
@@ -56,11 +79,15 @@ func AuthMiddleware() fiber.Handler {
 		}
 
 		if role == "" {
+			role = karyawan.Role
+		}
+
+		if role == "" {
 			log.Printf("Role tidak ditemukan di metadata untuk user: %s", claims.Email)
 			log.Printf("   AppMetadata: %+v", claims.AppMetadata)
 			log.Printf("   UserMetadata: %+v", claims.UserMetadata)
 		} else {
-			log.Printf("Role ditemukan: %s untuk user: %s", role, claims.Email)
+			log.Printf("Role ditemukan: %s untuk user: %s, karyawan_id: %s", role, claims.Email, karyawan.ID)
 		}
 
 		c.Locals("role", role)

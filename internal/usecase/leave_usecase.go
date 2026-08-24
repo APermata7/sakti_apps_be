@@ -1127,10 +1127,14 @@ func (u *LeaveUsecase) GetAllLeaves(ctx context.Context, userID string, role str
 		atasanID = userID
 	}
 
+	log.Printf("GetAllLeaves: role=%s, atasanID=%s, status=%s", role, atasanID, req.Status)
+
 	return u.LeaveRepo.GetAllLeaves(ctx, atasanID, role, req.Status, req.SubTipe, req.StartDate, req.EndDate, limit, offset)
 }
 
 func (u *LeaveUsecase) GetApprovalList(ctx context.Context, atasanID string, limit int, page int) ([]domain.LeaveWithKaryawanResponse, int, error) {
+	log.Printf("GetApprovalList: atasanID=%s, limit=%d, page=%d", atasanID, limit, page)
+
 	if limit <= 0 {
 		limit = 10
 	}
