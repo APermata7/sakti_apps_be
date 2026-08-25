@@ -16,24 +16,24 @@ func NewTelegramRepo(db *pgxpool.Pool) *TelegramRepo {
 
 func (r *TelegramRepo) SaveVerificationCode(ctx context.Context, chatID, username, code string) error {
 	query := `
-		INSERT INTO telegram_verification (chat_id, username, code, expires_at, created_at)
+		INSERT INTO telegram_verification (chat_id, username, code, expired_at, created_at)
 		VALUES ($1, $2, $3, NOW() + INTERVAL '5 minutes', NOW())
-		ON CONFLICT (chat_id) DO UPDATE
-		SET code = $3, expires_at = NOW() + INTERVAL '5 minutes', created_at = NOW()
+		ON CONFLICT (code) DO UPDATE
+		SET chat_id = $1, username = $2, expired_at = NOW() + INTERVAL '5 minutes', created_at = NOW(), is_used = false
 	`
 	_, err := r.DB.Exec(ctx, query, chatID, username, code)
 	return err
 }
 
 func (r *TelegramRepo) DeleteExpiredCodes(ctx context.Context) error {
-	query := `DELETE FROM telegram_verification WHERE expires_at < NOW()`
+	query := `DELETE FROM telegram_verification WHERE expired_at < NOW()`
 	_, err := r.DB.Exec(ctx, query)
 	return err
 }
 
 func (r *TelegramRepo) GetVerificationCode(ctx context.Context, chatID string) (string, error) {
 	var code string
-	query := `SELECT code FROM telegram_verification WHERE chat_id = $1 AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1`
+	query := `SELECT code FROM telegram_verification WHERE chat_id = $1 AND expired_at > NOW() AND is_used = false ORDER BY created_at DESC LIMIT 1`
 	err := r.DB.QueryRow(ctx, query, chatID).Scan(&code)
 	if err != nil {
 		return "", err

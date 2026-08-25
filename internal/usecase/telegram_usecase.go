@@ -82,14 +82,14 @@ func (u *TelegramUsecase) GenerateVerificationCode(ctx context.Context, chatID, 
 	if _, err := rand.Read(bytes); err != nil {
 		return "", err
 	}
-	code := hex.EncodeToString(bytes)
+	code := "SAKTI-" + hex.EncodeToString(bytes)
 
 	if err := u.TelegramRepo.SaveVerificationCode(ctx, chatID, username, code); err != nil {
 		log.Printf("SaveVerificationCode error: %v", err)
 		return "", err
 	}
 
-	log.Printf("Verification code generated for chat_id: %s", chatID)
+	log.Printf("Verification code generated for chat_id: %s, code: %s", chatID, code)
 	return code, nil
 }
 
