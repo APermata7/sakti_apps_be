@@ -265,7 +265,9 @@ func (r *LeaveRepo) Finalize(ctx context.Context, id, hrdID string) error {
 		    difinalisasi_oleh = $1, 
 		    tanggal_difinalisasi = NOW(),
 		    diperbarui_pada = NOW()
-		WHERE id = $2 AND status = 'menunggu_hrd' AND difinalisasi_oleh IS NULL
+		WHERE id = $2 
+		  AND status = 'menunggu_hrd' 
+		  AND difinalisasi_oleh IS NULL
 	`
 	result, err := r.DB.Exec(ctx, query, hrdID, id)
 	if err != nil {
@@ -521,10 +523,6 @@ func (r *LeaveRepo) GetAllLeaves(ctx context.Context, atasanID string, role stri
 		query += ` AND k.atasan_langsung_id = $` + strconv.Itoa(argIdx)
 		args = append(args, atasanID)
 		argIdx++
-	}
-
-	if role == "hrd" {
-		query += ` AND pc.difinalisasi_oleh IS NULL`
 	}
 
 	if status != "" {

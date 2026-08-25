@@ -35,8 +35,9 @@ func (h *TelegramHandler) Connect(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(string)
 
 	var req struct {
-		ChatID string `json:"chat_id"`
+		VerificationCode string `json:"verification_code"`
 	}
+
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
@@ -44,16 +45,15 @@ func (h *TelegramHandler) Connect(c *fiber.Ctx) error {
 		})
 	}
 
-	if req.ChatID == "" {
+	if req.VerificationCode == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
-			"message": "Chat ID wajib diisi",
+			"message": "Kode verifikasi wajib diisi",
 		})
 	}
 
-	err := h.TelegramUsecase.UpdateChatID(c.Context(), userID, req.ChatID)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+	if err := h.TelegramUsecase.ConnectTelegram(c.Context(), userID, req.VerificationCode); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
 			"message": err.Error(),
 		})
