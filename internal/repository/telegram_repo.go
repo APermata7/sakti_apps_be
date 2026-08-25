@@ -51,7 +51,7 @@ func (r *TelegramRepo) GetChatIDByCode(ctx context.Context, code string) (string
 	query := `
 		SELECT chat_id
 		FROM telegram_verification
-		WHERE code = $1
+		WHERE LOWER(code) = LOWER($1)
 		  AND is_used = false
 		  AND expired_at > $2
 	`
@@ -71,7 +71,7 @@ func (r *TelegramRepo) MarkCodeAsUsed(ctx context.Context, code string) error {
 	query := `
 		UPDATE telegram_verification
 		SET is_used = true, used_at = $1
-		WHERE code = $2
+		WHERE LOWER(code) = LOWER($2)
 		  AND is_used = false
 		  AND expired_at > $1
 	`
@@ -90,7 +90,7 @@ func (r *TelegramRepo) MarkCodeAsUsedWithTx(ctx context.Context, tx pgx.Tx, code
 	query := `
 		UPDATE telegram_verification
 		SET is_used = true, used_at = $1
-		WHERE code = $2
+		WHERE LOWER(code) = LOWER($2)
 		  AND is_used = false
 		  AND expired_at > $1
 	`
