@@ -98,33 +98,17 @@ func (t *TelegramBot) formatTanggalIndonesia(tgl time.Time) string {
 	return tgl.Format("02 " + bulanIndo + " 2006")
 }
 
-func (t *TelegramBot) SendCreateLeaveNotification(chatID, karyawanID, karyawanNama, totalHari, alasan, leaveID string) error {
-	text := fmt.Sprintf(
-		"<b>📋 Pengajuan Cuti Baru</b>\n\n"+
-			"Yth. Atasan,\n\n"+
-			"Seorang karyawan telah mengajukan cuti dan memerlukan persetujuan Anda. Berikut detail pengajuannya:\n\n"+
-			"👤 Karyawan : <b>%s</b>\n"+
-			"📅 Lama Cuti : <b>%s hari</b>\n"+
-			"📝 Alasan : %s\n\n"+
-			"Silakan lakukan proses persetujuan melalui aplikasi <b>SAKTI</b> sesuai kebijakan yang berlaku.\n\n"+
-			"Terima kasih.",
-		karyawanNama, totalHari, alasan,
-	)
-
-	return t.SendMessage(chatID, text)
-}
-
-func (t *TelegramBot) SendCreateLeaveHRDNotification(chatID, karyawanID, karyawanNama, totalHari, alasan, leaveID string) error {
+func (t *TelegramBot) SendFinalizationHRDNotification(chatID, karyawanID, karyawanNama, subTipe, tanggalCuti, leaveID string) error {
 	text := fmt.Sprintf(
 		"<b>📋 Pengajuan Cuti Baru</b>\n\n"+
 			"Yth. HRD,\n\n"+
 			"Seorang karyawan telah mengajukan cuti. Berikut detail pengajuannya:\n\n"+
 			"👤 Karyawan : <b>%s</b>\n"+
-			"📅 Lama Cuti : <b>%s hari</b>\n"+
-			"📝 Alasan : %s\n\n"+
-			"Pengajuan ini menunggu approval atasan. Akan muncul di daftar finalisasi setelah disetujui.\n\n"+
+			"📋 Jenis Cuti : <b>%s</b>\n"+
+			"📅 Tanggal Cuti : <b>%s</b>\n\n"+
+			"Silakan lakukan proses finalisasi melalui aplikasi <b>SAKTI</b>.\n\n"+
 			"Terima kasih.",
-		karyawanNama, totalHari, alasan,
+		karyawanNama, subTipe, tanggalCuti,
 	)
 
 	return t.SendMessage(chatID, text)
@@ -141,39 +125,6 @@ func (t *TelegramBot) SendCreateDispensasiNotification(chatID, karyawanID, karya
 			"Pengajuan ini telah langsung difinalisasi.\n\n"+
 			"Terima kasih.",
 		karyawanNama, totalHari, alasan,
-	)
-
-	return t.SendMessage(chatID, text)
-}
-
-func (t *TelegramBot) SendFinalizationHRDNotification(chatID, karyawanID, karyawanNama, subTipe, tanggalCuti, leaveID string) error {
-	text := fmt.Sprintf(
-		"<b>✅ Pengajuan Cuti Siap Difinalisasi</b>\n\n"+
-			"Yth. HRD,\n\n"+
-			"Pengajuan cuti berikut telah disetujui oleh atasan dan siap untuk difinalisasi:\n\n"+
-			"👤 Karyawan : <b>%s</b>\n"+
-			"📋 Jenis Cuti : <b>%s</b>\n"+
-			"📅 Tanggal Cuti : <b>%s</b>\n\n"+
-			"Silakan lakukan proses finalisasi melalui aplikasi <b>SAKTI</b>.\n\n"+
-			"Terima kasih.",
-		karyawanNama, subTipe, tanggalCuti,
-	)
-
-	return t.SendMessage(chatID, text)
-}
-
-func (t *TelegramBot) SendLeaveWithoutAtasanHRDNotification(chatID, karyawanID, karyawanNama, subTipe, totalHari, tanggalCuti, leaveID string) error {
-	text := fmt.Sprintf(
-		"<b>📋 Pengajuan Cuti Finalisasi</b>\n\n"+
-			"Yth. HRD,\n\n"+
-			"Seorang karyawan tanpa atasan telah mengajukan cuti. Silakan lakukan finalisasi:\n\n"+
-			"👤 Karyawan : <b>%s</b>\n"+
-			"📋 Jenis Cuti : <b>%s</b>\n"+
-			"📅 Lama Cuti : <b>%s hari</b>\n"+
-			"📅 Tanggal Cuti : <b>%s</b>\n\n"+
-			"Silakan lakukan proses finalisasi melalui aplikasi <b>SAKTI</b>.\n\n"+
-			"Terima kasih.",
-		karyawanNama, subTipe, totalHari, tanggalCuti,
 	)
 
 	return t.SendMessage(chatID, text)
