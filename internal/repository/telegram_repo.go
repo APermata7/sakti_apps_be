@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 	"errors"
+	"log"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -16,14 +18,14 @@ func NewTelegramRepo(db *pgxpool.Pool) *TelegramRepo {
 	return &TelegramRepo{DB: db}
 }
 
-func (r *TelegramRepo) SaveVerificationCode(ctx context.Context, chatID, username, code string) error {
+func (r *TelegramRepo) SaveVerificationCode(ctx context.Context, chatID, username, code string, now, expiredAt time.Time) error {
 	query := `
-		INSERT INTO telegram_verification (chat_id, username, code, expired_at, created_at)
-		VALUES ($1, $2, $3, NOW() + INTERVAL '5 minutes', NOW())
+		INSERT INTO telegram_verification (chat_id, username, code, created_at, expired_at, is_used)
+		VALUES ($1, $2, $3, $4, $5, false)
 		ON CONFLICT (code) DO UPDATE
-		SET chat_id = $1, username = $2, expired_at = NOW() + INTERVAL '5 minutes', created_at = NOW(), is_used = false
+		SET chat_id = $1, username = $2, created_at = $4, expired_at = $5, is_used = false
 	`
-	_, err := r.DB.Exec(ctx, query, chatID, username, code)
+	_, err := r.DB.Exec(ctx, query, chatID, username, code, now, expiredAt)
 	return err
 }
 
@@ -45,32 +47,36 @@ func (r *TelegramRepo) GetVerificationCode(ctx context.Context, chatID string) (
 
 func (r *TelegramRepo) GetChatIDByCode(ctx context.Context, code string) (string, error) {
 	var chatID string
+	now := time.Now().UTC()
 	query := `
 		SELECT chat_id
 		FROM telegram_verification
 		WHERE code = $1
-		  AND expired_at > NOW()
 		  AND is_used = false
+		  AND expired_at > $2
 	`
-	err := r.DB.QueryRow(ctx, query, code).Scan(&chatID)
+	err := r.DB.QueryRow(ctx, query, code, now).Scan(&chatID)
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			return "", errors.New("kode tidak ditemukan")
+			log.Printf("[GetChatIDByCode] code not found or expired: %s", code)
+			return "", errors.New("kode tidak ditemukan atau sudah kadaluarsa")
 		}
 		return "", err
 	}
+	log.Printf("[GetChatIDByCode] found chat_id=%s for code=%s", chatID, code)
 	return chatID, nil
 }
 
 func (r *TelegramRepo) MarkCodeAsUsed(ctx context.Context, code string) error {
 	query := `
 		UPDATE telegram_verification
-		SET is_used = true, used_at = NOW()
-		WHERE code = $1
+		SET is_used = true, used_at = $1
+		WHERE code = $2
 		  AND is_used = false
-		  AND expired_at > NOW()
+		  AND expired_at > $1
 	`
-	result, err := r.DB.Exec(ctx, query, code)
+	now := time.Now().UTC()
+	result, err := r.DB.Exec(ctx, query, now, code)
 	if err != nil {
 		return err
 	}
@@ -83,12 +89,13 @@ func (r *TelegramRepo) MarkCodeAsUsed(ctx context.Context, code string) error {
 func (r *TelegramRepo) MarkCodeAsUsedWithTx(ctx context.Context, tx pgx.Tx, code string) error {
 	query := `
 		UPDATE telegram_verification
-		SET is_used = true, used_at = NOW()
-		WHERE code = $1
+		SET is_used = true, used_at = $1
+		WHERE code = $2
 		  AND is_used = false
-		  AND expired_at > NOW()
+		  AND expired_at > $1
 	`
-	result, err := tx.Exec(ctx, query, code)
+	now := time.Now().UTC()
+	result, err := tx.Exec(ctx, query, now, code)
 	if err != nil {
 		return err
 	}

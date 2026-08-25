@@ -4,10 +4,10 @@ CREATE TABLE telegram_verification (
     chat_id VARCHAR(50) NOT NULL,
     username VARCHAR(100),
     karyawan_id UUID NULL REFERENCES karyawan(id) ON DELETE SET NULL,
-    created_at TIMESTAMP DEFAULT NOW(),
-    expired_at TIMESTAMP DEFAULT NOW() + INTERVAL '5 minutes',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    expired_at TIMESTAMPTZ DEFAULT NOW() + INTERVAL '5 minutes',
     is_used BOOLEAN DEFAULT FALSE,
-    used_at TIMESTAMP
+    used_at TIMESTAMPTZ
 );
 
 CREATE INDEX idx_telegram_verification_code ON telegram_verification(code);

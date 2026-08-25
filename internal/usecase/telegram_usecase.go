@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"log"
+	"time"
 
 	"sakti_apps_be/internal/repository"
 )
@@ -46,46 +47,59 @@ func (u *TelegramUsecase) GetTelegramStatus(ctx context.Context, karyawanID stri
 }
 
 func (u *TelegramUsecase) ConnectTelegram(ctx context.Context, karyawanID string, verificationCode string) error {
+	log.Printf("[ConnectTelegram] START: karyawanID=%s, code=%s", karyawanID, verificationCode)
+
 	chatID, err := u.TelegramRepo.GetChatIDByCode(ctx, verificationCode)
 	if err != nil {
+		log.Printf("[ConnectTelegram] GetChatIDByCode error: %v", err)
 		return errors.New("kode verifikasi tidak valid, sudah digunakan, atau sudah kadaluarsa")
 	}
+
+	log.Printf("[ConnectTelegram] chatID found: %s", chatID)
 
 	latestCode, err := u.TelegramRepo.GetVerificationCode(ctx, chatID)
 	if err != nil {
+		log.Printf("[ConnectTelegram] GetVerificationCode error: %v", err)
 		return errors.New("kode verifikasi tidak valid, sudah digunakan, atau sudah kadaluarsa")
 	}
 
+	log.Printf("[ConnectTelegram] latestCode=%s, inputCode=%s", latestCode, verificationCode)
+
 	if latestCode != verificationCode {
+		log.Printf("[ConnectTelegram] code mismatch: latest=%s, input=%s", latestCode, verificationCode)
 		return errors.New("kode verifikasi sudah tidak berlaku, silakan minta kode baru dengan /start")
 	}
 
 	karyawan, err := u.KaryawanRepo.GetByID(ctx, karyawanID)
 	if err != nil || karyawan == nil {
+		log.Printf("[ConnectTelegram] karyawan not found: %s", karyawanID)
 		return errors.New("karyawan tidak ditemukan")
 	}
 
 	tx, err := u.KaryawanRepo.DB.Begin(ctx)
 	if err != nil {
+		log.Printf("[ConnectTelegram] begin tx error: %v", err)
 		return err
 	}
 	defer tx.Rollback(ctx)
 
 	karyawan.TelegramChatID = &chatID
 	if err := u.KaryawanRepo.UpdateWithTx(ctx, tx, karyawan); err != nil {
-		log.Printf("UpdateChatID error: %v", err)
+		log.Printf("[ConnectTelegram] UpdateWithTx error: %v", err)
 		return errors.New("gagal menyimpan koneksi Telegram")
 	}
 
 	if err := u.TelegramRepo.MarkCodeAsUsedWithTx(ctx, tx, verificationCode); err != nil {
-		log.Printf("MarkCodeAsUsed error: %v", err)
+		log.Printf("[ConnectTelegram] MarkCodeAsUsedWithTx error: %v", err)
 		return errors.New("gagal menyelesaikan verifikasi Telegram")
 	}
 
 	if err := tx.Commit(ctx); err != nil {
+		log.Printf("[ConnectTelegram] commit error: %v", err)
 		return err
 	}
 
+	log.Printf("[ConnectTelegram] SUCCESS: karyawanID=%s connected to chatID=%s", karyawanID, chatID)
 	return nil
 }
 
@@ -128,12 +142,15 @@ func (u *TelegramUsecase) GenerateVerificationCode(ctx context.Context, chatID, 
 	}
 	code := "SAKTI-" + hex.EncodeToString(bytes)
 
-	if err := u.TelegramRepo.SaveVerificationCode(ctx, chatID, username, code); err != nil {
+	now := time.Now().UTC()
+	expiredAt := now.Add(5 * time.Minute)
+
+	if err := u.TelegramRepo.SaveVerificationCode(ctx, chatID, username, code, now, expiredAt); err != nil {
 		log.Printf("SaveVerificationCode error: %v", err)
 		return "", err
 	}
 
-	log.Printf("Verification code generated for chat_id: %s, code: %s", chatID, code)
+	log.Printf("Verification code generated for chat_id: %s, code: %s, expiredAt: %s", chatID, code, expiredAt.Format(time.RFC3339))
 	return code, nil
 }
 
