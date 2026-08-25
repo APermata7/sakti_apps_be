@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strconv"
 	"time"
+	"log"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -506,94 +507,105 @@ func (r *LeaveRepo) GetActiveLeavesByDate(ctx context.Context, tanggal time.Time
 }
 
 func (r *LeaveRepo) GetAllLeaves(ctx context.Context, atasanID string, role string, status string, subTipe string, startDate string, endDate string, limit int, offset int) ([]domain.LeaveWithKaryawanResponse, int, error) {
-	var items []domain.LeaveWithKaryawanResponse
-	var total int
+    var items []domain.LeaveWithKaryawanResponse
+    var total int
 
-	query := `
-		FROM pengajuan_cuti pc
-		JOIN karyawan k ON pc.karyawan_id = k.id
-		LEFT JOIN sisa_cuti sc ON pc.karyawan_id = sc.karyawan_id AND sc.tahun = EXTRACT(YEAR FROM NOW())
-		WHERE 1=1
-		AND k.role != 'admin'
-	`
-	args := []interface{}{}
-	argIdx := 1
+    log.Printf("GetAllLeaves: role=%s, status=%s, limit=%d, offset=%d", role, status, limit, offset)
 
-	if role == "atasan" && atasanID != "" {
-		query += ` AND k.atasan_langsung_id = $` + strconv.Itoa(argIdx)
-		args = append(args, atasanID)
-		argIdx++
-	}
+    query := `
+        FROM pengajuan_cuti pc
+        JOIN karyawan k ON pc.karyawan_id = k.id
+        LEFT JOIN sisa_cuti sc ON pc.karyawan_id = sc.karyawan_id AND sc.tahun = EXTRACT(YEAR FROM NOW())
+        WHERE 1=1
+        AND k.role != 'admin'
+    `
+    args := []interface{}{}
+    argIdx := 1
 
-	if status != "" {
-		query += ` AND pc.status = $` + strconv.Itoa(argIdx)
-		args = append(args, status)
-		argIdx++
-	}
+    if role == "atasan" && atasanID != "" {
+        query += ` AND k.atasan_langsung_id = $` + strconv.Itoa(argIdx)
+        args = append(args, atasanID)
+        argIdx++
+    }
 
-	if subTipe != "" {
-		query += ` AND pc.sub_tipe = $` + strconv.Itoa(argIdx)
-		args = append(args, subTipe)
-		argIdx++
-	}
+    if status != "" {
+        query += ` AND pc.status = $` + strconv.Itoa(argIdx)
+        args = append(args, status)
+        argIdx++
+    }
 
-	if startDate != "" {
-		query += ` AND pc.tanggal_mulai >= $` + strconv.Itoa(argIdx)
-		args = append(args, startDate)
-		argIdx++
-	}
+    if subTipe != "" {
+        query += ` AND pc.sub_tipe = $` + strconv.Itoa(argIdx)
+        args = append(args, subTipe)
+        argIdx++
+    }
 
-	if endDate != "" {
-		query += ` AND pc.tanggal_selesai <= $` + strconv.Itoa(argIdx)
-		args = append(args, endDate)
-		argIdx++
-	}
+    if startDate != "" {
+        query += ` AND pc.tanggal_mulai >= $` + strconv.Itoa(argIdx)
+        args = append(args, startDate)
+        argIdx++
+    }
 
-	countQuery := `SELECT COUNT(*) ` + query
-	err := r.DB.QueryRow(ctx, countQuery, args...).Scan(&total)
-	if err != nil {
-		return nil, 0, err
-	}
+    if endDate != "" {
+        query += ` AND pc.tanggal_selesai <= $` + strconv.Itoa(argIdx)
+        args = append(args, endDate)
+        argIdx++
+    }
 
-	dataQuery := `
-		SELECT pc.id, pc.karyawan_id, pc.sub_tipe, pc.tanggal_mulai, pc.tanggal_selesai,
-		       pc.total_hari, pc.alasan, pc.status, pc.back_date, pc.mengurangi_cuti,
-		       pc.langsung_approve, pc.langsung_final, pc.judul_dokumen,
-		       pc.disetujui_oleh, pc.tanggal_disetujui, pc.difinalisasi_oleh,
-		       pc.tanggal_difinalisasi, pc.url_pdf, pc.alasan_batal, pc.tanggal_dibatalkan,
-		       pc.alasan_ditolak, pc.tanggal_ditolak,
-		       pc.dibuat_pada, pc.diperbarui_pada,
-		       k.nama_lengkap, k.divisi, k.unit, k.role,
-		       COALESCE(sc.sisa_cuti, 12) as sisa_cuti
-	` + query + ` ORDER BY pc.dibuat_pada DESC LIMIT $` + strconv.Itoa(argIdx) + ` OFFSET $` + strconv.Itoa(argIdx+1)
+    log.Printf("GetAllLeaves query: %s", query)
+    log.Printf("GetAllLeaves args: %v", args)
 
-	finalArgs := append(args, limit, offset)
-	rows, err := r.DB.Query(ctx, dataQuery, finalArgs...)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer rows.Close()
+    countQuery := `SELECT COUNT(*) ` + query
+    err := r.DB.QueryRow(ctx, countQuery, args...).Scan(&total)
+    if err != nil {
+        log.Printf("GetAllLeaves count error: %v", err)
+        return nil, 0, err
+    }
 
-	for rows.Next() {
-		var l domain.LeaveWithKaryawanResponse
-		err := rows.Scan(
-			&l.ID, &l.KaryawanID, &l.SubTipe, &l.TanggalMulai, &l.TanggalSelesai,
-			&l.TotalHari, &l.Alasan, &l.Status, &l.BackDate, &l.MengurangiCuti,
-			&l.LangsungApprove, &l.LangsungFinal, &l.JudulDokumen,
-			&l.DisetujuiOleh, &l.TanggalDisetujui, &l.DifinalisasiOleh,
-			&l.TanggalDifinalisasi, &l.URLPDF, &l.AlasanBatal, &l.TanggalDibatalkan,
-			&l.AlasanDitolak, &l.TanggalDitolak,
-			&l.DibuatPada, &l.DiperbaruiPada,
-			&l.KaryawanNama, &l.KaryawanDivisi, &l.KaryawanUnit, &l.KaryawanRole,
-			&l.SisaCuti,
-		)
-		if err != nil {
-			return nil, 0, err
-		}
-		items = append(items, l)
-	}
+    log.Printf("GetAllLeaves total: %d", total)
 
-	return items, total, nil
+    dataQuery := `
+        SELECT pc.id, pc.karyawan_id, pc.sub_tipe, pc.tanggal_mulai, pc.tanggal_selesai,
+               pc.total_hari, pc.alasan, pc.status, pc.back_date, pc.mengurangi_cuti,
+               pc.langsung_approve, pc.langsung_final, pc.judul_dokumen,
+               pc.disetujui_oleh, pc.tanggal_disetujui, pc.difinalisasi_oleh,
+               pc.tanggal_difinalisasi, pc.url_pdf, pc.alasan_batal, pc.tanggal_dibatalkan,
+               pc.alasan_ditolak, pc.tanggal_ditolak,
+               pc.dibuat_pada, pc.diperbarui_pada,
+               k.nama_lengkap, k.divisi, k.unit, k.role,
+               COALESCE(sc.sisa_cuti, 12) as sisa_cuti
+    ` + query + ` ORDER BY pc.dibuat_pada DESC LIMIT $` + strconv.Itoa(argIdx) + ` OFFSET $` + strconv.Itoa(argIdx+1)
+
+    finalArgs := append(args, limit, offset)
+    rows, err := r.DB.Query(ctx, dataQuery, finalArgs...)
+    if err != nil {
+        log.Printf("GetAllLeaves data query error: %v", err)
+        return nil, 0, err
+    }
+    defer rows.Close()
+
+    for rows.Next() {
+        var l domain.LeaveWithKaryawanResponse
+        err := rows.Scan(
+            &l.ID, &l.KaryawanID, &l.SubTipe, &l.TanggalMulai, &l.TanggalSelesai,
+            &l.TotalHari, &l.Alasan, &l.Status, &l.BackDate, &l.MengurangiCuti,
+            &l.LangsungApprove, &l.LangsungFinal, &l.JudulDokumen,
+            &l.DisetujuiOleh, &l.TanggalDisetujui, &l.DifinalisasiOleh,
+            &l.TanggalDifinalisasi, &l.URLPDF, &l.AlasanBatal, &l.TanggalDibatalkan,
+            &l.AlasanDitolak, &l.TanggalDitolak,
+            &l.DibuatPada, &l.DiperbaruiPada,
+            &l.KaryawanNama, &l.KaryawanDivisi, &l.KaryawanUnit, &l.KaryawanRole,
+            &l.SisaCuti,
+        )
+        if err != nil {
+            log.Printf("GetAllLeaves rows.Scan error: %v", err)
+            return nil, 0, err
+        }
+        items = append(items, l)
+    }
+
+    log.Printf("GetAllLeaves success: items=%d", len(items))
+    return items, total, nil
 }
 
 func (r *LeaveRepo) GetPendingLeavesByAtasan(ctx context.Context, atasanID string, limit int, offset int) ([]domain.LeaveWithKaryawanResponse, int, error) {

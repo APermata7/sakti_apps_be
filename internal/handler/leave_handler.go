@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
@@ -378,11 +379,14 @@ func (h *LeaveHandler) GetFinalizationList(c *fiber.Ctx) error {
 	limit, _ := strconv.Atoi(c.Query("limit", "10"))
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 
+	log.Printf("GetFinalizationList: role=%s, limit=%d, page=%d", role, limit, page)
+
 	items, total, err := h.LeaveUsecase.GetFinalizationList(c.Context(), limit, page)
 	if err != nil {
+		log.Printf("GetFinalizationList error: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"success": false,
-			"message": err.Error(),
+			"message": "Gagal mengambil data finalisasi: " + err.Error(),
 		})
 	}
 

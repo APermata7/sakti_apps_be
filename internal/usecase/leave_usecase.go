@@ -1293,13 +1293,22 @@ func (u *LeaveUsecase) GetApprovalList(ctx context.Context, atasanID string, lim
 }
 
 func (u *LeaveUsecase) GetFinalizationList(ctx context.Context, limit int, page int) ([]domain.LeaveWithKaryawanResponse, int, error) {
-	if limit <= 0 {
-		limit = 10
-	}
-	if page <= 0 {
-		page = 1
-	}
-	offset := (page - 1) * limit
+    if limit <= 0 {
+        limit = 10
+    }
+    if page <= 0 {
+        page = 1
+    }
+    offset := (page - 1) * limit
 
-	return u.LeaveRepo.GetAllLeaves(ctx, "", "hrd", domain.StatusMenungguHRD, "", "", "", limit, offset)
+    log.Printf("GetFinalizationList: limit=%d, page=%d, offset=%d", limit, page, offset)
+
+    items, total, err := u.LeaveRepo.GetAllLeaves(ctx, "", "hrd", domain.StatusMenungguHRD, "", "", "", limit, offset)
+    if err != nil {
+        log.Printf("GetFinalizationList repository error: %v", err)
+        return nil, 0, err
+    }
+
+    log.Printf("GetFinalizationList success: items=%d, total=%d", len(items), total)
+    return items, total, nil
 }

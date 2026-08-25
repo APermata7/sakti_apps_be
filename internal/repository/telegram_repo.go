@@ -20,12 +20,8 @@ func (r *TelegramRepo) SaveVerificationCode(ctx context.Context, chatID, usernam
     query := `
         INSERT INTO telegram_verification (chat_id, username, code, expired_at, created_at)
         VALUES ($1, $2, $3, NOW() + INTERVAL '5 minutes', NOW())
-        ON CONFLICT (chat_id) DO UPDATE
-        SET code = $3,
-            username = $2,
-            expired_at = NOW() + INTERVAL '5 minutes',
-            created_at = NOW(),
-            is_used = false
+        ON CONFLICT (code) DO UPDATE
+        SET chat_id = $1, username = $2, expired_at = NOW() + INTERVAL '5 minutes', created_at = NOW(), is_used = false
     `
     _, err := r.DB.Exec(ctx, query, chatID, username, code)
     return err
