@@ -11,8 +11,8 @@ CREATE TABLE karyawan (
     unit VARCHAR(100),
     status_karyawan VARCHAR(20) DEFAULT 'aktif' CHECK (status_karyawan IN ('aktif', 'nonaktif')),
     telegram_chat_id VARCHAR(100) DEFAULT NULL,
-    dibuat_pada TIMESTAMP DEFAULT NOW(),
-    diperbarui_pada TIMESTAMP DEFAULT NOW()
+    dibuat_pada TIMESTAMPTZ DEFAULT NOW(),
+    diperbarui_pada TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX idx_karyawan_email ON karyawan(email);

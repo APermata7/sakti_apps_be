@@ -5,8 +5,8 @@ CREATE TABLE kantor (
     bujur DECIMAL(11, 8) NOT NULL,
     radius INT DEFAULT 500,
     alamat TEXT,
-    dibuat_pada TIMESTAMP DEFAULT NOW(),
-    diperbarui_pada TIMESTAMP DEFAULT NOW()
+    dibuat_pada TIMESTAMPTZ DEFAULT NOW(),
+    diperbarui_pada TIMESTAMPTZ DEFAULT NOW()
 );
 
 INSERT INTO kantor (nama, lintang, bujur, radius, alamat) VALUES 

@@ -13,16 +13,16 @@ CREATE TABLE pengajuan_cuti (
     langsung_final BOOLEAN DEFAULT FALSE,
     judul_dokumen VARCHAR(100) DEFAULT 'PERMOHONAN/LAPORAN CUTI TAHUNAN',
     disetujui_oleh UUID REFERENCES karyawan(id) ON DELETE SET NULL,
-    tanggal_disetujui TIMESTAMP,
+    tanggal_disetujui TIMESTAMPTZ,
     difinalisasi_oleh UUID REFERENCES karyawan(id) ON DELETE SET NULL,
-    tanggal_difinalisasi TIMESTAMP,
+    tanggal_difinalisasi TIMESTAMPTZ,
     url_pdf VARCHAR(500),
     alasan_batal TEXT,
-    tanggal_dibatalkan TIMESTAMP,
+    tanggal_dibatalkan TIMESTAMPTZ,
     alasan_ditolak TEXT,
-    tanggal_ditolak TIMESTAMP,
-    dibuat_pada TIMESTAMP DEFAULT NOW(),
-    diperbarui_pada TIMESTAMP DEFAULT NOW()
+    tanggal_ditolak TIMESTAMPTZ,
+    dibuat_pada TIMESTAMPTZ DEFAULT NOW(),
+    diperbarui_pada TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX idx_cuti_karyawan ON pengajuan_cuti(karyawan_id);

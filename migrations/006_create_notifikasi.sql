@@ -9,7 +9,8 @@ CREATE TABLE notifikasi (
     dibaca_pada TIMESTAMP,
     referensi_id UUID,
     referensi_tipe VARCHAR(50),
-    dibuat_pada TIMESTAMP DEFAULT NOW()
+    dibuat_pada TIMESTAMPTZ DEFAULT NOW(),
+    dibaca_pada TIMESTAMPTZ
 );
 
 CREATE INDEX idx_notifikasi_karyawan ON notifikasi(karyawan_id);

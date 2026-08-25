@@ -3,8 +3,8 @@ CREATE TABLE token_fcm (
     karyawan_id UUID NOT NULL REFERENCES karyawan(id) ON DELETE CASCADE,
     fcm_token VARCHAR(255) NOT NULL,
     is_active BOOLEAN DEFAULT TRUE,
-    dibuat_pada TIMESTAMP DEFAULT NOW(),
-    diperbarui_pada TIMESTAMP DEFAULT NOW()
+    dibuat_pada TIMESTAMPTZ DEFAULT NOW(),
+    diperbarui_pada TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE UNIQUE INDEX idx_token_fcm ON token_fcm(fcm_token);

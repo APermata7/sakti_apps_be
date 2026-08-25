@@ -20,8 +20,8 @@ CREATE TABLE presensi (
     is_outside_radius BOOLEAN DEFAULT FALSE,
     location_status_masuk VARCHAR(20) DEFAULT NULL,
     location_status_keluar VARCHAR(20) DEFAULT NULL,
-    dibuat_pada TIMESTAMP DEFAULT NOW(),
-    diperbarui_pada TIMESTAMP DEFAULT NOW()
+    dibuat_pada TIMESTAMPTZ DEFAULT NOW(),
+    diperbarui_pada TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX idx_presensi_karyawan ON presensi(karyawan_id);
