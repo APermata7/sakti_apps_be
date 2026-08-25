@@ -228,6 +228,32 @@ func (r *KaryawanRepo) Update(ctx context.Context, k *domain.Karyawan) error {
     return err
 }
 
+func (r *KaryawanRepo) UpdateWithTx(ctx context.Context, tx pgx.Tx, k *domain.Karyawan) error {
+    query := `
+        UPDATE karyawan 
+        SET nama_lengkap = $2, nomor_telepon = $3, foto_url = $4,
+            role = $5, level_jabatan = $6, atasan_langsung_id = $7,
+            divisi = $8, unit = $9, status_karyawan = $10, telegram_chat_id = $11, diperbarui_pada = NOW()
+        WHERE id = $1
+    `
+
+    _, err := tx.Exec(ctx, query,
+        k.ID,
+        k.NamaLengkap,
+        k.NomorTelepon,
+        k.FotoURL,
+        k.Role,
+        k.LevelJabatan,
+        k.AtasanLangsungID,
+        k.Divisi,
+        k.Unit,
+        k.StatusKaryawan,
+        k.TelegramChatID,
+    )
+
+    return err
+}
+
 func (r *KaryawanRepo) Delete(ctx context.Context, id string) error {
     query := `UPDATE karyawan SET status_karyawan = 'nonaktif', diperbarui_pada = NOW() WHERE id = $1`
     _, err := r.DB.Exec(ctx, query, id)
