@@ -13,11 +13,11 @@ import (
 )
 
 type LeaveUsecase struct {
-	LeaveRepo          *repository.LeaveRepo
-	KaryawanRepo       *repository.KaryawanRepo
-	TTDRepo            *repository.TTDRepo
-	ConfigRepo         *repository.KonfigurasiRepo
-	RiwayatRepo        *repository.RiwayatRepo
+	LeaveRepo           *repository.LeaveRepo
+	KaryawanRepo        *repository.KaryawanRepo
+	TTDRepo             *repository.TTDRepo
+	ConfigRepo          *repository.KonfigurasiRepo
+	RiwayatRepo         *repository.RiwayatRepo
 	NotificationUsecase *NotificationUsecase
 }
 
@@ -40,11 +40,11 @@ func NewLeaveUsecase(
 	notificationUsecase *NotificationUsecase,
 ) *LeaveUsecase {
 	return &LeaveUsecase{
-		LeaveRepo:          leaveRepo,
-		KaryawanRepo:       karyawanRepo,
-		TTDRepo:            ttdRepo,
-		ConfigRepo:         configRepo,
-		RiwayatRepo:        riwayatRepo,
+		LeaveRepo:           leaveRepo,
+		KaryawanRepo:        karyawanRepo,
+		TTDRepo:             ttdRepo,
+		ConfigRepo:          configRepo,
+		RiwayatRepo:         riwayatRepo,
 		NotificationUsecase: notificationUsecase,
 	}
 }
@@ -344,50 +344,17 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 		tanggalCuti := formatTanggalCuti(start, end)
 
 		if req.SubTipe == "dispensasi" {
-			var judul, pesan string
-
-			if karyawan.Role == "hrd" || karyawan.Role == "atasan" || karyawan.Role == "manager" {
-				judul = "Pengajuan Dispensasi Selesai"
-				pesan = "Pengajuan dispensasi " + strconv.Itoa(totalHari) + " hari pada " + tanggalCuti + " berhasil diajukan dan telah langsung disetujui."
-			} else {
-				judul = "Pengajuan Dispensasi Selesai"
-				pesan = "Pengajuan dispensasi " + strconv.Itoa(totalHari) + " hari pada " + tanggalCuti + " berhasil diajukan dan telah langsung difinalisasi."
-			}
-
+			// Notifikasi ke karyawan
 			go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
 				KaryawanID:    karyawanID,
 				Jenis:         "pengajuan",
-				Judul:         judul,
-				Pesan:         pesan,
+				Judul:         "Pengajuan Dispensasi Selesai",
+				Pesan:         "Pengajuan dispensasi " + strconv.Itoa(totalHari) + " hari pada " + tanggalCuti + " berhasil diajukan dan telah langsung difinalisasi.",
 				ReferensiID:   leave.ID,
 				ReferensiTipe: "pengajuan_cuti",
 			})
 
-			if karyawan.Role == "hrd" {
-				if karyawan.AtasanLangsungID != nil {
-					atasan, _ := u.KaryawanRepo.GetByID(ctx, *karyawan.AtasanLangsungID)
-					if atasan != nil {
-						go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
-							KaryawanID:    atasan.ID,
-							Jenis:         "pengajuan",
-							Judul:         "Pengajuan Dispensasi oleh HRD",
-							Pesan:         karyawan.NamaLengkap + " (HRD) mengajukan dispensasi " + strconv.Itoa(totalHari) + " hari pada " + tanggalCuti + ". Telah langsung difinalisasi.",
-							ReferensiID:   leave.ID,
-							ReferensiTipe: "pengajuan_cuti",
-						})
-
-						telegram := utils.NewTelegramBot(u.KaryawanRepo.DB)
-						if telegram != nil && atasan.TelegramChatID != nil && *atasan.TelegramChatID != "" {
-							go telegram.SendMessage(*atasan.TelegramChatID,
-								"<b>Pengajuan Dispensasi oleh HRD</b>\n\n"+
-									"Yth. Atasan,\n\n"+
-									karyawan.NamaLengkap+" (HRD) mengajukan dispensasi "+strconv.Itoa(totalHari)+" hari pada "+tanggalCuti+". Telah langsung difinalisasi.",
-							)
-						}
-					}
-				}
-			}
-
+			// Notifikasi ke HRD (kecuali HRD sendiri)
 			if karyawan.Role != "hrd" {
 				hrdList, _, err := u.KaryawanRepo.GetAll(ctx, 100, 0, "", "hrd", "", "", "", "aktif")
 				if err == nil && len(hrdList) > 0 {
@@ -406,7 +373,7 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 
 						telegram := utils.NewTelegramBot(u.KaryawanRepo.DB)
 						if telegram != nil && hrd.TelegramChatID != nil && *hrd.TelegramChatID != "" {
-							go telegram.SendCreateDispensasiNotification(
+							go telegram.SendCreateDispensasiHRDNotification(
 								*hrd.TelegramChatID,
 								hrd.ID,
 								karyawan.NamaLengkap,
@@ -418,57 +385,241 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 					}
 				}
 			}
-		} else {
-			var judul, pesan string
 
-			if karyawan.Role == "atasan" || karyawan.Role == "manager" {
-				judul = "Pengajuan Cuti Diajukan"
-				pesan = "Pengajuan cuti " + req.SubTipe + " " + strconv.Itoa(totalHari) + " hari pada " + tanggalCuti + " berhasil diajukan. Silakan tunggu finalisasi HRD."
-			} else if karyawan.Role == "hrd" {
-				judul = "Pengajuan Cuti Diajukan"
-				pesan = "Pengajuan cuti " + req.SubTipe + " " + strconv.Itoa(totalHari) + " hari pada " + tanggalCuti + " berhasil diajukan. Silakan tunggu proses persetujuan."
-			} else if karyawan.AtasanLangsungID == nil {
-				judul = "Pengajuan Cuti Diajukan"
-				pesan = "Pengajuan cuti " + req.SubTipe + " " + strconv.Itoa(totalHari) + " hari pada " + tanggalCuti + " berhasil diajukan. Silakan tunggu finalisasi HRD."
-			} else {
-				judul = "Pengajuan Cuti Diajukan"
-				pesan = "Pengajuan cuti " + req.SubTipe + " " + strconv.Itoa(totalHari) + " hari pada " + tanggalCuti + " berhasil diajukan. Silakan tunggu proses persetujuan."
-			}
-
-			go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
-				KaryawanID:    karyawanID,
-				Jenis:         "pengajuan",
-				Judul:         judul,
-				Pesan:         pesan,
-				ReferensiID:   leave.ID,
-				ReferensiTipe: "pengajuan_cuti",
-			})
-
-			if karyawan.Role == "hrd" && karyawan.AtasanLangsungID != nil {
+			// Notifikasi ke Atasan (jika ada)
+			if karyawan.AtasanLangsungID != nil {
 				atasan, _ := u.KaryawanRepo.GetByID(ctx, *karyawan.AtasanLangsungID)
 				if atasan != nil {
 					go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
 						KaryawanID:    atasan.ID,
 						Jenis:         "pengajuan",
-						Judul:         "Pengajuan Cuti Perlu Disetujui",
-						Pesan:         karyawan.NamaLengkap + " (HRD) mengajukan cuti " + req.SubTipe + " " + strconv.Itoa(totalHari) + " hari pada " + tanggalCuti + ". Silakan lakukan persetujuan.",
+						Judul:         "Pengajuan Dispensasi oleh Karyawan",
+						Pesan:         karyawan.NamaLengkap + " mengajukan dispensasi " + strconv.Itoa(totalHari) + " hari pada " + tanggalCuti + ". Telah langsung disetujui.",
 						ReferensiID:   leave.ID,
 						ReferensiTipe: "pengajuan_cuti",
 					})
+
+					telegram := utils.NewTelegramBot(u.KaryawanRepo.DB)
+					if telegram != nil && atasan.TelegramChatID != nil && *atasan.TelegramChatID != "" {
+						go telegram.SendCreateDispensasiAtasanNotification(
+							*atasan.TelegramChatID,
+							atasan.ID,
+							karyawan.NamaLengkap,
+							strconv.Itoa(totalHari),
+							req.Alasan,
+							leave.ID,
+						)
+					}
 				}
 			}
 
-			if karyawan.AtasanLangsungID != nil && karyawan.Role != "hrd" {
-				atasan, _ := u.KaryawanRepo.GetByID(ctx, *karyawan.AtasanLangsungID)
-				if atasan != nil {
-					go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
-						KaryawanID:    atasan.ID,
-						Jenis:         "pengajuan",
-						Judul:         "Pengajuan Cuti Perlu Disetujui",
-						Pesan:         karyawan.NamaLengkap + " mengajukan cuti " + req.SubTipe + " " + strconv.Itoa(totalHari) + " hari pada " + tanggalCuti + ". Silakan lakukan persetujuan.",
-						ReferensiID:   leave.ID,
-						ReferensiTipe: "pengajuan_cuti",
-					})
+			// Notifikasi ke HRD jika Atasan mengajukan dispensasi
+			if karyawan.Role == "atasan" || karyawan.Role == "manager" {
+				hrdList, _, err := u.KaryawanRepo.GetAll(ctx, 100, 0, "", "hrd", "", "", "", "aktif")
+				if err == nil && len(hrdList) > 0 {
+					for _, hrd := range hrdList {
+						if hrd.ID == karyawanID {
+							continue
+						}
+						go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
+							KaryawanID:    hrd.ID,
+							Jenis:         "pengajuan",
+							Judul:         "Pengajuan Dispensasi oleh Atasan",
+							Pesan:         karyawan.NamaLengkap + " mengajukan dispensasi " + strconv.Itoa(totalHari) + " hari pada " + tanggalCuti + ". Telah langsung difinalisasi.",
+							ReferensiID:   leave.ID,
+							ReferensiTipe: "pengajuan_cuti",
+						})
+
+						telegram := utils.NewTelegramBot(u.KaryawanRepo.DB)
+						if telegram != nil && hrd.TelegramChatID != nil && *hrd.TelegramChatID != "" {
+							go telegram.SendCreateDispensasiHRDNotification(
+								*hrd.TelegramChatID,
+								hrd.ID,
+								karyawan.NamaLengkap,
+								strconv.Itoa(totalHari),
+								req.Alasan,
+								leave.ID,
+							)
+						}
+					}
+				}
+			}
+
+			// Notifikasi ke Atasan jika HRD mengajukan dispensasi
+			if karyawan.Role == "hrd" {
+				if karyawan.AtasanLangsungID != nil {
+					atasan, _ := u.KaryawanRepo.GetByID(ctx, *karyawan.AtasanLangsungID)
+					if atasan != nil {
+						go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
+							KaryawanID:    atasan.ID,
+							Jenis:         "pengajuan",
+							Judul:         "Pengajuan Dispensasi oleh HRD",
+							Pesan:         karyawan.NamaLengkap + " mengajukan dispensasi " + strconv.Itoa(totalHari) + " hari pada " + tanggalCuti + ". Telah langsung disetujui.",
+							ReferensiID:   leave.ID,
+							ReferensiTipe: "pengajuan_cuti",
+						})
+
+						telegram := utils.NewTelegramBot(u.KaryawanRepo.DB)
+						if telegram != nil && atasan.TelegramChatID != nil && *atasan.TelegramChatID != "" {
+							go telegram.SendCreateDispensasiAtasanNotification(
+								*atasan.TelegramChatID,
+								atasan.ID,
+								karyawan.NamaLengkap,
+								strconv.Itoa(totalHari),
+								req.Alasan,
+								leave.ID,
+							)
+						}
+					}
+				}
+			}
+		} else {
+			// CUTI (bukan dispensasi)
+			if karyawan.Role == "atasan" || karyawan.Role == "manager" {
+				judul := "Pengajuan Cuti Diajukan"
+				pesan := "Pengajuan cuti " + req.SubTipe + " " + strconv.Itoa(totalHari) + " hari pada " + tanggalCuti + " berhasil diajukan. Silakan tunggu finalisasi HRD."
+
+				go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
+					KaryawanID:    karyawanID,
+					Jenis:         "pengajuan",
+					Judul:         judul,
+					Pesan:         pesan,
+					ReferensiID:   leave.ID,
+					ReferensiTipe: "pengajuan_cuti",
+				})
+
+				hrdList, _, err := u.KaryawanRepo.GetAll(ctx, 100, 0, "", "hrd", "", "", "", "aktif")
+				if err == nil && len(hrdList) > 0 {
+					for _, hrd := range hrdList {
+						if hrd.ID == karyawanID {
+							continue
+						}
+						go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
+							KaryawanID:    hrd.ID,
+							Jenis:         "pengajuan",
+							Judul:         "Pengajuan Cuti Perlu Difinalisasi",
+							Pesan:         karyawan.NamaLengkap + " mengajukan cuti " + req.SubTipe + " " + strconv.Itoa(totalHari) + " hari pada " + tanggalCuti + ". Silakan lakukan finalisasi.",
+							ReferensiID:   leave.ID,
+							ReferensiTipe: "pengajuan_cuti",
+						})
+
+						telegram := utils.NewTelegramBot(u.KaryawanRepo.DB)
+						if telegram != nil && hrd.TelegramChatID != nil && *hrd.TelegramChatID != "" {
+							go telegram.SendFinalizationHRDNotification(
+								*hrd.TelegramChatID,
+								hrd.ID,
+								karyawan.NamaLengkap,
+								req.SubTipe,
+								tanggalCuti,
+								leave.ID,
+							)
+						}
+					}
+				}
+			} else if karyawan.Role == "hrd" {
+				judul := "Pengajuan Cuti Diajukan"
+				pesan := "Pengajuan cuti " + req.SubTipe + " " + strconv.Itoa(totalHari) + " hari pada " + tanggalCuti + " berhasil diajukan. Silakan tunggu proses persetujuan."
+
+				go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
+					KaryawanID:    karyawanID,
+					Jenis:         "pengajuan",
+					Judul:         judul,
+					Pesan:         pesan,
+					ReferensiID:   leave.ID,
+					ReferensiTipe: "pengajuan_cuti",
+				})
+
+				if karyawan.AtasanLangsungID != nil {
+					atasan, _ := u.KaryawanRepo.GetByID(ctx, *karyawan.AtasanLangsungID)
+					if atasan != nil {
+						go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
+							KaryawanID:    atasan.ID,
+							Jenis:         "pengajuan",
+							Judul:         "Pengajuan Cuti Perlu Disetujui",
+							Pesan:         karyawan.NamaLengkap + " mengajukan cuti " + req.SubTipe + " " + strconv.Itoa(totalHari) + " hari pada " + tanggalCuti + ". Silakan lakukan persetujuan.",
+							ReferensiID:   leave.ID,
+							ReferensiTipe: "pengajuan_cuti",
+						})
+
+						telegram := utils.NewTelegramBot(u.KaryawanRepo.DB)
+						if telegram != nil && atasan.TelegramChatID != nil && *atasan.TelegramChatID != "" {
+							go telegram.SendCreateLeaveNotification(
+								*atasan.TelegramChatID,
+								atasan.ID,
+								karyawan.NamaLengkap,
+								strconv.Itoa(totalHari),
+								req.Alasan,
+								leave.ID,
+							)
+						}
+					}
+				}
+			} else if karyawan.AtasanLangsungID == nil {
+				judul := "Pengajuan Cuti Diajukan"
+				pesan := "Pengajuan cuti " + req.SubTipe + " " + strconv.Itoa(totalHari) + " hari pada " + tanggalCuti + " berhasil diajukan. Silakan tunggu finalisasi HRD."
+
+				go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
+					KaryawanID:    karyawanID,
+					Jenis:         "pengajuan",
+					Judul:         judul,
+					Pesan:         pesan,
+					ReferensiID:   leave.ID,
+					ReferensiTipe: "pengajuan_cuti",
+				})
+
+				hrdList, _, err := u.KaryawanRepo.GetAll(ctx, 100, 0, "", "hrd", "", "", "", "aktif")
+				if err == nil && len(hrdList) > 0 {
+					for _, hrd := range hrdList {
+						if hrd.ID == karyawanID {
+							continue
+						}
+						go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
+							KaryawanID:    hrd.ID,
+							Jenis:         "pengajuan",
+							Judul:         "Pengajuan Cuti Perlu Difinalisasi",
+							Pesan:         karyawan.NamaLengkap + " mengajukan cuti " + req.SubTipe + " " + strconv.Itoa(totalHari) + " hari pada " + tanggalCuti + ". Silakan lakukan finalisasi.",
+							ReferensiID:   leave.ID,
+							ReferensiTipe: "pengajuan_cuti",
+						})
+
+						telegram := utils.NewTelegramBot(u.KaryawanRepo.DB)
+						if telegram != nil && hrd.TelegramChatID != nil && *hrd.TelegramChatID != "" {
+							go telegram.SendFinalizationHRDNotification(
+								*hrd.TelegramChatID,
+								hrd.ID,
+								karyawan.NamaLengkap,
+								req.SubTipe,
+								tanggalCuti,
+								leave.ID,
+							)
+						}
+					}
+				}
+			} else {
+				judul := "Pengajuan Cuti Diajukan"
+				pesan := "Pengajuan cuti " + req.SubTipe + " " + strconv.Itoa(totalHari) + " hari pada " + tanggalCuti + " berhasil diajukan. Silakan tunggu proses persetujuan."
+
+				go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
+					KaryawanID:    karyawanID,
+					Jenis:         "pengajuan",
+					Judul:         judul,
+					Pesan:         pesan,
+					ReferensiID:   leave.ID,
+					ReferensiTipe: "pengajuan_cuti",
+				})
+
+				if karyawan.AtasanLangsungID != nil {
+					atasan, _ := u.KaryawanRepo.GetByID(ctx, *karyawan.AtasanLangsungID)
+					if atasan != nil {
+						go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
+							KaryawanID:    atasan.ID,
+							Jenis:         "pengajuan",
+							Judul:         "Pengajuan Cuti Perlu Disetujui",
+							Pesan:         karyawan.NamaLengkap + " mengajukan cuti " + req.SubTipe + " " + strconv.Itoa(totalHari) + " hari pada " + tanggalCuti + ". Silakan lakukan persetujuan.",
+							ReferensiID:   leave.ID,
+							ReferensiTipe: "pengajuan_cuti",
+						})
+					}
 				}
 			}
 		}
@@ -558,20 +709,11 @@ func (u *LeaveUsecase) CancelLeave(ctx context.Context, leaveID, karyawanID stri
 			if leave.DisetujuiOleh != nil {
 				atasan, _ := u.KaryawanRepo.GetByID(ctx, *leave.DisetujuiOleh)
 				if atasan != nil {
-					var judul, pesan string
-					if karyawan.Role == "hrd" {
-						judul = "Pembatalan Pengajuan Cuti"
-						pesan = karyawan.NamaLengkap + " (HRD) membatalkan cuti " + leave.SubTipe + " pada " + tanggalCuti + " dengan alasan \"" + alasanBatal + "\"."
-					} else {
-						judul = "Pembatalan Pengajuan Cuti"
-						pesan = karyawan.NamaLengkap + " membatalkan cuti " + leave.SubTipe + " pada " + tanggalCuti + " dengan alasan \"" + alasanBatal + "\"."
-					}
-
 					go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
 						KaryawanID:    atasan.ID,
 						Jenis:         "penolakan",
-						Judul:         judul,
-						Pesan:         pesan,
+						Judul:         "Pembatalan Pengajuan Cuti",
+						Pesan:         karyawan.NamaLengkap + " membatalkan cuti " + leave.SubTipe + " pada " + tanggalCuti + " dengan alasan \"" + alasanBatal + "\".",
 						ReferensiID:   leaveID,
 						ReferensiTipe: "pengajuan_cuti",
 					})
@@ -615,6 +757,32 @@ func (u *LeaveUsecase) ApproveLeave(ctx context.Context, leaveID, managerID stri
 		return nil, errors.New("anda tidak berwenang menyetujui pengajuan ini")
 	}
 
+	if pemohon.Role == "hrd" {
+		if err := u.LeaveRepo.Approve(ctx, leaveID, managerID); err != nil {
+			return nil, err
+		}
+
+		if err := u.LeaveRepo.Finalize(ctx, leaveID, managerID); err != nil {
+			return nil, err
+		}
+
+		karyawanPemohon, _ := u.KaryawanRepo.GetByID(ctx, leave.KaryawanID)
+		if karyawanPemohon != nil && u.NotificationUsecase != nil {
+			tanggalCuti := formatTanggalCuti(leave.TanggalMulai, leave.TanggalSelesai)
+
+			go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
+				KaryawanID:    leave.KaryawanID,
+				Jenis:         "persetujuan",
+				Judul:         "Pengajuan Cuti Selesai",
+				Pesan:         "Pengajuan cuti " + leave.SubTipe + " pada " + tanggalCuti + " telah disetujui. Surat cuti tersedia di halaman Cuti.",
+				ReferensiID:   leaveID,
+				ReferensiTipe: "pengajuan_cuti",
+			})
+		}
+
+		return u.LeaveRepo.GetByID(ctx, leaveID)
+	}
+
 	if err := u.LeaveRepo.Approve(ctx, leaveID, managerID); err != nil {
 		return nil, err
 	}
@@ -632,50 +800,34 @@ func (u *LeaveUsecase) ApproveLeave(ctx context.Context, leaveID, managerID stri
 			ReferensiTipe: "pengajuan_cuti",
 		})
 
-		if leave.SubTipe != "dispensasi" {
-			hrdList, _, err := u.KaryawanRepo.GetAll(ctx, 100, 0, "", "hrd", "", "", "", "aktif")
-			if err == nil && len(hrdList) > 0 {
-				for _, hrd := range hrdList {
-					if hrd.ID == leave.KaryawanID {
-						continue
-					}
-					var judul, pesan string
+		hrdList, _, err := u.KaryawanRepo.GetAll(ctx, 100, 0, "", "hrd", "", "", "", "aktif")
+		if err == nil && len(hrdList) > 0 {
+			for _, hrd := range hrdList {
+				if hrd.ID == leave.KaryawanID {
+					continue
+				}
+				go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
+					KaryawanID:    hrd.ID,
+					Jenis:         "persetujuan",
+					Judul:         "Pengajuan Cuti Perlu Difinalisasi",
+					Pesan:         karyawanPemohon.NamaLengkap + " pengajuan cuti " + leave.SubTipe + " pada " + tanggalCuti + " telah disetujui atasan. Silakan lakukan finalisasi.",
+					ReferensiID:   leaveID,
+					ReferensiTipe: "pengajuan_cuti",
+				})
 
-					if karyawanPemohon.AtasanLangsungID == nil {
-						judul = "Pengajuan Cuti Perlu Difinalisasi"
-						pesan = karyawanPemohon.NamaLengkap + " mengajukan cuti " + leave.SubTipe + " " + strconv.Itoa(leave.TotalHari) + " hari pada " + tanggalCuti + ". Silakan lakukan finalisasi."
-					} else {
-						judul = "Pengajuan Cuti Perlu Difinalisasi"
-						pesan = karyawanPemohon.NamaLengkap + " pengajuan cuti " + leave.SubTipe + " pada " + tanggalCuti + " telah disetujui atasan. Silakan lakukan finalisasi."
-					}
-
-					go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
-						KaryawanID:    hrd.ID,
-						Jenis:         "persetujuan",
-						Judul:         judul,
-						Pesan:         pesan,
-						ReferensiID:   leaveID,
-						ReferensiTipe: "pengajuan_cuti",
-					})
-
-					telegram := utils.NewTelegramBot(u.KaryawanRepo.DB)
-					if telegram != nil && hrd.TelegramChatID != nil && *hrd.TelegramChatID != "" {
-						go telegram.SendFinalizationHRDNotification(
-							*hrd.TelegramChatID,
-							hrd.ID,
-							karyawanPemohon.NamaLengkap,
-							leave.SubTipe,
-							tanggalCuti,
-							leaveID,
-						)
-					}
+				telegram := utils.NewTelegramBot(u.KaryawanRepo.DB)
+				if telegram != nil && hrd.TelegramChatID != nil && *hrd.TelegramChatID != "" {
+					go telegram.SendFinalizationHRDNotification(
+						*hrd.TelegramChatID,
+						hrd.ID,
+						karyawanPemohon.NamaLengkap,
+						leave.SubTipe,
+						tanggalCuti,
+						leaveID,
+					)
 				}
 			}
 		}
-	}
-
-	if karyawanPemohon != nil && karyawanPemohon.Role == "hrd" {
-		return u.FinalizeLeave(ctx, leaveID, managerID)
 	}
 
 	return u.LeaveRepo.GetByID(ctx, leaveID)

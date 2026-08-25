@@ -98,6 +98,22 @@ func (t *TelegramBot) formatTanggalIndonesia(tgl time.Time) string {
 	return tgl.Format("02 " + bulanIndo + " 2006")
 }
 
+func (t *TelegramBot) SendCreateLeaveNotification(chatID, karyawanID, karyawanNama, totalHari, alasan, leaveID string) error {
+	text := fmt.Sprintf(
+		"<b>📋 Pengajuan Cuti Baru</b>\n\n"+
+			"Yth. Atasan,\n\n"+
+			"Seorang karyawan telah mengajukan cuti dan memerlukan persetujuan Anda. Berikut detail pengajuannya:\n\n"+
+			"👤 Karyawan : <b>%s</b>\n"+
+			"📅 Lama Cuti : <b>%s hari</b>\n"+
+			"📝 Alasan : %s\n\n"+
+			"Silakan lakukan proses persetujuan melalui aplikasi <b>SAKTI</b>.\n\n"+
+			"Terima kasih.",
+		karyawanNama, totalHari, alasan,
+	)
+
+	return t.SendMessage(chatID, text)
+}
+
 func (t *TelegramBot) SendFinalizationHRDNotification(chatID, karyawanID, karyawanNama, subTipe, tanggalCuti, leaveID string) error {
 	text := fmt.Sprintf(
 		"<b>📋 Pengajuan Cuti Baru</b>\n\n"+
@@ -114,7 +130,7 @@ func (t *TelegramBot) SendFinalizationHRDNotification(chatID, karyawanID, karyaw
 	return t.SendMessage(chatID, text)
 }
 
-func (t *TelegramBot) SendCreateDispensasiNotification(chatID, karyawanID, karyawanNama, totalHari, alasan, leaveID string) error {
+func (t *TelegramBot) SendCreateDispensasiHRDNotification(chatID, karyawanID, karyawanNama, totalHari, alasan, leaveID string) error {
 	text := fmt.Sprintf(
 		"<b>📋 Pengajuan Dispensasi Baru</b>\n\n"+
 			"Yth. HRD,\n\n"+
@@ -123,6 +139,22 @@ func (t *TelegramBot) SendCreateDispensasiNotification(chatID, karyawanID, karya
 			"📅 Lama Dispensasi : <b>%s hari</b>\n"+
 			"📝 Alasan : %s\n\n"+
 			"Pengajuan ini telah langsung difinalisasi.\n\n"+
+			"Terima kasih.",
+		karyawanNama, totalHari, alasan,
+	)
+
+	return t.SendMessage(chatID, text)
+}
+
+func (t *TelegramBot) SendCreateDispensasiAtasanNotification(chatID, karyawanID, karyawanNama, totalHari, alasan, leaveID string) error {
+	text := fmt.Sprintf(
+		"<b>📋 Pengajuan Dispensasi Baru</b>\n\n"+
+			"Yth. Atasan,\n\n"+
+			"Seorang karyawan telah mengajukan dispensasi. Berikut detail pengajuannya:\n\n"+
+			"👤 Karyawan : <b>%s</b>\n"+
+			"📅 Lama Dispensasi : <b>%s hari</b>\n"+
+			"📝 Alasan : %s\n\n"+
+			"Pengajuan ini telah langsung disetujui.\n\n"+
 			"Terima kasih.",
 		karyawanNama, totalHari, alasan,
 	)
