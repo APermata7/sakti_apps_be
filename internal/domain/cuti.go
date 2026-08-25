@@ -92,9 +92,9 @@ type LeaveFilterRequest struct {
 
 type LeaveWithKaryawanResponse struct {
 	PengajuanCuti
-	KaryawanNama   string `json:"karyawan_nama"`
-	KaryawanDivisi string `json:"karyawan_divisi"`
-	KaryawanUnit   string `json:"karyawan_unit"`
-	KaryawanRole   string `json:"karyawan_role"`
-	SisaCuti       int    `json:"sisa_cuti"`
+	KaryawanNama   string  `json:"karyawan_nama"`
+	KaryawanDivisi *string `json:"karyawan_divisi,omitempty"`
+	KaryawanUnit   *string `json:"karyawan_unit,omitempty"`
+	KaryawanRole   string  `json:"karyawan_role"`
+	SisaCuti       int     `json:"sisa_cuti"`
 }
