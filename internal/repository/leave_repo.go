@@ -397,7 +397,6 @@ func (r *LeaveRepo) UpdateBalance(ctx context.Context, karyawanID string, tahun 
 		    FROM pengajuan_cuti
 		    WHERE karyawan_id = $1
 		      AND status = 'disetujui'
-		      AND difinalisasi_oleh IS NOT NULL
 		      AND mengurangi_cuti = true
 		      AND EXTRACT(YEAR FROM tanggal_mulai) = $2
 		),
@@ -414,7 +413,6 @@ func (r *LeaveRepo) UpdateBalance(ctx context.Context, karyawanID string, tahun 
 		    FROM pengajuan_cuti
 		    WHERE karyawan_id = $1
 		      AND status = 'disetujui'
-		      AND difinalisasi_oleh IS NOT NULL
 		      AND mengurangi_cuti = true
 		      AND EXTRACT(YEAR FROM tanggal_mulai) = $2
 		),
