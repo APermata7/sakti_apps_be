@@ -126,6 +126,9 @@ func (t *TelegramBot) formatTanggalRange(start, end time.Time) string {
 	bulanEnd := bulan[end.Format("January")]
 	startStr := start.Format("02 " + bulanStart + " 2006")
 	endStr := end.Format("02 " + bulanEnd + " 2006")
+	if startStr == endStr {
+		return startStr
+	}
 	return startStr + " - " + endStr
 }
 
@@ -226,16 +229,9 @@ func (t *TelegramBot) SendCreateDispensasiAtasanNotification(chatID, karyawanID,
 	return t.SendMessage(chatID, text)
 }
 
-func (t *TelegramBot) SendCancelLeaveNotification(chatID, karyawanID, karyawanNama, leaveID, alasanBatal, tanggalMulai, tanggalSelesai string) error {
-	tanggal := t.formatTanggalRange(
-		time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day(), 0, 0, 0, 0, time.Local),
-		time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day(), 0, 0, 0, 0, time.Local),
-	)
-	if tanggalMulai != "" && tanggalSelesai != "" {
-		start, _ := time.Parse("2006-01-02", tanggalMulai)
-		end, _ := time.Parse("2006-01-02", tanggalSelesai)
-		tanggal = t.formatTanggalRange(start, end)
-	}
+func (t *TelegramBot) SendCancelLeaveNotification(chatID, karyawanID, karyawanNama, leaveID, alasanBatal string) error {
+	sekarang := time.Now()
+	tanggal := t.formatTanggalIndonesia(sekarang)
 
 	if alasanBatal == "" {
 		alasanBatal = "Dibatalkan oleh karyawan"
@@ -246,7 +242,7 @@ func (t *TelegramBot) SendCancelLeaveNotification(chatID, karyawanID, karyawanNa
 			"Yth. Atasan,\n\n"+
 			"Pengajuan cuti berikut telah dibatalkan oleh karyawan:\n\n"+
 			"👤 Karyawan : <b>%s</b>\n"+
-			"📅 Tanggal Cuti : <b>%s</b>\n\n"+
+			"📅 Tanggal Pembatalan : <b>%s</b>\n\n"+
 			"📝 Alasan : %s\n\n"+
 			"Tidak diperlukan proses persetujuan lebih lanjut.\n\n"+
 			"Pesan ini dikirim secara otomatis oleh Sistem SAKTI.",
@@ -273,25 +269,14 @@ func (t *TelegramBot) SendLeaveNotification(chatID, karyawanNama, status, tangga
 	return t.SendMessage(chatID, text)
 }
 
-func (t *TelegramBot) SendApprovalNotification(chatID, karyawanNama, totalHari, alasan, tanggalMulai, tanggalSelesai string) error {
-	tanggal := t.formatTanggalRange(
-		time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day(), 0, 0, 0, 0, time.Local),
-		time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day(), 0, 0, 0, 0, time.Local),
-	)
-	if tanggalMulai != "" && tanggalSelesai != "" {
-		start, _ := time.Parse("2006-01-02", tanggalMulai)
-		end, _ := time.Parse("2006-01-02", tanggalSelesai)
-		tanggal = t.formatTanggalRange(start, end)
-	}
-
+func (t *TelegramBot) SendApprovalNotification(chatID, karyawanNama, totalHari, alasan string) error {
 	text := fmt.Sprintf(
 		"<b>Pengajuan Cuti Baru</b>\n\n"+
 			"Karyawan: <b>%s</b>\n"+
-			"Tanggal Cuti: <b>%s</b>\n"+
 			"Lama Cuti: <b>%s hari</b>\n"+
 			"Alasan: %s\n\n"+
 			"Segera lakukan approval di aplikasi SAKTI.",
-		karyawanNama, tanggal, totalHari, alasan,
+		karyawanNama, totalHari, alasan,
 	)
 	return t.SendMessage(chatID, text)
 }
