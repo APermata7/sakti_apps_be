@@ -38,6 +38,53 @@ func InitCloudinary() error {
 	return nil
 }
 
+func sanitizePublicID(name string) string {
+	if name == "" {
+		return "file"
+	}
+
+	replacer := strings.NewReplacer(
+		" ", "_",
+		"-", "_",
+		"\n", "",
+		"\r", "",
+		"\t", "",
+		"(", "",
+		")", "",
+		"[", "",
+		"]", "",
+		"{", "",
+		"}", "",
+		"&", "",
+		"@", "",
+		"#", "",
+		"$", "",
+		"%", "",
+		"^", "",
+		"*", "",
+		"+", "",
+		"=", "",
+		"?", "",
+		"!", "",
+		"'", "",
+		`"`, "",
+		":", "",
+		";", "",
+		"<", "",
+		">", "",
+		"/", "",
+		"\\", "",
+		"|", "",
+		"`", "",
+		"~", "",
+	)
+	result := replacer.Replace(name)
+	for strings.Contains(result, "__") {
+		result = strings.ReplaceAll(result, "__", "_")
+	}
+	return strings.Trim(result, "_")
+}
+
 func sanitizeFilename(filename string) string {
 	ext := filepath.Ext(filename)
 	name := strings.TrimSuffix(filename, ext)
@@ -45,7 +92,14 @@ func sanitizeFilename(filename string) string {
 	name = strings.ReplaceAll(name, "_", "-")
 	name = strings.ReplaceAll(name, "(", "")
 	name = strings.ReplaceAll(name, ")", "")
+	name = strings.ReplaceAll(name, "[", "")
+	name = strings.ReplaceAll(name, "]", "")
+	name = strings.ReplaceAll(name, "{", "")
+	name = strings.ReplaceAll(name, "}", "")
 	name = strings.ToLower(name)
+	if name == "" {
+		name = "file"
+	}
 	return name
 }
 
@@ -210,10 +264,15 @@ func UploadPresensi(file multipart.File, filename string, karyawanNama, tipe str
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
+	if karyawanNama == "" {
+		log.Println("UploadPresensi: karyawanNama is empty")
+		return "", nil
+	}
+
 	now := time.Now()
 	tanggal := now.Format("02012006")
-	nama := strings.ReplaceAll(strings.ToLower(karyawanNama), " ", "-")
-	publicID := nama + "_" + tipe + "_" + tanggal
+	sanitizedName := sanitizePublicID(strings.ToLower(karyawanNama))
+	publicID := sanitizedName + "_" + tipe + "_" + tanggal
 
 	folder := os.Getenv("CLOUDINARY_UPLOAD_FOLDER")
 	if folder == "" {
@@ -227,7 +286,8 @@ func UploadPresensi(file multipart.File, filename string, karyawanNama, tipe str
 		Folder:         folder,
 		PublicID:       publicID,
 		UseFilename:    api.Bool(false),
-		UniqueFilename: api.Bool(true),
+		UniqueFilename: api.Bool(false),
+		Overwrite:      api.Bool(true),
 		ResourceType:   "image",
 	})
 	if err != nil {
@@ -240,17 +300,14 @@ func UploadPresensi(file multipart.File, filename string, karyawanNama, tipe str
 		return "", nil
 	}
 
-	log.Printf("UploadPresensi: response PublicID=%s, SecureURL=%s, URL=%s", resp.PublicID, resp.SecureURL, resp.URL)
+	log.Printf("UploadPresensi: response PublicID=%s, SecureURL=%s", resp.PublicID, resp.SecureURL)
 
-	if resp.SecureURL == "" && resp.URL == "" {
-		log.Printf("UploadPresensi: Cloudinary URL kosong, response: %+v", resp)
+	if resp.SecureURL == "" {
+		log.Printf("UploadPresensi: Cloudinary URL kosong")
 		return "", nil
 	}
 
-	if resp.SecureURL != "" {
-		return resp.SecureURL, nil
-	}
-	return resp.URL, nil
+	return resp.SecureURL, nil
 }
 
 func UploadPDF(data []byte, filename string) (string, error) {
@@ -321,6 +378,10 @@ func DeleteFile(publicID string) error {
 		return nil
 	}
 
+	if publicID == "" {
+		return nil
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -332,6 +393,10 @@ func DeleteFile(publicID string) error {
 
 func DeleteFileWithFolder(publicID string) error {
 	if Cld == nil {
+		return nil
+	}
+
+	if publicID == "" {
 		return nil
 	}
 

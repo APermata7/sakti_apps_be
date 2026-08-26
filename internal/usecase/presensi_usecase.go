@@ -78,18 +78,22 @@ func getWIBLocation() *time.Location {
 func (u *PresensiUsecase) verifyFaceWithRepo(ctx context.Context, selfieURL, karyawanID string) (bool, float64, error) {
 	faceServiceURL := os.Getenv("FACE_SERVICE_URL")
 	if faceServiceURL == "" {
+		log.Println("[verifyFaceWithRepo] FACE_SERVICE_URL not set, bypassing")
 		return true, 0.95, nil
 	}
 
 	karyawan, err := u.KaryawanRepo.GetByID(ctx, karyawanID)
 	if err != nil || karyawan == nil {
+		log.Printf("[verifyFaceWithRepo] karyawan not found: %s", karyawanID)
 		return false, 0, errors.New("karyawan tidak ditemukan")
 	}
 
 	if karyawan.FotoURL == nil || *karyawan.FotoURL == "" {
+		log.Printf("[verifyFaceWithRepo] foto karyawan kosong: %s", karyawanID)
 		return false, 0, errors.New("foto wajah tidak ditemukan")
 	}
 
+	log.Printf("[verifyFaceWithRepo] reference=%s, selfie=%s", *karyawan.FotoURL, selfieURL)
 	return utils.VerifyFace(ctx, *karyawan.FotoURL, selfieURL)
 }
 
@@ -119,17 +123,17 @@ func (u *PresensiUsecase) CheckIn(ctx context.Context, karyawanID string, req do
 		return nil, err
 	}
 
-	log.Printf("Memulai verifikasi wajah")
+	log.Printf("[CheckIn] Memulai verifikasi wajah: selfie=%s", req.SelfieURL)
 	faceMatch, similarity, err := u.verifyFaceWithRepo(ctx, req.SelfieURL, karyawanID)
 	if err != nil {
-		log.Printf("Error verifikasi wajah: %v", err)
+		log.Printf("[CheckIn] Error verifikasi wajah: %v", err)
 		return nil, err
 	}
 	if !faceMatch {
-		log.Printf("Wajah tidak dikenali")
+		log.Printf("[CheckIn] Wajah tidak dikenali, similarity=%.4f", similarity)
 		return nil, errors.New("wajah tidak dikenali")
 	}
-	log.Printf("Wajah cocok dengan similarity: %f", similarity)
+	log.Printf("[CheckIn] Wajah cocok dengan similarity: %.4f", similarity)
 
 	distance := utils.Haversine(config.LatKantor, config.LongKantor, req.Latitude, req.Longitude)
 	isOutside := distance > float64(config.RadiusKantor)
@@ -234,14 +238,14 @@ func (u *PresensiUsecase) CheckOut(ctx context.Context, karyawanID string, req d
 		return nil, err
 	}
 
-	log.Printf("Memulai verifikasi wajah untuk check-out")
+	log.Printf("[CheckOut] Memulai verifikasi wajah: selfie=%s", req.SelfieURL)
 	faceMatch, _, err := u.verifyFaceWithRepo(ctx, req.SelfieURL, karyawanID)
 	if err != nil {
-		log.Printf("Error verifikasi wajah: %v", err)
+		log.Printf("[CheckOut] Error verifikasi wajah: %v", err)
 		return nil, err
 	}
 	if !faceMatch {
-		log.Printf("Wajah tidak dikenali untuk check-out")
+		log.Printf("[CheckOut] Wajah tidak dikenali")
 		return nil, errors.New("wajah tidak dikenali")
 	}
 

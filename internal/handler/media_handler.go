@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"runtime/debug"
 	"strconv"
+	"strings"
 
 	"sakti_apps_be/internal/repository"
 	"sakti_apps_be/internal/utils"
@@ -44,6 +45,49 @@ func UploadFile(c *fiber.Ctx) error {
 		"success": true,
 		"url":     url,
 	})
+}
+
+func sanitizePublicID(name string) string {
+	replacer := strings.NewReplacer(
+		" ", "_",
+		"-", "_",
+		"\n", "",
+		"\r", "",
+		"\t", "",
+		"(", "",
+		")", "",
+		"[", "",
+		"]", "",
+		"{", "",
+		"}", "",
+		"&", "",
+		"@", "",
+		"#", "",
+		"$", "",
+		"%", "",
+		"^", "",
+		"*", "",
+		"+", "",
+		"=", "",
+		"?", "",
+		"!", "",
+		"'", "",
+		`"`, "",
+		":", "",
+		";", "",
+		"<", "",
+		">", "",
+		"/", "",
+		"\\", "",
+		"|", "",
+		"`", "",
+		"~", "",
+	)
+	result := replacer.Replace(name)
+	for strings.Contains(result, "__") {
+		result = strings.ReplaceAll(result, "__", "_")
+	}
+	return strings.Trim(result, "_")
 }
 
 func validateFile(c *fiber.Ctx, key string, maxSize int64) (*multipart.FileHeader, error) {
@@ -256,7 +300,17 @@ func UploadPresensi(c *fiber.Ctx) error {
 		})
 	}
 
-	karyawan, err := repository.NewKaryawanRepo(c.Locals("db").(*pgxpool.Pool)).GetByID(c.Context(), userID)
+	dbPool, ok := c.Locals("db").(*pgxpool.Pool)
+	if !ok || dbPool == nil {
+		log.Println("UploadPresensi: database connection not found")
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "Database connection error",
+		})
+	}
+
+	karyawanRepo := repository.NewKaryawanRepo(dbPool)
+	karyawan, err := karyawanRepo.GetByID(c.Context(), userID)
 	if err != nil || karyawan == nil {
 		log.Printf("UploadPresensi: karyawan not found")
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -292,7 +346,9 @@ func UploadPresensi(c *fiber.Ctx) error {
 	defer src.Close()
 
 	log.Printf("UploadPresensi: uploading to Cloudinary presensi folder, tipe=%s, filename=%s, size=%d", tipe, file.Filename, file.Size)
-	url, err := utils.UploadPresensi(src, file.Filename, karyawan.NamaLengkap, tipe)
+
+	sanitizedName := sanitizePublicID(karyawan.NamaLengkap)
+	url, err := utils.UploadPresensi(src, file.Filename, sanitizedName, tipe)
 	if err != nil {
 		log.Printf("UploadPresensi: Cloudinary error: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
