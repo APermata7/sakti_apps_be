@@ -89,6 +89,31 @@ type CutiStat struct {
 	Total  int    `json:"total"`
 }
 
+type PresensiReportItem struct {
+	ID                   string  `json:"id"`
+	KaryawanNama         string  `json:"karyawan_nama"`
+	Tanggal              string  `json:"tanggal"`
+	JamMasuk             string  `json:"jam_masuk"`
+	StatusMasuk          string  `json:"status_masuk"`
+	JamKeluar            string  `json:"jam_keluar"`
+	StatusKeluar         string  `json:"status_keluar"`
+	JenisCuti            string  `json:"jenis_cuti"`
+	LocationStatusMasuk  string  `json:"location_status_masuk"`
+	LocationStatusKeluar string  `json:"location_status_keluar"`
+}
+
+type CutiReportItem struct {
+	ID             string `json:"id"`
+	KaryawanNama   string `json:"karyawan_nama"`
+	Divisi         string `json:"divisi"`
+	SubTipe        string `json:"sub_tipe"`
+	Status         string `json:"status"`
+	TanggalMulai   string `json:"tanggal_mulai"`
+	TanggalSelesai string `json:"tanggal_selesai"`
+	TotalHari      int    `json:"total_hari"`
+	SisaCuti       int    `json:"sisa_cuti"`
+}
+
 func (u *AdminUsecase) GetDashboardStats(ctx context.Context) (*DashboardStats, error) {
 	var stats DashboardStats
 
@@ -492,19 +517,6 @@ func (u *AdminUsecase) ActivateKaryawan(ctx context.Context, id string) error {
 	return nil
 }
 
-type PresensiReportItem struct {
-	ID                   string  `json:"id"`
-	KaryawanNama         string  `json:"karyawan_nama"`
-	Tanggal              string  `json:"tanggal"`
-	JamMasuk             string  `json:"jam_masuk"`
-	StatusMasuk          string  `json:"status_masuk"`
-	JamKeluar            string  `json:"jam_keluar"`
-	StatusKeluar         string  `json:"status_keluar"`
-	JenisCuti            string  `json:"jenis_cuti"`
-	LocationStatusMasuk  string  `json:"location_status_masuk"`
-	LocationStatusKeluar string  `json:"location_status_keluar"`
-}
-
 func (u *AdminUsecase) GetPresensiReport(ctx context.Context, startDate, endDate, status, search string, limit, offset int) ([]PresensiReportItem, int, error) {
 	var items []PresensiReportItem
 	var total int
@@ -603,6 +615,8 @@ func (u *AdminUsecase) ExportPresensiCSV(ctx context.Context, startDate, endDate
 	buf.Write([]byte{0xEF, 0xBB, 0xBF})
 
 	writer := csv.NewWriter(&buf)
+	writer.Comma = '\t'
+
 	writer.Write([]string{"ID", "Nama Karyawan", "Tanggal", "Jam Masuk", "Status Masuk", "Jam Keluar", "Status Keluar", "Jenis Cuti", "Status Lokasi Masuk", "Status Lokasi Keluar"})
 
 	for _, item := range items {
@@ -622,18 +636,6 @@ func (u *AdminUsecase) ExportPresensiCSV(ctx context.Context, startDate, endDate
 	}
 	writer.Flush()
 	return buf.Bytes(), nil
-}
-
-type CutiReportItem struct {
-	ID           string `json:"id"`
-	KaryawanNama string `json:"karyawan_nama"`
-	Divisi       string `json:"divisi"`
-	SubTipe      string `json:"sub_tipe"`
-	Status       string `json:"status"`
-	TanggalMulai string `json:"tanggal_mulai"`
-	TanggalSelesai string `json:"tanggal_selesai"`
-	TotalHari    int    `json:"total_hari"`
-	SisaCuti     int    `json:"sisa_cuti"`
 }
 
 func (u *AdminUsecase) GetCutiReport(ctx context.Context, startDate, endDate, status, search string, limit, offset int) ([]CutiReportItem, int, error) {
@@ -724,6 +726,8 @@ func (u *AdminUsecase) ExportCutiCSV(ctx context.Context, startDate, endDate, st
 	buf.Write([]byte{0xEF, 0xBB, 0xBF})
 
 	writer := csv.NewWriter(&buf)
+	writer.Comma = '\t'
+
 	writer.Write([]string{"ID", "Nama Karyawan", "Divisi", "Jenis Cuti", "Status", "Tanggal Mulai", "Tanggal Selesai", "Jumlah Hari", "Kuota Tersedia"})
 
 	for _, item := range items {
@@ -909,6 +913,8 @@ func (u *AdminUsecase) ExportKaryawanCSV(ctx context.Context, search, role, stat
 	buf.Write([]byte{0xEF, 0xBB, 0xBF})
 
 	writer := csv.NewWriter(&buf)
+	writer.Comma = '\t'
+
 	writer.Write([]string{"ID", "Nama Lengkap", "Email", "Nomor Telepon", "Role", "Jabatan", "Divisi", "Unit", "Status"})
 
 	for _, item := range items {
