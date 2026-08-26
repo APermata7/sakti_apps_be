@@ -520,6 +520,7 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 								req.SubTipe,
 								tanggalCuti,
 								leave.ID,
+								req.Alasan,
 							)
 						}
 					}
@@ -601,6 +602,7 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 								req.SubTipe,
 								tanggalCuti,
 								leave.ID,
+								req.Alasan,
 							)
 						}
 					}

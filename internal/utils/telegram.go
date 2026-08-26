@@ -159,7 +159,7 @@ func (t *TelegramBot) SendCreateLeaveNotification(chatID, karyawanID, karyawanNa
 	return t.SendMessage(chatID, text)
 }
 
-func (t *TelegramBot) SendFinalizationHRDNotification(chatID, karyawanID, karyawanNama, subTipe, tanggalCuti, leaveID string) error {
+func (t *TelegramBot) SendFinalizationHRDNotification(chatID, karyawanID, karyawanNama, subTipe, tanggalCuti, leaveID, alasan string) error {
 	text := fmt.Sprintf(
 		"<b>📋 Pengajuan Cuti Baru</b>\n\n"+
 			"Yth. HRD,\n\n"+
@@ -167,9 +167,10 @@ func (t *TelegramBot) SendFinalizationHRDNotification(chatID, karyawanID, karyaw
 			"👤 Karyawan : <b>%s</b>\n"+
 			"📋 Jenis Cuti : <b>%s</b>\n"+
 			"📅 Tanggal Cuti : <b>%s</b>\n\n"+
+			"📝 Alasan : %s\n\n"+
 			"Silakan lakukan proses finalisasi melalui aplikasi <b>SAKTI</b>.\n\n"+
 			"Terima kasih.",
-		karyawanNama, subTipe, tanggalCuti,
+		karyawanNama, subTipe, tanggalCuti, alasan,
 	)
 
 	return t.SendMessage(chatID, text)
