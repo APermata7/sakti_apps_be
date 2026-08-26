@@ -422,14 +422,16 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 						if karyawan.AtasanLangsungID != nil {
 							atasan, _ := u.KaryawanRepo.GetByID(ctx, *karyawan.AtasanLangsungID)
 							if atasan != nil {
+								pesanAtasan := karyawan.NamaLengkap + " mengajukan dispensasi " + strconv.Itoa(totalHari) + " hari pada " + tanggalCuti + ". Telah langsung disetujui."
 								go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
 									KaryawanID:    atasan.ID,
 									Jenis:         "pengajuan",
 									Judul:         "Pengajuan Dispensasi oleh HRD",
-									Pesan:         karyawan.NamaLengkap + " mengajukan dispensasi " + strconv.Itoa(totalHari) + " hari pada " + tanggalCuti + ". Telah langsung disetujui.",
+									Pesan:         pesanAtasan,
 									ReferensiID:   leave.ID,
 									ReferensiTipe: "pengajuan_cuti",
 								})
+								u.sendTelegramNotification(ctx, atasan.ID, pesanAtasan)
 
 								telegram := utils.NewTelegramBot(u.KaryawanRepo.DB)
 								if telegram != nil && atasan.TelegramChatID != nil && *atasan.TelegramChatID != "" {
@@ -541,14 +543,16 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 				if karyawan.AtasanLangsungID != nil {
 					atasan, _ := u.KaryawanRepo.GetByID(ctx, *karyawan.AtasanLangsungID)
 					if atasan != nil {
+						pesanAtasan := karyawan.NamaLengkap + " mengajukan cuti " + req.SubTipe + " " + strconv.Itoa(totalHari) + " hari pada " + tanggalCuti + ". Silakan lakukan persetujuan."
 						go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
 							KaryawanID:    atasan.ID,
 							Jenis:         "pengajuan",
 							Judul:         "Pengajuan Cuti Perlu Disetujui",
-							Pesan:         karyawan.NamaLengkap + " mengajukan cuti " + req.SubTipe + " " + strconv.Itoa(totalHari) + " hari pada " + tanggalCuti + ". Silakan lakukan persetujuan.",
+							Pesan:         pesanAtasan,
 							ReferensiID:   leave.ID,
 							ReferensiTipe: "pengajuan_cuti",
 						})
+						u.sendTelegramNotification(ctx, atasan.ID, pesanAtasan)
 
 						telegram := utils.NewTelegramBot(u.KaryawanRepo.DB)
 						if telegram != nil && atasan.TelegramChatID != nil && *atasan.TelegramChatID != "" {
@@ -623,14 +627,16 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 				if karyawan.AtasanLangsungID != nil {
 					atasan, _ := u.KaryawanRepo.GetByID(ctx, *karyawan.AtasanLangsungID)
 					if atasan != nil {
+						pesanAtasan := karyawan.NamaLengkap + " mengajukan cuti " + req.SubTipe + " " + strconv.Itoa(totalHari) + " hari pada " + tanggalCuti + ". Silakan lakukan persetujuan."
 						go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
 							KaryawanID:    atasan.ID,
 							Jenis:         "pengajuan",
 							Judul:         "Pengajuan Cuti Perlu Disetujui",
-							Pesan:         karyawan.NamaLengkap + " mengajukan cuti " + req.SubTipe + " " + strconv.Itoa(totalHari) + " hari pada " + tanggalCuti + ". Silakan lakukan persetujuan.",
+							Pesan:         pesanAtasan,
 							ReferensiID:   leave.ID,
 							ReferensiTipe: "pengajuan_cuti",
 						})
+						u.sendTelegramNotification(ctx, atasan.ID, pesanAtasan)
 
 						telegram := utils.NewTelegramBot(u.KaryawanRepo.DB)
 						if telegram != nil && atasan.TelegramChatID != nil && *atasan.TelegramChatID != "" {
@@ -753,8 +759,10 @@ func (u *LeaveUsecase) CancelLeave(ctx context.Context, leaveID, karyawanID stri
 			if leave.DifinalisasiOleh != nil {
 				hrd, _ := u.KaryawanRepo.GetByID(ctx, *leave.DifinalisasiOleh)
 				if hrd != nil {
-					pesanHRD := karyawan.NamaLengkap + " membatalkan cuti " + leave.SubTipe + " pada " + tanggalCuti + " dengan alasan \"" + alasanBatal + "\"."
-					u.sendTelegramNotification(ctx, hrd.ID, pesanHRD)
+					if hrd.ID != leave.KaryawanID && (leave.DisetujuiOleh == nil || *leave.DisetujuiOleh != hrd.ID) {
+						pesanHRD := karyawan.NamaLengkap + " membatalkan cuti " + leave.SubTipe + " pada " + tanggalCuti + " dengan alasan \"" + alasanBatal + "\"."
+						u.sendTelegramNotification(ctx, hrd.ID, pesanHRD)
+					}
 				}
 			}
 		}
