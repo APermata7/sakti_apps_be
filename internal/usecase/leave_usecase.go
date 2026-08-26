@@ -431,7 +431,6 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 									ReferensiID:   leave.ID,
 									ReferensiTipe: "pengajuan_cuti",
 								})
-								u.sendTelegramNotification(ctx, atasan.ID, pesanAtasan)
 
 								telegram := utils.NewTelegramBot(u.KaryawanRepo.DB)
 								if telegram != nil && atasan.TelegramChatID != nil && *atasan.TelegramChatID != "" {
@@ -552,7 +551,6 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 							ReferensiID:   leave.ID,
 							ReferensiTipe: "pengajuan_cuti",
 						})
-						u.sendTelegramNotification(ctx, atasan.ID, pesanAtasan)
 
 						telegram := utils.NewTelegramBot(u.KaryawanRepo.DB)
 						if telegram != nil && atasan.TelegramChatID != nil && *atasan.TelegramChatID != "" {
@@ -636,7 +634,6 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 							ReferensiID:   leave.ID,
 							ReferensiTipe: "pengajuan_cuti",
 						})
-						u.sendTelegramNotification(ctx, atasan.ID, pesanAtasan)
 
 						telegram := utils.NewTelegramBot(u.KaryawanRepo.DB)
 						if telegram != nil && atasan.TelegramChatID != nil && *atasan.TelegramChatID != "" {
