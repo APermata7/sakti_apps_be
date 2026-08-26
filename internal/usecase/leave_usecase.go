@@ -1284,7 +1284,7 @@ func (u *LeaveUsecase) DownloadSuratCuti(ctx context.Context, leaveID string) ([
 	}
 
 	balance, err := u.LeaveRepo.GetBalance(ctx, leave.KaryawanID, time.Now().Year())
-	if err != nil {
+	if err != nil || balance == nil {
 		balance = &domain.SisaCuti{
 			JumlahCuti:        12,
 			TelahDilaksanakan: 0,
