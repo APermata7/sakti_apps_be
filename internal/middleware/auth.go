@@ -58,6 +58,15 @@ func AuthMiddleware() fiber.Handler {
 			})
 		}
 
+		if karyawan.StatusKaryawan != "aktif" {
+			log.Printf("AuthMiddleware: akun nonaktif untuk email: %s, status: %s", claims.Email, karyawan.StatusKaryawan)
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"success": false,
+				"code":    "ACCOUNT_INACTIVE",
+				"message": "Akun Anda sudah tidak aktif. Silakan hubungi administrator.",
+			})
+		}
+
 		c.Locals("auth_user_id", claims.Subject)
 		c.Locals("user_id", karyawan.ID)
 		c.Locals("email", claims.Email)
