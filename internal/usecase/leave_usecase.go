@@ -323,18 +323,18 @@ func (u *LeaveUsecase) CreateLeave(ctx context.Context, karyawanID string, req d
 	}
 
 	leave := &domain.PengajuanCuti{
-		KaryawanID:        karyawanID,
-		SubTipe:           req.SubTipe,
-		TanggalMulai:      start,
-		TanggalSelesai:    end,
-		TotalHari:         totalHari,
-		Alasan:            req.Alasan,
-		Status:            status,
-		BackDate:          req.BackDate,
-		MengurangiCuti:    mengurangiCuti,
-		LangsungApprove:   flow.LangsungApprove,
-		LangsungFinal:     flow.LangsungFinal,
-		JudulDokumen:      judulDokumen,
+		KaryawanID:      karyawanID,
+		SubTipe:         req.SubTipe,
+		TanggalMulai:    start,
+		TanggalSelesai:  end,
+		TotalHari:       totalHari,
+		Alasan:          req.Alasan,
+		Status:          status,
+		BackDate:        req.BackDate,
+		MengurangiCuti:  mengurangiCuti,
+		LangsungApprove: flow.LangsungApprove,
+		LangsungFinal:   flow.LangsungFinal,
+		JudulDokumen:    judulDokumen,
 	}
 
 	if req.SubTipe == "dispensasi" {
@@ -1296,15 +1296,15 @@ func (u *LeaveUsecase) GetBalance(ctx context.Context, karyawanID string, year i
 
 	if balance == nil {
 		return &domain.BalanceResponse{
-			Tahun:                        tahun,
-			JumlahCuti:                   jumlahCuti,
-			TelahDilaksanakan:            0,
-			AkanDilaksanakan:             0,
-			SisaCuti:                     jumlahCuti,
-			SisaCutiTahunIni:             12,
-			SisaCutiTahunLalu:            sisaCutiTahunLalu,
-			TotalCutiTersedia:            jumlahCuti,
-			KuotaPengajuanTersedia:       jumlahCuti,
+			Tahun:                          tahun,
+			JumlahCuti:                     jumlahCuti,
+			TelahDilaksanakan:              0,
+			AkanDilaksanakan:               0,
+			SisaCuti:                       jumlahCuti,
+			SisaCutiTahunIni:               12,
+			SisaCutiTahunLalu:              sisaCutiTahunLalu,
+			TotalCutiTersedia:              jumlahCuti,
+			KuotaPengajuanTersedia:         jumlahCuti,
 			SisaCutiTahunLaluBerlakuSampai: berlakuSampai,
 		}, nil
 	}
@@ -1323,15 +1323,15 @@ func (u *LeaveUsecase) GetBalance(ctx context.Context, karyawanID string, year i
 	}
 
 	return &domain.BalanceResponse{
-		Tahun:                        balance.Tahun,
-		JumlahCuti:                   jumlahCuti,
-		TelahDilaksanakan:            balance.TelahDilaksanakan,
-		AkanDilaksanakan:             balance.AkanDilaksanakan,
-		SisaCuti:                     totalCutiTersedia,
-		SisaCutiTahunIni:             sisaCutiTahunIni,
-		SisaCutiTahunLalu:            sisaCutiTahunLalu,
-		TotalCutiTersedia:            totalCutiTersedia,
-		KuotaPengajuanTersedia:       totalCutiTersedia - balance.AkanDilaksanakan,
+		Tahun:                          balance.Tahun,
+		JumlahCuti:                     jumlahCuti,
+		TelahDilaksanakan:              balance.TelahDilaksanakan,
+		AkanDilaksanakan:               balance.AkanDilaksanakan,
+		SisaCuti:                       totalCutiTersedia,
+		SisaCutiTahunIni:               sisaCutiTahunIni,
+		SisaCutiTahunLalu:              sisaCutiTahunLalu,
+		TotalCutiTersedia:              totalCutiTersedia,
+		KuotaPengajuanTersedia:         totalCutiTersedia - balance.AkanDilaksanakan,
 		SisaCutiTahunLaluBerlakuSampai: berlakuSampai,
 	}, nil
 }
