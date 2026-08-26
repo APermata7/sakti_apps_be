@@ -209,7 +209,7 @@ func (u *LeaveUsecase) sendTelegramNotification(ctx context.Context, karyawanID,
 		if telegram == nil {
 			return
 		}
-		err := telegram.SendNotification(*karyawan.TelegramChatID, "SAKTI", message)
+		err := telegram.SendMessage(*karyawan.TelegramChatID, message)
 		if err != nil {
 			log.Printf("[sendTelegramNotification] error: %v", err)
 		}
@@ -738,7 +738,19 @@ func (u *LeaveUsecase) CancelLeave(ctx context.Context, leaveID, karyawanID stri
 				ReferensiID:   leaveID,
 				ReferensiTipe: "pengajuan_cuti",
 			})
-			u.sendTelegramNotification(ctx, leave.KaryawanID, pesanKaryawan)
+
+			go func() {
+				telegram := utils.NewTelegramBot(u.KaryawanRepo.DB)
+				if telegram != nil && karyawan.TelegramChatID != nil && *karyawan.TelegramChatID != "" {
+					telegram.SendCanceledToKaryawan(
+						*karyawan.TelegramChatID,
+						karyawan.NamaLengkap,
+						leave.SubTipe,
+						tanggalCuti,
+						alasanBatal,
+					)
+				}
+			}()
 
 			if leave.DisetujuiOleh != nil {
 				atasan, _ := u.KaryawanRepo.GetByID(ctx, *leave.DisetujuiOleh)
@@ -752,7 +764,19 @@ func (u *LeaveUsecase) CancelLeave(ctx context.Context, leaveID, karyawanID stri
 						ReferensiID:   leaveID,
 						ReferensiTipe: "pengajuan_cuti",
 					})
-					u.sendTelegramNotification(ctx, atasan.ID, pesanAtasan)
+
+					go func() {
+						telegram := utils.NewTelegramBot(u.KaryawanRepo.DB)
+						if telegram != nil && atasan.TelegramChatID != nil && *atasan.TelegramChatID != "" {
+							telegram.SendCanceledToAtasan(
+								*atasan.TelegramChatID,
+								karyawan.NamaLengkap,
+								leave.SubTipe,
+								tanggalCuti,
+								alasanBatal,
+							)
+						}
+					}()
 				}
 			}
 
@@ -760,8 +784,18 @@ func (u *LeaveUsecase) CancelLeave(ctx context.Context, leaveID, karyawanID stri
 				hrd, _ := u.KaryawanRepo.GetByID(ctx, *leave.DifinalisasiOleh)
 				if hrd != nil {
 					if hrd.ID != leave.KaryawanID && (leave.DisetujuiOleh == nil || *leave.DisetujuiOleh != hrd.ID) {
-						pesanHRD := karyawan.NamaLengkap + " membatalkan cuti " + leave.SubTipe + " pada " + tanggalCuti + " dengan alasan \"" + alasanBatal + "\"."
-						u.sendTelegramNotification(ctx, hrd.ID, pesanHRD)
+						go func() {
+							telegram := utils.NewTelegramBot(u.KaryawanRepo.DB)
+							if telegram != nil && hrd.TelegramChatID != nil && *hrd.TelegramChatID != "" {
+								telegram.SendCanceledToHRD(
+									*hrd.TelegramChatID,
+									karyawan.NamaLengkap,
+									leave.SubTipe,
+									tanggalCuti,
+									alasanBatal,
+								)
+							}
+						}()
 					}
 				}
 			}
@@ -828,7 +862,18 @@ func (u *LeaveUsecase) ApproveLeave(ctx context.Context, leaveID, managerID stri
 				ReferensiID:   leaveID,
 				ReferensiTipe: "pengajuan_cuti",
 			})
-			u.sendTelegramNotification(ctx, leave.KaryawanID, pesanKaryawan)
+
+			go func() {
+				telegram := utils.NewTelegramBot(u.KaryawanRepo.DB)
+				if telegram != nil && karyawanPemohon.TelegramChatID != nil && *karyawanPemohon.TelegramChatID != "" {
+					telegram.SendFinalizedToKaryawan(
+						*karyawanPemohon.TelegramChatID,
+						karyawanPemohon.NamaLengkap,
+						leave.SubTipe,
+						tanggalCuti,
+					)
+				}
+			}()
 		} else {
 			pesanKaryawan := "Pengajuan cuti " + leave.SubTipe + " pada " + tanggalCuti + " telah disetujui. Silakan tunggu finalisasi HRD."
 			go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
@@ -839,10 +884,30 @@ func (u *LeaveUsecase) ApproveLeave(ctx context.Context, leaveID, managerID stri
 				ReferensiID:   leaveID,
 				ReferensiTipe: "pengajuan_cuti",
 			})
-			u.sendTelegramNotification(ctx, leave.KaryawanID, pesanKaryawan)
 
-			pesanAtasan := "Anda telah menyetujui pengajuan cuti dari " + karyawanPemohon.NamaLengkap + " pada " + tanggalCuti
-			u.sendTelegramNotification(ctx, managerID, pesanAtasan)
+			go func() {
+				telegram := utils.NewTelegramBot(u.KaryawanRepo.DB)
+				if telegram != nil && karyawanPemohon.TelegramChatID != nil && *karyawanPemohon.TelegramChatID != "" {
+					telegram.SendApprovedToKaryawan(
+						*karyawanPemohon.TelegramChatID,
+						karyawanPemohon.NamaLengkap,
+						leave.SubTipe,
+						tanggalCuti,
+						"Disetujui",
+					)
+				}
+			}()
+
+			go func() {
+				telegram := utils.NewTelegramBot(u.KaryawanRepo.DB)
+				if telegram != nil && manager.TelegramChatID != nil && *manager.TelegramChatID != "" {
+					telegram.SendNotification(
+						*manager.TelegramChatID,
+						"✅ Persetujuan Cuti",
+						"Anda telah menyetujui pengajuan cuti dari "+karyawanPemohon.NamaLengkap+" pada "+tanggalCuti,
+					)
+				}
+			}()
 		}
 
 		if leave.SubTipe != "dispensasi" && pemohon.Role != "hrd" {
@@ -861,7 +926,21 @@ func (u *LeaveUsecase) ApproveLeave(ctx context.Context, leaveID, managerID stri
 						ReferensiID:   leaveID,
 						ReferensiTipe: "pengajuan_cuti",
 					})
-					u.sendTelegramNotification(ctx, hrd.ID, pesanHRD)
+
+					go func(hrd domain.Karyawan) {
+						telegram := utils.NewTelegramBot(u.KaryawanRepo.DB)
+						if telegram != nil && hrd.TelegramChatID != nil && *hrd.TelegramChatID != "" {
+							telegram.SendFinalizationHRDNotification(
+								*hrd.TelegramChatID,
+								hrd.ID,
+								karyawanPemohon.NamaLengkap,
+								leave.SubTipe,
+								tanggalCuti,
+								leaveID,
+								leave.Alasan,
+							)
+						}
+					}(hrd)
 				}
 			}
 		}
@@ -915,11 +994,34 @@ func (u *LeaveUsecase) RejectLeave(ctx context.Context, leaveID, managerID, alas
 				ReferensiID:   leaveID,
 				ReferensiTipe: "pengajuan_cuti",
 			})
-			u.sendTelegramNotification(ctx, leave.KaryawanID, pesanKaryawan)
+
+			go func() {
+				telegram := utils.NewTelegramBot(u.KaryawanRepo.DB)
+				if telegram != nil && karyawan.TelegramChatID != nil && *karyawan.TelegramChatID != "" {
+					telegram.SendRejectedToKaryawan(
+						*karyawan.TelegramChatID,
+						karyawan.NamaLengkap,
+						leave.SubTipe,
+						tanggalCuti,
+						alasan,
+					)
+				}
+			}()
 
 			if leave.Status == domain.StatusMenungguAtasan {
-				pesanAtasan := "Anda telah menolak pengajuan cuti dari " + karyawan.NamaLengkap + " pada " + tanggalCuti
-				u.sendTelegramNotification(ctx, managerID, pesanAtasan)
+				manager, _ := u.KaryawanRepo.GetByID(ctx, managerID)
+				if manager != nil {
+					go func() {
+						telegram := utils.NewTelegramBot(u.KaryawanRepo.DB)
+						if telegram != nil && manager.TelegramChatID != nil && *manager.TelegramChatID != "" {
+							telegram.SendNotification(
+								*manager.TelegramChatID,
+								"❌ Penolakan Cuti",
+								"Anda telah menolak pengajuan cuti dari "+karyawan.NamaLengkap+" pada "+tanggalCuti,
+							)
+						}
+					}()
+				}
 			}
 		}
 	}
@@ -963,23 +1065,42 @@ func (u *LeaveUsecase) FinalizeLeave(ctx context.Context, leaveID, hrdID string)
 		karyawan, _ := u.KaryawanRepo.GetByID(ctx, leave.KaryawanID)
 		if karyawan != nil {
 			tanggalCuti := formatTanggalCuti(leave.TanggalMulai, leave.TanggalSelesai)
-			pesanKaryawan := "Pengajuan cuti " + leave.SubTipe + " pada " + tanggalCuti + " telah disetujui dan difinalisasi. Surat cuti tersedia di halaman Cuti."
 
 			go u.NotificationUsecase.KirimInApp(ctx, domain.KirimNotifikasiRequest{
 				KaryawanID:    leave.KaryawanID,
 				Jenis:         "persetujuan",
 				Judul:         "Pengajuan Cuti Selesai",
-				Pesan:         pesanKaryawan,
+				Pesan:         "Pengajuan cuti " + leave.SubTipe + " pada " + tanggalCuti + " telah disetujui dan difinalisasi. Surat cuti tersedia di halaman Cuti.",
 				ReferensiID:   leaveID,
 				ReferensiTipe: "pengajuan_cuti",
 			})
-			u.sendTelegramNotification(ctx, leave.KaryawanID, pesanKaryawan)
+
+			go func() {
+				telegram := utils.NewTelegramBot(u.KaryawanRepo.DB)
+				if telegram != nil && karyawan.TelegramChatID != nil && *karyawan.TelegramChatID != "" {
+					telegram.SendFinalizedToKaryawan(
+						*karyawan.TelegramChatID,
+						karyawan.NamaLengkap,
+						leave.SubTipe,
+						tanggalCuti,
+					)
+				}
+			}()
 
 			if leave.DisetujuiOleh != nil {
 				atasan, _ := u.KaryawanRepo.GetByID(ctx, *leave.DisetujuiOleh)
 				if atasan != nil {
-					pesanAtasan := "Pengajuan cuti dari " + karyawan.NamaLengkap + " pada " + tanggalCuti + " telah difinalisasi oleh HRD."
-					u.sendTelegramNotification(ctx, atasan.ID, pesanAtasan)
+					go func() {
+						telegram := utils.NewTelegramBot(u.KaryawanRepo.DB)
+						if telegram != nil && atasan.TelegramChatID != nil && *atasan.TelegramChatID != "" {
+							telegram.SendFinalizedToAtasan(
+								*atasan.TelegramChatID,
+								karyawan.NamaLengkap,
+								leave.SubTipe,
+								tanggalCuti,
+							)
+						}
+					}()
 				}
 			}
 
@@ -989,8 +1110,17 @@ func (u *LeaveUsecase) FinalizeLeave(ctx context.Context, leaveID, hrdID string)
 					if hrd.ID == hrdID || hrd.ID == leave.KaryawanID {
 						continue
 					}
-					pesanHRD := "Pengajuan cuti dari " + karyawan.NamaLengkap + " pada " + tanggalCuti + " telah difinalisasi."
-					u.sendTelegramNotification(ctx, hrd.ID, pesanHRD)
+					go func(hrd domain.Karyawan) {
+						telegram := utils.NewTelegramBot(u.KaryawanRepo.DB)
+						if telegram != nil && hrd.TelegramChatID != nil && *hrd.TelegramChatID != "" {
+							telegram.SendFinalizedToHRD(
+								*hrd.TelegramChatID,
+								karyawan.NamaLengkap,
+								leave.SubTipe,
+								tanggalCuti,
+							)
+						}
+					}(hrd)
 				}
 			}
 		}
