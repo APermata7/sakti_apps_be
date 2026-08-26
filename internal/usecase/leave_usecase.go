@@ -1030,6 +1030,17 @@ func (u *LeaveUsecase) DownloadSuratCuti(ctx context.Context, leaveID string) ([
 	if err != nil {
 		return nil, "", err
 	}
+	if flow == nil {
+		flow = &ApprovalFlow{
+			LangsungApprove: false,
+			LangsungFinal:   false,
+			ButuhAtasan:     true,
+			ButuhHRD:        true,
+			JumlahTTD:       3,
+			AtasanID:        nil,
+			HRDID:           nil,
+		}
+	}
 
 	var atasan *domain.Karyawan
 
