@@ -15,7 +15,7 @@ type NotificationUsecase struct {
 	FCMTokenRepo   *repository.FCMTokenRepo
 	NotifikasiRepo *repository.NotifikasiRepo
 	KaryawanRepo   *repository.KaryawanRepo
-	TelegramBot    *utils.TelegramBot
+	TelegramRepo   *repository.TelegramRepo
 }
 
 func NewNotificationUsecase(
@@ -28,7 +28,7 @@ func NewNotificationUsecase(
 		FCMTokenRepo:   fcmTokenRepo,
 		NotifikasiRepo: notifikasiRepo,
 		KaryawanRepo:   karyawanRepo,
-		TelegramBot:    utils.NewTelegramBot(db),
+		TelegramRepo:   repository.NewTelegramRepo(db),
 	}
 }
 
@@ -56,7 +56,31 @@ func (u *NotificationUsecase) DeactivateFCMToken(ctx context.Context, karyawanID
 	return nil
 }
 
-func (u *NotificationUsecase) KirimNotifikasi(ctx context.Context, req domain.KirimNotifikasiRequest, chatID string) error {
+func (u *NotificationUsecase) sendTelegramNotification(ctx context.Context, karyawanID, message string) {
+	if u.TelegramRepo == nil || karyawanID == "" || message == "" {
+		return
+	}
+
+	go func() {
+		err := u.TelegramRepo.SendMessageByKaryawanID(ctx, karyawanID, message)
+		if err != nil {
+			log.Printf("[sendTelegramNotification] error: %v", err)
+		}
+	}()
+}
+
+func (u *NotificationUsecase) KirimNotifikasi(ctx context.Context, req domain.KirimNotifikasiRequest) error {
+	karyawan, err := u.KaryawanRepo.GetByID(ctx, req.KaryawanID)
+	if err != nil || karyawan == nil {
+		log.Printf("[KirimNotifikasi] karyawan tidak ditemukan: %s", req.KaryawanID)
+		return nil
+	}
+
+	if karyawan.StatusKaryawan != "aktif" {
+		log.Printf("[KirimNotifikasi] karyawan %s nonaktif, skip notifikasi", req.KaryawanID)
+		return nil
+	}
+
 	notif := &domain.Notifikasi{
 		KaryawanID:    req.KaryawanID,
 		Jenis:         req.Jenis,
@@ -78,34 +102,33 @@ func (u *NotificationUsecase) KirimNotifikasi(ctx context.Context, req domain.Ki
 		log.Printf("[KirimNotifikasi] Error get tokens: %v", err)
 	}
 
-	log.Printf("[KirimNotifikasi] Found %d tokens for karyawanID=%s", len(tokens), req.KaryawanID)
-
 	if len(tokens) > 0 {
 		go func() {
-			log.Printf("[KirimNotifikasi] Calling SendMulticast with %d tokens", len(tokens))
 			err := utils.SendMulticast(tokens, req.Judul, req.Pesan)
 			if err != nil {
 				log.Printf("[KirimNotifikasi] SendMulticast error: %v", err)
 			}
 		}()
-	} else {
-		log.Printf("[KirimNotifikasi] No tokens found for karyawanID=%s", req.KaryawanID)
 	}
 
-	if chatID != "" && u.TelegramBot != nil {
-		go func() {
-			err := u.TelegramBot.SendNotification(chatID, req.Judul, req.Pesan)
-			if err != nil {
-				log.Printf("Failed to send Telegram notification: %v", err)
-			}
-		}()
+	if u.TelegramRepo != nil {
+		u.sendTelegramNotification(ctx, req.KaryawanID, req.Judul+"\n\n"+req.Pesan)
 	}
 
 	return nil
 }
 
 func (u *NotificationUsecase) KirimInApp(ctx context.Context, req domain.KirimNotifikasiRequest) error {
-	log.Printf("[KirimInApp] Start: karyawanID=%s, jenis=%s, judul=%s", req.KaryawanID, req.Jenis, req.Judul)
+	karyawan, err := u.KaryawanRepo.GetByID(ctx, req.KaryawanID)
+	if err != nil || karyawan == nil {
+		log.Printf("[KirimInApp] karyawan tidak ditemukan: %s", req.KaryawanID)
+		return nil
+	}
+
+	if karyawan.StatusKaryawan != "aktif" {
+		log.Printf("[KirimInApp] karyawan %s nonaktif, skip notifikasi", req.KaryawanID)
+		return nil
+	}
 
 	notif := &domain.Notifikasi{
 		KaryawanID:    req.KaryawanID,
@@ -130,43 +153,29 @@ func (u *NotificationUsecase) KirimInApp(ctx context.Context, req domain.KirimNo
 		log.Printf("[KirimInApp] Error get tokens: %v", err)
 	}
 
-	log.Printf("[KirimInApp] Found %d tokens for karyawanID=%s", len(tokens), req.KaryawanID)
-
 	if len(tokens) > 0 {
 		go func() {
-			log.Printf("[KirimInApp] Calling SendMulticast with %d tokens", len(tokens))
 			err := utils.SendMulticast(tokens, req.Judul, req.Pesan)
 			if err != nil {
 				log.Printf("[KirimInApp] SendMulticast error: %v", err)
 			}
 		}()
-	} else {
-		log.Printf("[KirimInApp] No tokens found for karyawanID=%s", req.KaryawanID)
 	}
 
 	return nil
 }
 
-func (u *NotificationUsecase) SendTelegramNotification(chatID, title, message string) error {
-	if u.TelegramBot == nil {
-		log.Println("Telegram bot not initialized")
-		return nil
+func (u *NotificationUsecase) KirimInAppWithTelegram(ctx context.Context, req domain.KirimNotifikasiRequest) error {
+	err := u.KirimInApp(ctx, req)
+	if err != nil {
+		return err
 	}
-	return u.TelegramBot.SendNotification(chatID, title, message)
-}
 
-func (u *NotificationUsecase) SendLeaveNotification(chatID, karyawanNama, status, tanggal string) error {
-	if u.TelegramBot == nil {
-		return nil
+	if u.TelegramRepo != nil {
+		u.sendTelegramNotification(ctx, req.KaryawanID, req.Judul+"\n\n"+req.Pesan)
 	}
-	return u.TelegramBot.SendLeaveNotification(chatID, karyawanNama, status, tanggal)
-}
 
-func (u *NotificationUsecase) SendApprovalNotification(chatID, karyawanNama, totalHari, alasan string) error {
-	if u.TelegramBot == nil {
-		return nil
-	}
-	return u.TelegramBot.SendApprovalNotification(chatID, karyawanNama, totalHari, alasan)
+	return nil
 }
 
 func (u *NotificationUsecase) GetNotifikasi(ctx context.Context, karyawanID string, page, limit int) ([]domain.Notifikasi, int, error) {

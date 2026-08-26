@@ -110,3 +110,50 @@ func (r *TelegramRepo) DeleteVerificationCode(ctx context.Context, chatID string
 	_, err := r.DB.Exec(ctx, query, chatID)
 	return err
 }
+
+func (r *TelegramRepo) SendMessageByKaryawanID(ctx context.Context, karyawanID, message string) error {
+	if karyawanID == "" || message == "" {
+		return nil
+	}
+
+	query := `
+		SELECT telegram_chat_id
+		FROM karyawan
+		WHERE id = $1
+		  AND telegram_chat_id IS NOT NULL
+		  AND telegram_chat_id != ''
+		  AND status_karyawan = 'aktif'
+	`
+	var chatID string
+	err := r.DB.QueryRow(ctx, query, karyawanID).Scan(&chatID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil
+		}
+		return err
+	}
+
+	if chatID == "" {
+		return nil
+	}
+
+	return r.SendMessage(ctx, chatID, message)
+}
+
+func (r *TelegramRepo) SendMessage(ctx context.Context, chatID, message string) error {
+	if chatID == "" || message == "" {
+		return nil
+	}
+
+	query := `
+		INSERT INTO telegram_messages (chat_id, message, sent_at)
+		VALUES ($1, $2, NOW())
+	`
+	_, err := r.DB.Exec(ctx, query, chatID, message)
+	if err != nil {
+		log.Printf("[SendMessage] error: %v", err)
+		return err
+	}
+	log.Printf("[SendMessage] sent to chat_id=%s", chatID)
+	return nil
+}
