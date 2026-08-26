@@ -203,54 +203,59 @@ func (u *AuthUsecase) ChangePassword(ctx context.Context, userID, token, current
 }
 
 func (u *AuthUsecase) ForgotPassword(ctx context.Context, email string, redirectTo string) error {
-	log.Printf("ForgotPassword: email=%s, redirectTo=%s", email, redirectTo)
+    log.Printf("ForgotPassword: email=%s, redirectTo=%s", email, redirectTo)
 
-	karyawan, err := u.KaryawanRepo.GetByEmail(ctx, email)
-	if err != nil {
-		log.Printf("GetByEmail error: %v", err)
-		return errors.New("email atau password salah")
-	}
-	if karyawan == nil {
-		log.Printf("Email %s tidak ditemukan di tabel karyawan", email)
-		return errors.New("email atau password salah")
-	}
+    karyawan, err := u.KaryawanRepo.GetByEmail(ctx, email)
+    if err != nil {
+        log.Printf("GetByEmail error: %v", err)
+        return errors.New("email atau password salah")
+    }
+    if karyawan == nil {
+        log.Printf("Email %s tidak ditemukan di tabel karyawan", email)
+        return errors.New("email atau password salah")
+    }
 
-	supabaseReq := map[string]string{
-		"email": email,
-	}
+    supabaseReq := map[string]string{
+        "email": email,
+    }
 
-	if redirectTo == "" {
-		redirectTo = os.Getenv("RESET_PASSWORD_URL")
-	}
+    if redirectTo == "" {
+        redirectTo = os.Getenv("RESET_PASSWORD_URL")
+        log.Printf("ForgotPassword: using env redirect_to=%s", redirectTo)
+    }
 
-	if redirectTo != "" {
-		supabaseReq["redirect_to"] = redirectTo
-		log.Printf("ForgotPassword: using redirect_to=%s", redirectTo)
-	}
+    if redirectTo != "" {
+        supabaseReq["redirect_to"] = redirectTo
+        log.Printf("ForgotPassword: using redirect_to=%s", redirectTo)
+    }
 
-	jsonBody, _ := json.Marshal(supabaseReq)
+    jsonBody, _ := json.Marshal(supabaseReq)
+    log.Printf("ForgotPassword: request body=%s", string(jsonBody))
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", u.SupabaseURL+"/auth/v1/recover", bytes.NewBuffer(jsonBody))
-	if err != nil {
-		return err
-	}
-	httpReq.Header.Set("apikey", u.AnonKey)
-	httpReq.Header.Set("Content-Type", "application/json")
+    httpReq, err := http.NewRequestWithContext(ctx, "POST", u.SupabaseURL+"/auth/v1/recover", bytes.NewBuffer(jsonBody))
+    if err != nil {
+        return err
+    }
+    httpReq.Header.Set("apikey", u.AnonKey)
+    httpReq.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{}
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
+    client := &http.Client{}
+    resp, err := client.Do(httpReq)
+    if err != nil {
+        log.Printf("ForgotPassword: http error: %v", err)
+        return err
+    }
+    defer resp.Body.Close()
 
-	if resp.StatusCode != 200 {
-		log.Printf("ForgotPassword failed: status=%d", resp.StatusCode)
-		return errors.New("gagal mengirim link reset")
-	}
+    log.Printf("ForgotPassword: Supabase response status=%d", resp.StatusCode)
 
-	log.Printf("ForgotPassword berhasil: email=%s", email)
-	return nil
+    if resp.StatusCode != 200 {
+        log.Printf("ForgotPassword failed: status=%d", resp.StatusCode)
+        return errors.New("gagal mengirim link reset")
+    }
+
+    log.Printf("ForgotPassword berhasil: email=%s", email)
+    return nil
 }
 
 func (u *AuthUsecase) ResetPassword(ctx context.Context, token, newPassword string) error {
