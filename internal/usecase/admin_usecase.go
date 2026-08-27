@@ -615,7 +615,7 @@ func (u *AdminUsecase) ExportPresensiCSV(ctx context.Context, startDate, endDate
 	buf.Write([]byte{0xEF, 0xBB, 0xBF})
 
 	writer := csv.NewWriter(&buf)
-	writer.Comma = ','
+	writer.Comma = ';'
 
 	writer.Write([]string{"ID", "Nama Karyawan", "Tanggal", "Jam Masuk", "Status Masuk", "Jam Keluar", "Status Keluar", "Jenis Cuti", "Status Lokasi Masuk", "Status Lokasi Keluar"})
 
@@ -726,7 +726,7 @@ func (u *AdminUsecase) ExportCutiCSV(ctx context.Context, startDate, endDate, st
 	buf.Write([]byte{0xEF, 0xBB, 0xBF})
 
 	writer := csv.NewWriter(&buf)
-	writer.Comma = ','
+	writer.Comma = ';'
 
 	writer.Write([]string{"ID", "Nama Karyawan", "Divisi", "Jenis Cuti", "Status", "Tanggal Mulai", "Tanggal Selesai", "Jumlah Hari", "Kuota Tersedia"})
 
@@ -913,7 +913,7 @@ func (u *AdminUsecase) ExportKaryawanCSV(ctx context.Context, search, role, stat
 	buf.Write([]byte{0xEF, 0xBB, 0xBF})
 
 	writer := csv.NewWriter(&buf)
-	writer.Comma = ','
+	writer.Comma = ';'
 
 	writer.Write([]string{"ID", "Nama Lengkap", "Email", "Nomor Telepon", "Role", "Jabatan", "Divisi", "Unit", "Status"})
 
