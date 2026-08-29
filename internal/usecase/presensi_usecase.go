@@ -398,29 +398,35 @@ func (u *PresensiUsecase) UpdateAlasanTerlambat(ctx context.Context, karyawanID,
 }
 
 func (u *PresensiUsecase) AutoClockOut(ctx context.Context) error {
-	log.Printf("AutoClockOut dimulai")
+    log.Printf("AutoClockOut dimulai")
 
-	jamKeluar := "23:59:59"
-	lat := 0.0
-	lon := 0.0
+    config, err := u.ConfigRepo.GetActive(ctx)
+    if err != nil {
+        log.Printf("Error get config: %v", err)
+        return err
+    }
 
-	query := `
-		UPDATE presensi 
-		SET jam_keluar = $1, lembur = false, jam_lembur = 0,
-		    lintang_keluar = $2, bujur_keluar = $3,
-		    diperbarui_pada = NOW()
-		WHERE tanggal = CURRENT_DATE AND (jam_keluar IS NULL OR jam_keluar = '')
-	`
+    jamKeluar := config.JamPulang
+    if jamKeluar == "" {
+        jamKeluar = "17:00:00"
+    }
 
-	result, err := u.PresensiRepo.DB.Exec(ctx, query, jamKeluar, lat, lon)
-	if err != nil {
-		log.Printf("Error AutoClockOut: %v", err)
-		return err
-	}
+    query := `
+        UPDATE presensi 
+        SET jam_keluar = $1, lembur = false, jam_lembur = 0,
+            diperbarui_pada = NOW()
+        WHERE tanggal = CURRENT_DATE AND (jam_keluar IS NULL OR jam_keluar = '')
+    `
 
-	rowsAffected := result.RowsAffected()
-	log.Printf("AutoClockOut selesai, baris terpengaruh: %d", rowsAffected)
-	return nil
+    result, err := u.PresensiRepo.DB.Exec(ctx, query, jamKeluar)
+    if err != nil {
+        log.Printf("Error AutoClockOut: %v", err)
+        return err
+    }
+
+    rowsAffected := result.RowsAffected()
+    log.Printf("AutoClockOut selesai, baris terpengaruh: %d", rowsAffected)
+    return nil
 }
 
 func (u *PresensiUsecase) SendPresensiReminder(ctx context.Context) error {

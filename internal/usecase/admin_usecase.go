@@ -159,7 +159,6 @@ func (u *AdminUsecase) GetDashboardStats(ctx context.Context) (*DashboardStats, 
 	masukQuery := `
 		SELECT 
 			CASE 
-				WHEN jam_masuk IS NULL THEN 'Belum Presensi'
 				WHEN status = 'terlambat' THEN 'Masuk Terlambat'
 				ELSE 'Masuk Tepat Waktu'
 			END as status,
